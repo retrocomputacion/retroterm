@@ -181,9 +181,9 @@ the correct ones for the oficial version your modified code support.
 ---------------------
 
 Beta testing:
--Ezequiel Filgueiras
--Thierry Kurt
--Diego di Franceschi
+*   Ezequiel Filgueiras
+*   Thierry Kurt
+*   Diego di Franceschi
 
 Thanks to:
     WillyManilly for adding support to the Z64K emulator
