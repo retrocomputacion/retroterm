@@ -2470,7 +2470,7 @@ Msg05
 	!byte $0D, $0D, $00
 Msg06
 	!byte $0D
-	!text "(c)2021 pastbytes/durandal"
+	!text "(c)2022 pastbytes/durandal"
 	!byte $0D		;, $00
 Msg07
 	!byte $9a
