@@ -47,24 +47,32 @@ on **PAL** / **NTSC** timings.
 
 
 ## Features
+
+*Implements all commands of the **[Turbo56K v0.6]** protocol.*
+
+<br>
+
+● Turbo data transfers to custom **/** present memory locations ●
+
+● Split Screen **|** Hi - res **or** Multicolor **+** Text ●
+
+● `11520Hz` 4 - bit **PCM** Audio Streaming ●
+
+● Bitmap display **|** Hi - res **+** Multicolor ●
+
+● Full duplex **PETSCII** color terminal ●
+
+● Consumes less that `5KB` memory ●
+
+● 1 x **SID** Music Streaming ●
+
+● Scrolling Text Windows ●
+
+● Set Cursor Position ●
+
+● Text Line Fill ●
   
 </div>
-
-Retroterm implements all the commands of the Turbo56K v0.6 protocol (read the
-turbo56k.txt file for more information):
-
-- less than 5KBytes in memory
-    -Full duplex PETSCII color terminal
-    -Turbo data transfers to a custom memory address
-    -Turbo data transfers to preset memory addresses
-    -11520Hz 4-bit PCM audio streming
-    -1x SID music streaming
-    -Bitmap display (Hires and multicolor)
-    -Split screen (Hires or Multicolor and text)
-    -Scrolling Text windows
-    -Text line fill
-    -Set cursor position
-
 
 
 
@@ -80,3 +88,8 @@ Beta testing:
 
 Thanks to:
     WillyManilly for adding support to the Z64K emulator
+    
+    
+<!----------------------------------------------------------------------------->
+
+[Turbo56K v0.6]: Documentation/Turbo56K.md
