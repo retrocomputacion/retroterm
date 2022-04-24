@@ -17,8 +17,6 @@ R   R  EEEEE    T    R   R   RRR     T    EEEEE  R   R  M   M
 ===============================================================================
 ```
 
-</div>
-
 <br>
 
 ## Introduction
@@ -43,12 +41,15 @@ on **PAL** / **NTSC** timings.
 
 *It also runs on the latest **VICE** / **Z64K** emulators.*
 
+  
 <br>
 <br>
 
--------------
-1-4 Features
--------------
+
+## Features
+  
+</div>
+
 Retroterm implements all the commands of the Turbo56K v0.6 protocol (read the
 turbo56k.txt file for more information):
 
