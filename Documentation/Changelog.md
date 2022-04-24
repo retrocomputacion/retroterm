@@ -15,7 +15,7 @@ C      H   H  A   A  N  NN  G   G  E      L      O   O  G   G
 
 <br>
 
-## 0.14 ` 2021 / 04 / 13 `
+## ` 0.14 - 2021 / 04 / 13 `
 
 -   Better, more robust exit to BASIC
 
@@ -38,6 +38,6 @@ C      H   H  A   A  N  NN  G   G  E      L      O   O  G   G
 
 <br>
 
-## 0.13 ` 2021 / 08 / 16 `
+## ` 0.13 - 2021 / 08 / 16 `
 
 First official release, implements Turbo56K v0.5 protocol
