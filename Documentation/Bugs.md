@@ -19,10 +19,14 @@ BBBB   UUUUU   GGGG  SSSSS
 
 *These things will crash your computer.*
 
+<br>
+
 - Losing connection during turbo transfers / streaming
 
--   1. Exiting **Retroterm**
-    2. Recalling it with `sys`
-    3. Exiting again 
-    4. Causing a basic error
+<br>
+
+-   - Exiting **Retroterm**
+    - Recalling it with `sys`
+    - Exiting again 
+    - Causing a basic error
 
