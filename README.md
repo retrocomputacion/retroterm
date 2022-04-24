@@ -19,27 +19,32 @@ R   R  EEEEE    T    R   R   RRR     T    EEEEE  R   R  M   M
 
 </div>
 
+<br>
 
+## Introduction
 
+**Retroterm** is a small **PETSCII** terminal for <br>
+the `Commodore 64 / 128` ( in 64 mode ).
 
------------------
-1-1 Introduction
------------------
+It implementing the **Turbo56K** protocol <br>
+for high speed data transfer & streaming.
 
-Retroterm is a small (less than 5KBytes in memory) PETSCII terminal for the
-Commodore 64/128(in 64 mode) implementing the Turbo56K protocol for high speed
-data transfer and streaming.
-Retroterm uses a fixed userport data rate of 57600bps, but efective data rate
-with the screen on is equivalent 1500/1800bps depending on PAL/NTSC timings.
-The full data throughput is achieved only with when disabling the screen for
-turbo data transfers and streaming.
+While the userports data rate is a fixed at <br>
+`57600bps` , the effective amount with the <br>
+screen on is `1500 / 1800bps` depending <bR>
+on **PAL** / **NTSC** timings.
 
-Retroterm is optimized for use with Wi-Fi modems using the Zimodem firmware,
-Retroterm also runs on the latest VICE and Z64K emulators.
+*The full data throughput while using the* <br>
+*turbo transfer / streaming can only be* <br>
+*achieved with the screen disabled.*
 
+**Retroterm** is optimized for the use with <br>
+**WiFi** modems using **Zimdem** firmware.
 
+*It also runs on the latest **VICE** / **Z64K** emulators.*
 
-
+<br>
+<br>
 
 -------------
 1-4 Features
@@ -47,6 +52,7 @@ Retroterm also runs on the latest VICE and Z64K emulators.
 Retroterm implements all the commands of the Turbo56K v0.6 protocol (read the
 turbo56k.txt file for more information):
 
+- less than 5KBytes in memory
     -Full duplex PETSCII color terminal
     -Turbo data transfers to a custom memory address
     -Turbo data transfers to preset memory addresses
