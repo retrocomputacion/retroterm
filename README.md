@@ -52,26 +52,30 @@ on **PAL** / **NTSC** timings.
 
 <br>
 
-● Turbo data transfers to custom **/** present memory locations ●
+```
 
-● Split Screen **|** Hi - res **or** Multicolor **+** Text ●
+Turbo data transfers to custom / present memory locations
 
-● `11520Hz` 4 - bit **PCM** Audio Streaming ●
+Split Screen | Hi - res or Multicolor + Text               
 
-● Bitmap display **|** Hi - res **+** Multicolor ●
+11520Hz 4 - bit PCM Audio Streaming                        
 
-● Full duplex **PETSCII** color terminal ●
+Bitmap display | Hi - res + Multicolor                     
 
-● Consumes less that `5KB` memory ●
+Full duplex PETSCII color terminal                       
 
-● 1 x **SID** Music Streaming ●
+Consumes less that 5KB memory                            
 
-● Scrolling Text Windows ●
+1 x SID Music Streaming                                  
 
-● Set Cursor Position ●
+Scrolling Text Windows                                   
 
-● Text Line Fill ●
+Set Cursor Position                                      
+
+Text Line Fill                                           
   
+```
+
 </div>
 
 
