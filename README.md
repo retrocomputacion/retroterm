@@ -76,24 +76,31 @@ on **PAL** / **NTSC** timings.
   
 ```
 
+<br>
+<br>
+
+## Acknowledgments
+
+<br>
+
+## Beta Tester
+
+![Badge Ezequiel] ![Badge Thierry] ![Badge Diego]
+
+<br>
+
+### Thanks To
+
+![Badge Willy] *For adding support to the **Z64K** emulator*
+
 </div>
 
-
-
-
----------------------
-4-1 Acknowledgements
----------------------
-
-Beta testing:
-*   Ezequiel Filgueiras
-*   Thierry Kurt
-*   Diego di Franceschi
-
-Thanks to:
-    WillyManilly for adding support to the Z64K emulator
-    
     
 <!----------------------------------------------------------------------------->
+
+[Badge Ezequiel]: https://img.shields.io/badge/Ezequiel_Filgueiras-62c157?style=for-the-badge
+[Badge Thierry]: https://img.shields.io/badge/Thierry_Kurt-62c157?style=for-the-badge
+[Badge Diego]: https://img.shields.io/badge/Diego_di_Franceschi-62c157?style=for-the-badge
+[Badge Willy]: https://img.shields.io/badge/WillyManilly-57bbc1?style=for-the-badge
 
 [Turbo56K v0.6]: Documentation/Turbo56K.md
