@@ -1,15 +1,23 @@
+<div align = center>
+
+```
 ===============================================================================
 
-         RRRR   EEEEE  TTTTT  RRRR    RRR   TTTTT  EEEEE  RRRR   M   M
-         R   R  E        T    R   R  R   R    T    E      R   R  MM MM
-         RRRR   EEEE     T    RRRR   R   R    T    EEEE   RRRR   M M M
-         R  R   E        T    R  R   R   R    T    E      R  R   M   M
-         R   R  EEEEE    T    R   R   RRR     T    EEEEE  R   R  M   M
-
-                                VERSION 0.14
-
-      (C)2020-2022 By Jorge Castillo(Pastbytes) & Pablo Roldán(Durandal)
+RRRR   EEEEE  TTTTT  RRRR    RRR   TTTTT  EEEEE  RRRR   M   M
+R   R  E        T    R   R  R   R    T    E      R   R  MM MM
+RRRR   EEEE     T    RRRR   R   R    T    EEEE   RRRR   M M M
+R  R   E        T    R  R   R   R    T    E      R  R   M   M
+R   R  EEEEE    T    R   R   RRR     T    EEEEE  R   R  M   M
+                                                             
+                        VERSION 0.14                         
+                                                 
+              Jorge Castillo  &  Pablo Roldán                
+               ⧼ Pastbytes ⧽      ⧼ Durandal ⧽                
+                 
 ===============================================================================
+```
+
+</div>
 
 ------------------
 Table of contents
