@@ -83,15 +83,20 @@ on **PAL** / **NTSC** timings.
 
 <br>
 
-## Beta Tester
+### Beta Tester
+  
+<br>
 
 ![Badge Ezequiel] ![Badge Thierry] ![Badge Diego]
 
 <br>
 
 ### Thanks To
+  
+<br>
 
-![Badge Willy] *For adding support to the **Z64K** emulator*
+![Badge Willy] <br>
+*For adding support to the **Z64K** emulator*
 
 </div>
 
