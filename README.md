@@ -31,26 +31,20 @@ R   R  EEEEE    T    R   R   RRR     T    EEEEE  R   R  M   M
 ---
 
 <br>
+</div>
+<div>
 
 ## Introduction
 
-**Retroterm** is a small **PETSCII** terminal for <br>
-the `Commodore 64 / 128` ( in 64 mode ).
+**Retroterm** is a small **PETSCII** terminal for the `Commodore 64 / 128 (in 64 mode)`.
 
-It implementing the **Turbo56K** protocol <br>
-for high speed data transfer & streaming.
+It implements the **Turbo56K** protocol for high speed data transfer & streaming.
 
-While the userports data rate is a fixed at <br>
-`57600bps` , the effective amount with the <br>
-screen on is `1500 / 1800bps` depending <bR>
-on **PAL** / **NTSC** timings.
+While the userport data rate is fixed at `57600bps` , the effective throughput with the screen on is `1500 / 1800bps` depending on **PAL** / **NTSC** timings.
 
-*The full data throughput while using the* <br>
-*turbo transfer / streaming can only be* <br>
-*achieved with the screen disabled.*
+*The full data throughput while using the turbo transfer / streaming can only be achieved with the screen disabled.*
 
-**Retroterm** is optimized for the use with <br>
-**WiFi** modems using **Zimdem** firmware.
+**Retroterm** is optimized for use with **WiFi** modems using **Zimdem** firmware.
 
 *It also runs on the latest **VICE** / **Z64K** emulators.*
 
@@ -69,17 +63,17 @@ on **PAL** / **NTSC** timings.
 
 ● Turbo data transfers to custom / present memory locations
 
-● Split Screen | Hi - res or Multicolor + Text               
+● Split Screen | Hi-res or Multicolor + Text               
 
 ● 11520Hz 4 - bit PCM Audio Streaming                        
 
-● Bitmap display | Hi - res + Multicolor                     
+● Bitmap display | Hi-res + Multicolor                     
 
 ● Full duplex PETSCII color terminal                       
 
-● Consumes less that 5KB memory                            
+● Consumes less that 5KB of memory                            
 
-● 1 x SID Music Streaming                                  
+● 1x SID Music Streaming                                  
 
 ● Scrolling Text Windows                                   
 
@@ -96,7 +90,7 @@ on **PAL** / **NTSC** timings.
 
 <br>
 
-### Beta Tester
+### Beta Testers
   
 <br>
 
