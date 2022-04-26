@@ -20,10 +20,8 @@ H   H  A   A   CCCC  K   K  IIIII  N   N    GGGG
 
 </div>
   
-If you want to release a modified version of **Retroterm** which <br>
-differs in functionality with the official we recommend you use <br>
-a custom **ID** string, respecting the maximum `22` character <br>
-length and always starting in uppercase `RT` ( **PETSCII** )
+If you want to release a modified version of **Retroterm** which differs in functionality with the official we recommend you use <br>
+a custom **ID** string, respecting the maximum `22` character length and always starting in uppercase `RT` ( **PETSCII** )
 
 IE, the normal **ID** string is:
 
@@ -39,13 +37,9 @@ IDstring:
 !text "RTRETROTERM-SL 0.14   "
 ```
 
-For compatibility reasons we ask you not to modify <br>
-the behavior of existing **Turbo56K** commands, but <br>
-you're welcomed to add new commands.
+For compatibility reasons we ask you not to modify the behavior of existing **Turbo56K** commands, but you're welcomed to add new commands.
 
-In any case the **Turbo56K** version bytes that follow <br>
-the **ID** string should remain the correct ones for the <br>
-official version your modified code support.
+In any case the **Turbo56K** version bytes that follow the **ID** string should remain the correct ones for the official version your modified code support.
 
 
 <!----------------------------------------------------------------------------->
