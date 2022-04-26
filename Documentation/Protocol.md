@@ -46,8 +46,12 @@ practice to include it anyways.
 <br>
 
 # Retroterm v0.14
+  
+*Retroterms implementation of the **Turbo56K** protocol*
 
-
+<br>
+<br>
+  
 ## Reserved Characters
 
 | Hex | Dec | Description
