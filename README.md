@@ -1,7 +1,7 @@
 <div align = center>
-
+<b>
+  
 ```
-===============================================================================
 
 RRRR   EEEEE  TTTTT  RRRR    RRR   TTTTT  EEEEE  RRRR   M   M
 R   R  E        T    R   R  R   R    T    E      R   R  MM MM
@@ -14,12 +14,11 @@ R   R  EEEEE    T    R   R   RRR     T    EEEEE  R   R  M   M
               Jorge Castillo  &  Pablo Roldán                
                ⧼ Pastbytes ⧽      ⧼ Durandal ⧽                
                  
-===============================================================================
 ```
   
-<br>
-  
 ---
+
+</b>
   
 [<kbd> <br> Usage <br> </kbd>][Usage] 
 [<kbd> <br> Building <br> </kbd>][Building] 
@@ -28,7 +27,7 @@ R   R  EEEEE    T    R   R   RRR     T    EEEEE  R   R  M   M
 [<kbd> <br> Todo <br> </kbd>][Todo] 
 [<kbd> <br> Changelog <br> </kbd>][Changelog] 
 [<kbd> <br> Protocol <br> </kbd>][Protocol] 
-  
+
 ---
 
 <br>
