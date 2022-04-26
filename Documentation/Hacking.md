@@ -11,12 +11,15 @@ H   H  A   A   CCCC  K   K  IIIII  N   N    GGGG
 ```
 
 </b>
-</div>
 
 <br>
 
 ***Retroterm*** *is released under the **[MIT]** license.*
 
+<br>
+
+</div>
+  
 If you want to release a modified version of **Retroterm** which <br>
 differs in functionality with the official we recommend you use <br>
 a custom **ID** string, respecting the maximum `22` character <br>
