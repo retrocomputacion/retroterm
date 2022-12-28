@@ -25,9 +25,6 @@
 ;				Full digi-boost for 8580
 ;========================================================================================
 
-    _VERSION_ = 0.14        ;Version number
-
- 
  !ifndef _INTRO_{
 	 _INTRO_ = 1 		;Compile with intro screen
  }
@@ -132,6 +129,8 @@
 }
 	MAXCMD = $B5			; Highest command implemented
 
+
+; Output file names, this will trigger a warning when compiling thru Makefile
 !if _HARDTYPE_ = 232 {
 	!to "rt_232_v0.14.prg", cbm
 	!sl "labels_232_v0.14.txt"
@@ -141,21 +140,25 @@
 	!sl "labels_sl_v0.14.txt"
 }
 !if _HARDTYPE_ = 56 {
-	!to "rt_v0.14.prg", cbm
-	!sl "labels_v0.14.txt"
+	!to "rt_u_v0.14.prg", cbm
+	!sl "labels_u_v0.14.txt"
 }
 
 * = $0801
 
 ;///// Macros /////
-!macro DisKernal {
+!macro DisKernal {	; Disable Kernal
 	LDX #$35
 	STX $01
 }
 
-!macro EnKernal{
+!macro EnKernal{	; Enable Kernal
 	LDA #$37
 	STA $01
+}
+
+!macro _Version_{	; Insert version number string
+	!src "version.asm"
 }
 
 ;2021 SYS 2062
@@ -166,25 +169,26 @@ _START
 		LDA $D018
 		ORA #$02
 		STA $D018
-		LDX #$01
+		LDX screen_001	;#$01
 		STX $D020
+		LDX screen_001+1
 		STX $D021
 		DEX
--		LDA screen_001,X
+-		LDA screen_001+2,X
 		STA $0400,X
-		LDA color_001,X
+		LDA screen_001+2+1000,X			;color_001,X
 		STA $D800,X
-		LDA screen_001+$100,X
+		LDA screen_001+$102,X
 		STA $0500,X
-		LDA color_001+$100,X
+		LDA screen_001+2+1000+$100,X	;color_001+$100,X
 		STA $D900,X
-		LDA screen_001+$200,X
+		LDA screen_001+$202,X
 		STA $0600,X
-		LDA color_001+$200,X
+		LDA screen_001+2+1000+$200,X	;color_001+$200,X
 		STA $DA00,X
-		LDA screen_001+$300,X
+		LDA screen_001+$302,X
 		STA $0700,X
-		LDA color_001+$300,X
+		LDA screen_001+2+1000+$300,X	;color_001+$300,X
 		STA $DB00,X
 		INX
 		BNE -
@@ -328,17 +332,22 @@ MIRQ
 TIRQ	!byte 00,00
 Flg	!byte 00
 Ras	!byte 00	;PALG 11 NTSC 50 NTSCold 56 PALN 1
-DELAYTIME !byte 00
 
 _DATA2		;Memory move parameters
 !word	PALEND, _PALEND_
 !byte	$00, $00, $00
 !word	_PALSTART_
-
 }
+DELAYTIME !byte 00
+
 ;Intro screen
 !if _INTRO_ > 0 {
-!src "retro_logo.asm"
+!src "intro_sc.asm"
+; Uncomment the next lines for auto update version number on the intro screen
+;_tmp = *	; save PC
+;* = screen_001+2+(22*40)+24	; Line 22, column 24
+;+_Version_	; Overwrite version string in Intro Screen -- Triggers Warning!
+;* = _tmp	; recover PC
 }
 
 _DATA1					; Memory move parameters
@@ -1316,6 +1325,34 @@ WinScroll
     RTS
 
 ;///////////////////////////////////////////////////////////////////////////////////
+; Text window scroll up ---- FUTURE FEATURE
+;///////////////////////////////////////////////////////////////////////////////////
+; WinScrollU
+; 	TXA
+; 	PHA
+; 	TYA
+; 	PHA
+; 	LDX WUP
+; 	STX .wu+1
+; 	LDX WBOTTOM
+
+; -	JSR $E9F0
+; 	DEX
+; 	LDA $ECF0,x
+; 	STA $AC
+; 	LDA $D9,x
+; 	JSR $E9C8
+; .wu	CPX #$00
+; 	BNE -
+; 	JSR $E9FF
+
+; 	PLA
+; 	TAY
+; 	PLA
+; 	TAX
+; 	RTS
+
+;///////////////////////////////////////////////////////////////////////////////////
 ; Insert a 0 ended string into the print buffer
 ;///////////////////////////////////////////////////////////////////////////////////
 
@@ -1888,6 +1925,23 @@ Cmd83
 !if _HARDTYPE_ = 56 {
 	+DisKernal
 }
+		; LDA #$00
+		; STA SIDREG+$05	;AD 1
+		; STA SIDREG+$0C	;2
+		; STA SIDREG+$13	;3
+		; STA SIDREG+$15	;Filter lo
+		; LDA #$0F
+		; STA SIDREG+$06	;SR 1
+		; STA SIDREG+$0D	;2
+		; STA SIDREG+$14	;3
+		; LDA #$01
+		; STA SIDREG+$04	;CTRL 1
+		; STA SIDREG+$0B	;2
+		; STA SIDREG+$12	;3
+		; LDA #$10
+		; STA SIDREG+$16	;Filter hi
+		; LDA #%11110111
+		; STA SIDREG+$17	;Filter voices/resonance
 	LDA #$FF		; Pulse wave / Gate On / Test bit On <- Digi Boost
 	STA SIDREG+6
 	STA SIDREG+13
@@ -2411,9 +2465,13 @@ CmdFE
 
 IDString:
 !if _HARDTYPE_ = 38 {
-	!text "RTRETROTERM-SL 0.14   "	
+	!text "RTRETROTERM-SL "
+	+_Version_
+	!text "   "	
 } else {
-	!text "RTRETROTERM 0.14      "
+	!text "RTRETROTERM "
+	+_Version_
+	!text "      "
 }
 	!byte $00,$06	;Turbo56K version, subversion
 
@@ -2439,13 +2497,19 @@ Credits
 Version
 	!byte $93, $99, $0E
 !if _HARDTYPE_ = 232 {
-	!text "retroterm turbo232 VER 0.14    57600,8n1"
+	!text "retroterm turbo232 VER "
+	+_Version_
+	!text"    57600,8n1"
 }
 !if _HARDTYPE_ = 38 {
-	!text "retroterm swiftlink VER 0.14   38400,8n1"
+	!text "retroterm swiftlink VER "
+	+_Version_
+	!text "   38400,8n1"
 }
 !if _HARDTYPE_ = 56 {
-	!text "retroterm VERSION 0.14         57600,8n1"
+	!text "retroterm VERSION "
+	+_Version_
+	!text "         57600,8n1"
 }
 	!byte $05, $00
 

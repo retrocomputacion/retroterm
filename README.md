@@ -1,130 +1,217 @@
 <div align = center>
-<b>
-  
-```
 
-RRRR   EEEEE  TTTTT  RRRR    RRR   TTTTT  EEEEE  RRRR   M   M
-R   R  E        T    R   R  R   R    T    E      R   R  MM MM
-RRRR   EEEE     T    RRRR   R   R    T    EEEE   RRRR   M M M
-R  R   E        T    R  R   R   R    T    E      R  R   M   M
-R   R  EEEEE    T    R   R   RRR     T    EEEEE  R   R  M   M
-                                                             
-                        VERSION 0.14                         
-                                                 
-              Jorge Castillo  &  Pablo Roldán                
-               ⧼ Pastbytes ⧽      ⧼ Durandal ⧽                
-                 
-```
-  
----
+# Retroterm
+### VERSION 0.14
 
-</b>
-  
-[<kbd> <br> Usage <br> </kbd>][Usage] 
-[<kbd> <br> Building <br> </kbd>][Building] 
-[<kbd> <br> Hacking <br> </kbd>][Hacking] 
-[<kbd> <br> Bugs <br> </kbd>][Bugs] 
-[<kbd> <br> Todo <br> </kbd>][Todo] 
-[<kbd> <br> Changelog <br> </kbd>][Changelog] 
-[<kbd> <br> Protocol <br> </kbd>][Protocol] 
+Jorge Castillo  &  Pablo Roldán
+
+
+![Badge commdore](https://img.shields.io/badge/Commodore-64%2F128-blue) ![GitHub all releases](https://img.shields.io/github/downloads/retrocomputacion/retroterm/total) ![Badge license](https://img.shields.io/github/license/retrocomputacion/retroterm)
 
 ---
-
-<br>
 </div>
+
+## Table of contents:
+
+1. [Introduction](#1-introduction)
+   1. [Release history](#11-release-history)
+   2. [The *Turbo56K* protocol](#12-the-turbo56k-protocol)
+   3. [Features](#13-features)
+   4. [Requirements](#14-requirements)  
+2. [Usage](#2-usage)
+3. [Building](#3-building-retroterm)
+   1. [Symbols](#31-symbols)
+   2. [Intro screen](#32-the-intro-screen)
+   3. [Customizing](#33-customizing)
+4. [Known bugs](#4-known-bugs)
+5. [To-do](#5-to-do)
+6. [Acknowledgments](#6-acknowledgments)
+
+---
 <div>
 
-## Introduction
+## 1 Introduction
 
-**Retroterm** is a small **PETSCII** terminal for the `Commodore 64 / 128 (in 64 mode)`.
+*Retroterm* is a small, minimal *PETSCII* terminal for the *Commodore 64 / 128 (in 64 mode)*.
 
-It implements the **Turbo56K** protocol for high speed data transfer & streaming.
+It implements the *[Turbo56k](docs/turbo56k.md)* protocol for high speed data transfer & streaming when connecting to a BBS supporting the protocol, such as [_RetroBBS_](https://github.com/retrocomputacion/retrobbs).
 
-While the userport data rate is fixed at `57600bps` , the effective throughput with the screen on is `1500 / 1800bps` depending on **PAL** / **NTSC** timings.
+While the userport data rate is fixed at *57600bps* , the effective throughput with the screen on is *1500 / 1800bps* depending on *PAL/NTSC* timings respectively.
 
 *The full data throughput while using the turbo transfer / streaming can only be achieved with the screen disabled.*
 
-**Retroterm** is optimized for use with **WiFi** modems using **Zimdem** firmware.
+*Retroterm* is optimized for use with **WiFi** modems using the *Zimodem* firmware.
 
 *It also runs on the latest **VICE** / **Z64K** emulators.*
 
+Separate versions of the executable are provided for cartridges featuring an ACIA 6551 such as *SwiftLink* (limited to **38400bps**) and *Turbo232*.
+
   
 <br>
-<br>
+
+## 1.1 Release history
+
+### v0.14 (13/04/2022):
+- Source code liberated
+- Turbo56K v0.6
+- Fixed small visual glitch when using the split screen mode
+- Better, more robust exit to BASIC
+- Disabled interrupts on command `$A2`, prevents crashes if (re)connecting to a BBS while the split screen mode is active
+- Fixed severe bug affecting the text output in early Commodore 64 Kernal revisions
+- Full digi-boost for 8580 SID
+- Intro screen exits automatically after ~2 seconds by default
+- Other small bugfixes.
+### v0.13 (16/08/2021):
+- Initial release
+- Turbo56K v0.5
 
 
-## Features
+## 1.2 The Turbo56K protocol
+*[Turbo56k](docs/turbo56k.md)* was created by Jorge Castillo as a simple protocol to provide high-speed file transfer functionality to his bit-banging 57600bps RS232 routine for the C64.
+Over time, the protocol has been extended to include 4-bit PCM audio streaming, bitmap graphics transfer and display, SID music streaming and more.
 
-*Implements all commands of the **[Turbo56K v0.6][Protocol]** protocol.*
+## 1.3 Features
 
-<br>
+*Implements all commands of the __[Turbo56k](docs/turbo56k.md)__ v0.6 protocol.*
+
+- Full duplex PETSCII color terminal
+- Turbo data transfers to custom / preset memory locations
+- Split Screen | Hi-res or Multicolor + Text
+- 11520Hz 4 - bit PCM audio streaming
+- Bitmap display | Hi-res + Multicolor
+- Consumes less that 5KB of memory
+- 1x speed SID music streaming
+- Scrolling Text Windows
+- Set Cursor Position
+- Text Line Fill
+
+## 1.4 Requirements
+
+- A Commodore 64 or 128 computer or an emulator such as VICE or Z64K
+- Either an userport WiFi modem with the Zimodem firmware or...
+- A *SwiftLink* or *Turbo232* compatible cartridge conected to a Wifi modem with the Zimodem firmware.
+- ACME crossassembler for building the programs.
+
+## 2 Usage
+*Retroterm* is very simple to use, most of its functionality being controlled externally from a *[Turbo56k](docs/turbo56k.md)* enabled BBS.
+
+*Retroterm* comes in three flavors:
+
+- **rt_v0.14.prg** Userport version 57600bps
+- **rt_sl_v0.14.prg** SwiftLink version 38400bps
+- **rt_232_v0.14.prg** Turbo232 version 57600bps
+
+*Retroterm* lacks classic file transfer functions, when used to communicate with a normal PETSCII BBS, file transfers are not available.
+
+After LOADing and RUNning *Retroterm*, you can dial to your favorite BBS using your Modem commands as usual.
+
+**The modem should be setup to the correct baudrate before running _Retroterm_.**
+
+To exit *Retroterm*, just press `RUN/STOP`, it will remain in memory and you can recall it with `SYS49152`.
+
+If you downloaded a program into memory from a BBS you can also `RUN` it.
+
+*Retroterm* beeps for every received character by default, you can toggle the sound by pressing `CBM + M`.
+
+## 3 Building Retroterm
+*Retroterm* is written for the *ACME* crossassembler, to compile use:
 
 ```
+make
+```
+to compile all versions.
 
-● Turbo data transfers to custom / present memory locations
+or you can specify which version you want to compile, either `userport`, `swiflink` or `turbo232`.
 
-● Split Screen | Hi-res or Multicolor + Text               
+ie:
+```
+make userport
+```
+All executables will be stored in the `build` directory.
 
-● 11520Hz 4 - bit PCM Audio Streaming                        
+You can also manually compile with:
+```
+acme retroterm_univ.asm
+```
+from the `source` directory.
+This will compile the default userport version of *Retroterm* with an intro screen that last a couple of seconds. In this case the resulting executable will be written to the `source` directory
 
-● Bitmap display | Hi-res + Multicolor                     
+## 3.1 Symbols
+A number of compile time symbols are defined to customize the resulting executable. Specially if you're running the compiler directly instead of using the makefile
 
-● Full duplex PETSCII color terminal                       
+### `_HARDTYPE_`:
+`38`: Compile for *SwiftLink/Turbo232* cartridges at **38400bps**
 
-● Consumes less that 5KB of memory                            
+`56`: Compile for userport at **57600bps** -- **_Default_**
 
-● 1x SID Music Streaming                                  
+`232`: Compile for *Turbo232* cartridges at **57600bps**
 
-● Scrolling Text Windows                                   
+### `_INTRO_`:
+`0`: No intro screen
 
-● Set Cursor Position                                      
+`1`: Include the intro screen -- **_Default_**
 
-● Text Line Fill                                           
-  
+### `_SPACE_`:
+If defined wait for the user to press the space bar on the intro screen. Otherwise the intro screen only last a couple of seconds.
+
+**_Not defined by default_**
+
+### Example:
+
+```
+acme -D_HARDTYPE_=232 -D_INTRO_=0 retroterm_univ.asm
+```
+Compiles _Retroterm_ for the _Turbo232_ cartridge with no intro screen.
+
+## 3.2 The intro screen
+The intro screen is a `screencode + colorRAM` dump found in `source/intro_sc.asm`
+
+This file is generated by exporting `source/intro_sc.petmate` to ACME format from [Petmate](https://nurpax.github.io/petmate/).
+
+## 3.3 Customizing
+
+If you want to release a modified version of _Retroterm_ which differs in functionality from the official release we recommend you use a custom _ID string_, respecting the maximum 22 character length and always starting in uppercase `RT` (*PETSCII*)
+
+IE, the normal ID string is:
+```
+IDstring:
+!text "RTRETROTERM 0.14      "
+```
+but the string when compiling for the *SwiftLink* cartridge is:
+
+```
+IDstring:
+!text "RTRETROTERM-SL 0.14   "
 ```
 
-<br>
-<br>
+**Note: The actual version number string is sourced from the file `source/version.txt` when using the *makefile*, or from `source/version.asm` when running the compiler directly**
 
-## Acknowledgments
 
-<br>
+For compatibility reasons we ask you not to modify the behavior of existing Turbo56K commands, but you're welcomed to add new commands, or remove unwanted ones, as long as command `$A3` correcly reports the existence or not of all queried commands.
 
+In any case the *[Turbo56k](docs/turbo56k.md)* version bytes that follow the ID string should remain the correct ones for the official version your modified code support.
+
+
+## 4 Known bugs
+
+- Losing connection while streaming data or audio will hang the program
+- Exiting `Retroterm`, restarting it with  `SYS49152`, exiting again and causing a BASIC error will crash the computer.
+- SID files using the hard-restart technique will sound wrong, or not play at all.
+
+## 5 To-do
+- Extend the command parameter space to support more than 8 parameters per command.
+- Add support for hard-restart to the SID streaming protocol.
+- Faster throughput when using any of the ACIA cartridges.
+
+## 6 Acknowledgments
 ### Beta Testers
   
-<br>
-
-![Badge Ezequiel] ![Badge Thierry] ![Badge Diego]
-
-<br>
+- **Ezequiel Filgueiras**
+- **Thierry Kurt**
+- **Diego di Franceschi**
 
 ### Thanks To
   
-<br>
+- **Willy Manilly** for adding support to the *Z64K emulator*
 
-![Badge Willy] <br>
-*For adding support to the **Z64K** emulator*
-
-</div>
-
-
-<!----------------------------------------------------------------------------->
-
-  
-<!--------------------------------{ Quicklinks }-------------------------------> 
-
-[Changelog]: Documentation/Changelog.md
-[Protocol]: Documentation/Protocol.md
-[Building]: Documentation/Building.md
-[Hacking]: Documentation/Hacking.md
-[Usage]: Documentation/Usage.md
-[Todo]: Documentation/Todo.md
-[Bugs]: Documentation/Bugs.md
-  
-
-<!----------------------------------{ Badges }---------------------------------> 
-  
-[Badge Ezequiel]: https://img.shields.io/badge/Ezequiel_Filgueiras-62c157?style=for-the-badge
-[Badge Thierry]: https://img.shields.io/badge/Thierry_Kurt-62c157?style=for-the-badge
-[Badge Diego]: https://img.shields.io/badge/Diego_di_Franceschi-62c157?style=for-the-badge
-[Badge Willy]: https://img.shields.io/badge/WillyManilly-57bbc1?style=for-the-badge
+- [**ElectronicsArchiver**](https://github.com/ElectronicsArchiver) for initial documentation rework
