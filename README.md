@@ -6,7 +6,7 @@
 Jorge Castillo  &  Pablo Roldán
 
 
-![Badge commdore](https://img.shields.io/badge/Commodore-64%2F128-blue) ![GitHub all releases](https://img.shields.io/github/downloads/retrocomputacion/retroterm/total) ![Badge license](https://img.shields.io/github/license/retrocomputacion/retroterm)
+![Badge commdore](https://img.shields.io/badge/Commodore-64%2f128-1E2A4E?logo=commodore&logoColor=1E2A4E&labelColor=ccc) ![GitHub all releases](https://img.shields.io/github/downloads/retrocomputacion/retroterm/total?labelColor=ccc) ![Badge license](https://img.shields.io/github/license/retrocomputacion/retroterm?labelColor=ccc)
 
 ---
 </div>
