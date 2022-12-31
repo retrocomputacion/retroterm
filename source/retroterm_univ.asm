@@ -398,14 +398,14 @@ ReadByte
  	LDA	#$00		; 2 Timer A - Wait 86uS
  }
  !if _HARDTYPE_ = 38 {
-     LDA #$00        ; 2 Timer A - Wait 130uS
+     LDA #$00        ; 2 Timer A - Wait 120uS was 130uS
  }
  	STA	$DD05		; 4
  !if _HARDTYPE_ = 232 {
  	LDA	#$56	; 2
  }
  !if _HARDTYPE_ = 38 {
-     LDA #$82
+     LDA #$78		; was $82
  }
  	STA	$DD04		; 4
  	LDA	$DD0D		; 4 Clear interrupt bits(CIA2: NMI)
@@ -417,7 +417,7 @@ EnRTS
 WaitRX1
 	 LDA	$DD0D		; 4 Timer A not elapsed yet
 	 AND	#$01		; 2
-	 BEQ	WaitRX1		; 2 back to WaitRX1 and waits to disable RTS at half a byte
+	 BEQ	WaitRX1		; 2 back to WaitRX1 and waits to disable RTS at half a character
 	;NOP
 	;NOP
 	;NOP
@@ -432,7 +432,7 @@ DisRTS
 !if _HARDTYPE_ = 38{
 	LDY #$14		; 2
 }
-WaitRX2
+WaitRX2				; wait for at least the duraction of a whole character
 	LDA	T232STATUS	; 4 Byte received?
 	AND	#%00001000	; 2
 	BNE	Received	; 3 
