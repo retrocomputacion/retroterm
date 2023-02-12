@@ -1,7 +1,7 @@
 <div align = center>
 
 # Retroterm
-### VERSION 0.14
+### VERSION 0.20 RC
 
 Jorge Castillo  &  Pablo Roldán
 
@@ -50,6 +50,13 @@ Separate versions of the executable are provided for cartridges featuring an ACI
 <br>
 
 ## 1.1 Release history
+
+### v0.20 (in development):
+- Fixed bug in command $A3 which caused the parameter to be missread, or the terminal to hang
+- New command $86 to initiate a download to disk. Destination drive cannot be selected yet.
+- New command $B6 to scroll the text window up or down X number or rows.
+- SID streaming now better supports tunes using _hardrestart_, a special version of _SIDdump_  and updated version of _RetroBBS_ is needed for this.
+- New compile target `ultimate` compiles with timings compatible with the Swiftlink emulation in the Ultimate1541-II/II+ and Ultimate64.
 
 ### v0.14 (13/04/2022):
 - Source code liberated

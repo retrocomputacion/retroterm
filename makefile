@@ -2,10 +2,11 @@
 BUILDFOLDER:=build
 SRCFOLDER:=source
 
-VARIANTS=u sl 232
+VARIANTS=u sl ulti 232
 
 DEFINES_FOR_u=
 DEFINES_FOR_sl=-D_HARDTYPE_=38
+DEFINES_FOR_ulti=-D_HARDTYPE_=1541
 DEFINES_FOR_232=-D_HARDTYPE_=232
 
 # Read build version from source/version.txt
@@ -22,6 +23,8 @@ endef
 all: $(SRCFOLDER)/version.asm $(foreach variant,$(VARIANTS),$(BUILDFOLDER)/rt_$(variant)_v$(VERSION).prg )
 
 swiftlink: $(BUILDFOLDER)/rt_sl_v$(VERSION).prg
+
+ultimate: $(BUILDFOLDER)/rt_ulti_v$(VERSION).prg
 
 turbo232: $(BUILDFOLDER)/rt_232_v$(VERSION).prg
 

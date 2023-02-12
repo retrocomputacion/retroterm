@@ -32,6 +32,7 @@
 
  !ifndef _HARDTYPE_{
     _HARDTYPE_ = 56     ;Hardware type to compile for:
+						; 1541 = Ultimate Swiftlink
                         ; 232 = Turbo232
                         ; 38  = Swiftlink
                         ; 56 = Userport 56K
@@ -40,7 +41,9 @@
  !if _HARDTYPE_ != 56 {
 	 !if _HARDTYPE_ != 232 {
 		 !if _HARDTYPE_ != 38 {
-			 !serious "UNKNOWN HARDWARE TYPE"
+			!if _HARDTYPE_ != 1541{
+				!serious "UNKNOWN HARDWARE TYPE"
+			}
 		 }
 	 }
 
@@ -73,12 +76,16 @@
 	SPBUFFERCNT = $C00B	; Voice buffer byte counter
 	PRBUFFERCNT = $C00C	; Print buffer byte counter
 	STREAMFLAG	= $C00D	; SID streaming state flag 
+	; -----
 	SPINDEXOUT	= $C00E	; Index to the voice buffer byte to send next
 	SPINDEXIN	= $C00F	; Index to the first free byte in the voice buffer
+	; ------
 	PRINDEXOUT	= $C010	; Index to the print buffer byte to output next
 	PRINDEXIN	= $C011	; Index to the first free byte in the print buffer
+	; ------
 	RXINDEXOUT	= $C012	; Index to the reception buffer byte to process next
 	RXINDEXIN	= $C013	; Index to the first free byte in the reception buffer
+	; ------
 	SPBYTE		= $C014	; Byte to be sent to the voice synth
 	PRBYTE		= $C015	; Byte to be printed on screen
 	TIMER1		= $C016	; Timer decremented on each interrupt call
@@ -127,7 +134,7 @@
 ; Buffers
 	SIDREGS = $033C			; SID streaming register buffer 
 }
-	MAXCMD = $B5			; Highest command implemented
+	MAXCMD = $B6			; Highest command implemented
 
 
 ; Output file names, this will trigger a warning when compiling thru Makefile
@@ -138,6 +145,10 @@
 !if _HARDTYPE_ = 38 {
     !to "rt_sl_v0.14.prg", cbm
 	!sl "labels_sl_v0.14.txt"
+}
+!if _HARDTYPE_ = 1541 {
+    !to "rt_ulti_v0.14.prg", cbm
+	!sl "labels_ulti_v0.14.txt"
 }
 !if _HARDTYPE_ = 56 {
 	!to "rt_u_v0.14.prg", cbm
@@ -232,7 +243,7 @@ DlyNext2
 		BPL .c2
 		TXA
 		PHA
-		JSR $A3BB		; >>Open space in memory
+		JSR $A3BF		; >>Open space in memory
 		PLA
 		TAX
 		BPL .c0
@@ -279,21 +290,21 @@ udetect:
 	bne .n0
 	;yes, copy PAL-B TurboRX routine
 	INC $D020
-	LDX #$08
+	;LDX #$08
 
 --	LDY #$08		;<-
--	LDA _DATA2,X	;<-
+-	LDA _DATA2,Y	;<-
 	BEQ +
 	STA $0058,Y
-+	DEX				;<-
++	;DEX				;<-
 	DEY
 	BPL -
-	TXA
-	PHA
-	JSR $A3BB		; >>Open space in memory
-	PLA
-	TAX
-	BPL --
+	;TXA
+	;PHA
+	JSR $A3BF		; >>Open space in memory
+	;PLA
+	;TAX
+	;BPL --
 ;
 .n0	sei
 	lda TIRQ	;Back to normal
@@ -397,15 +408,25 @@ ReadByte
  !if _HARDTYPE_ = 232 {
  	LDA	#$00		; 2 Timer A - Wait 86uS
  }
+ !if _HARDTYPE_ = 1541 {
+	; v0.13 value (works with ultimate)
+	LDA #$01
+ }
  !if _HARDTYPE_ = 38 {
-     LDA #$00        ; 2 Timer A - Wait 120uS was 130uS
+	; v0.14 value follow->
+    LDA #$00        ; 2 Timer A - Wait 120uS was 130uS
  }
  	STA	$DD05		; 4
  !if _HARDTYPE_ = 232 {
  	LDA	#$56	; 2
  }
+ !if _HARDTYPE_ = 1541 {
+	; v0.13 value (works with ultimate)
+	LDA #$37
+ }
  !if _HARDTYPE_ = 38 {
-     LDA #$78		; was $82
+	; v0.14 value follow->
+    LDA #$78		; was $82
  }
  	STA	$DD04		; 4
  	LDA	$DD0D		; 4 Clear interrupt bits(CIA2: NMI)
@@ -428,6 +449,9 @@ DisRTS
 	STA	T232COMMAND
 !if _HARDTYPE_ = 232{
 	LDY #$0E		; 2
+}
+!if _HARDTYPE_ = 1541{
+	LDY #$13
 }
 !if _HARDTYPE_ = 38{
 	LDY #$14		; 2
@@ -499,7 +523,7 @@ TRXWait1
 !if _HARDTYPE_ = 232 {
 	LDY #$0A	; 2
 }
-!if _HARDTYPE_ = 38 {
+!if (_HARDTYPE_ = 38) OR (_HARDTYPE_ = 1541) {
 	LDY #$12
 }
 -	DEY			; 2
@@ -544,7 +568,7 @@ MainPrg
 	LDA	$DC0D		; Clear interrupt register (CIA1: IRQ)
 	LDA	$DD0D		; (CIA2: NMI)
 !if _HARDTYPE_ = 56 {
-!ifdef _SYNTH_{
+!ifdef _SYNTH_ {
 	LDA	#<StartBit_	; Set the NMI vector to StartBit_ (microsint detection)
 	STA	$FFFA		;$0318
 	LDA	#>StartBit_
@@ -574,7 +598,7 @@ MainPrg
 !if _HARDTYPE_ = 232 {
 	LDA	#%00000000	; 1 stop bit, 8 data bits, enhanced speed
 }
-!if _HARDTYPE_ = 38 {
+!if (_HARDTYPE_ = 38) OR (_HARDTYPE_ = 1541) {
     LDA #%00011111	; 1 stop bit, 8 data bits, baud rate generator, 38400 bps
 }
 	STA	T232CONTROL
@@ -583,20 +607,24 @@ MainPrg
 	STA	T232ENSPEED
 }
 }
-	LDX	#0
+	LDX	#$16
 
-	LDA	#$00		; Init the voice, print and reception buffers
-	STA	SPINDEXOUT
-	STA	SPINDEXIN
-	STA	SPBUFFERCNT
-	STA	PRINDEXOUT
-	STA	PRINDEXIN
-	STA	PRBUFFERCNT
-	STA	RXINDEXOUT
-	STA	RXINDEXIN
-	STA STREAMFLAG
-	STA WTOP
-	STA SNDSTATUS
+-	LDA	#$00		; Init the voice, print and reception buffers
+	STA SPBUFFERCNT,X
+	DEX
+	BPL -
+
+	; STA	SPINDEXOUT
+	; STA	SPINDEXIN
+	; STA	SPBUFFERCNT
+	; STA	PRINDEXOUT
+	; STA	PRINDEXIN
+	; STA	PRBUFFERCNT
+	; STA	RXINDEXOUT
+	; STA	RXINDEXIN
+	; STA STREAMFLAG
+	; STA WTOP
+	; STA SNDSTATUS
 	LDA	#%00001010	; Initializing the terminal, DTR disable, cursor enabled
 	STA	FLAGS1
 	LDA	#32			; Writes an space as initial character under the cursor
@@ -706,7 +734,7 @@ ConfigVIC
 	STA	$D01A
 
 	CLI
-!ifdef _SYNTH_{
+!ifdef _SYNTH_ {
 	LDA	FLAGS1		; If voice messages are disabled, continues on +
 	AND	#%00000100
 	BEQ	+
@@ -739,7 +767,7 @@ Wait1
 	JSR	BlinkCRSR	; Process the cursor blinking
 	LDA	TIMER1
 	BNE	Wait1
-!ifdef _SYNTH_{
+!ifdef _SYNTH_ {
 	LDA	FLAGS1		; If voice messages are disabled, continues on NoSpeech
 	AND	#%00000100
 	BNE	+
@@ -824,23 +852,7 @@ NoSpeech
 	STA	TIMER1
 	;JSR	StopCRSR
 	JSR	PrintBuffer	; Process the print buffer
-	;JSR	StartCRSR
 
-	;LDX	#<Msg07		; Pointer to the Msg07 string (info@pastbytes.com)
-	;STA	AddTLoop + 1
-	;LDY	#>Msg07
-	;STA	AddTLoop + 2
-	;JSR	AddText		; and it's added to the print buffer
-	;LDA	#0			; Speed: max
-	;STA	PRSPEED
-	;STA	TIMER1
-	;JSR	StopCRSR
-	;JSR	PrintBuffer	; Process the print buffer
-	;JSR	StartCRSR
-
-	;LDA	#$00		; From now on there's no delay
-	;STA	PRSPEED
-	;STA	TIMER1
 	LDA	#0			; Inits the cursor timer so it starts in the ON state
 	STA	CRSRTIMER
 	LDA	FLAGS1		; The terminal has finished its initialization
@@ -1016,7 +1028,7 @@ PrintEnd
     LDA PrBuffer,X
 	BPL +			; Invalid command (bit7=0)
 	CMP #MAXCMD+1
-    BCC ++			; Is it less than or equal to the highest implemented command ($B5)?
+    BCC ++			; Is it less than or equal to the highest implemented command ($B6)?
 +	LDA #$8F		; Invalid command, replace with unimplemented command ($8F)
 ++	AND #%01111111	; -128
 	ASL
@@ -1038,7 +1050,9 @@ PrintEnd
 	BEQ .pb1
     INC PRINDEXOUT
     DEC PRBUFFERCNT
+!ifdef _SYNTH_ {
     JSR AddToSpBuffer
+}
 	JMP .pb0
 
 ;///////////////////////////////////////////////////////////////////////////////////
@@ -1172,7 +1186,7 @@ ddCtrl ;Control chars
     LDY #0
 	STY $C7
     INX
-    CPX WBOTTOM     	; Bayond the text window's bottom?
+    CPX WBOTTOM     	; Beyond the text window's bottom?
     BEQ +
     JMP cu1         	; No, move cursor
 +   DEX
@@ -1325,32 +1339,31 @@ WinScroll
     RTS
 
 ;///////////////////////////////////////////////////////////////////////////////////
-; Text window scroll up ---- FUTURE FEATURE
+; Text window scroll up
 ;///////////////////////////////////////////////////////////////////////////////////
-; WinScrollU
+WinScrollU
 ; 	TXA
 ; 	PHA
-; 	TYA
-; 	PHA
-; 	LDX WUP
-; 	STX .wu+1
-; 	LDX WBOTTOM
-
-; -	JSR $E9F0
-; 	DEX
-; 	LDA $ECF0,x
-; 	STA $AC
-; 	LDA $D9,x
-; 	JSR $E9C8
-; .wu	CPX #$00
-; 	BNE -
-; 	JSR $E9FF
-
-; 	PLA
-; 	TAY
+ 	TYA
+ 	PHA
+ 	LDX WTOP
+ 	STX .wu+1
+ 	LDX WBOTTOM
+	DEX
+-	JSR $E9F0		; Set start of row
+ 	DEX
+ 	LDA $ECF0,x
+ 	STA $AC
+ 	LDA $D9,x
+ 	JSR $E9C8		; Move a screen row
+.wu	CPX #$00		; Self modifying - Text window's top
+ 	BNE -
+ 	JSR $E9FF		; Clear screen row
+ 	PLA
+ 	TAY
 ; 	PLA
 ; 	TAX
-; 	RTS
+ 	RTS
 
 ;///////////////////////////////////////////////////////////////////////////////////
 ; Insert a 0 ended string into the print buffer
@@ -1373,7 +1386,7 @@ AddTLoop1
 ;///////////////////////////////////////////////////////////////////////////////////
 ; Insert a 0 ended string into the voice buffer
 ;///////////////////////////////////////////////////////////////////////////////////
-
+!ifdef _SYNTH_ {
 SpeakText
 	STX	SCopyLoop + 1
 	STY	SCopyLoop + 2
@@ -1406,7 +1419,7 @@ ChkSpBuffer
 	INC	SPBUFFERCNT	; and SPBUFFERCNT
 	CLI				; Enable IRQs
 	RTS
-
+}
 ;///////////////////////////////////////////////////////////////////////////////////
 ; Get a character from the print buffer
 ;///////////////////////////////////////////////////////////////////////////////////
@@ -1642,9 +1655,9 @@ ReadBLoop
 
 .cmdchk					; Check the received command and set CMDFlags accordingly
 	LDA RXBYTE			; Get the received character
-	BPL +				; Invalido command (bit 7 unset)
+	BPL +				; Invalid command (bit 7 unset)
 	CMP #MAXCMD+1
-    BCC ++				; Is it less than or equal to the highest implemented command ($B5)?
+    BCC ++				; Is it less than or equal to the highest implemented command ($B6)?
 +	LDA #$8F			; Invalid command, replace with unimplemented command ($8F)
 ++	AND #%01111111		; -128
 	TAY
@@ -1655,30 +1668,26 @@ ReadBLoop
 	BNE -				; Continue the loop
 
 Speak
-	LDA	SPBUFFERCNT		; If the voice buffer is empty, continue on SpeakEnd
-	BEQ	SpeakEnd
 !if _HARDTYPE_ = 56 {
 !ifdef _SYNTH_ {
+	LDA	SPBUFFERCNT		; If the voice buffer is empty, continue on SpeakEnd
+	BEQ	SpeakEnd
 	LDA	#$00			; 2 Set RTS to 0 (and DTR to 0, enabling the voice synthesizer)
 	STA	$DD01			; 4
-}
-}
 	LDX	SPINDEXOUT
 	LDA	FLAGS1			; If the voice synth is disabled, ignores the reception
 	AND	#%00000100
 	BEQ	+
 	LDA	SpBuffer, X		; Get a character from the voice buffer
-!ifdef _SYNTH_{
 	JSR	SendByte		; and sends it to the voice synth
 	LDA	#0
 	JSR	SendByte		; and sends it to the voice synth
-}
 +	INC	SPINDEXOUT
 	DEC	SPBUFFERCNT
 SpeakEnd
-!if _HARDTYPE_ = 56{
 	LDA	#$04			; 2 Set RTS to 0 (and DTR to 1, enabling RS232)
 	STA	$DD01			; 4
+}
 }
 
 ChkKey
@@ -1702,7 +1711,7 @@ ChkKey
 +	CMP #$A7			; CBM+M?
 	BNE +
 	LDA #$FF
-	EOR SNDSTATUS
+	EOR SNDSTATUS		; Toggle keybeep enabled status
 	STA SNDSTATUS
 	LDA #$03
 	STA $D015			;Enable Sprites
@@ -1721,14 +1730,15 @@ ChkKey
 .m0	;INC SNDSTATUS
 
 +
-;+	JSR	SendByte		; otherwise, send the typed character by RS232
-
+++
+	BIT CMDFlags
+	BVS ExitIrq			; If running a command, do not send anything
 !if _HARDTYPE_ = 56 {
-++	+DisKernal
+	+DisKernal
 	JSR SendByte		; otherwise, send the typed character by RS232
 	+EnKernal
 } else {
-++	STA	T232DATA		; Store the typed character on the transmit register, to be sent in the next interrupt
+	STA	T232DATA		; Store the typed character on the transmit register, to be sent in the next interrupt
 }
 
 ExitIrq
@@ -1843,7 +1853,7 @@ Cmd82
 	ADC BLOCKPTR+1
 	STA $2E				; Update Start of BASIC variables pointer
 
-
+_Cmd82	;Alternative entry point
 +	DEY
 	CPY #$FF
 	BNE +
@@ -2104,7 +2114,7 @@ Cmd85
 -	LDA $D012
 	CMP #251
 	BCC -
--	JSR ReadByte
+	JSR ReadByte
 	BCC -
 	PLA
 	TAY
@@ -2116,6 +2126,16 @@ Cmd85
 	+EnKernal
 	CLI
 	RTS
+
+;////////////////////////////////////////////////////////////////////////////////////
+; 134: Start a file transfer
+Cmd86
+	SEI
+	+DisKernal
+	JSR _Cmd86
+	+EnKernal
+	CLI
+	JMP CmdFE			; Exit command mode
 
 ;///////////////////////////////////////////////////////////////////////////////////
 ; 144: Returns to the default text mode, requires 3 parameter bytes
@@ -2222,8 +2242,8 @@ CmdA2
 ;	   Returns number of parameters if command exist, or bit-7 = 1 if not.
 
 CmdA3
-	SEI
 	JSR GetFromPrBuffer ; Reads a byte from the print buffer / Command #
+	SEI
 	BPL +				; If it's not a command, replace with unimplemented command ($8F)
 	CMP #MAXCMD+1
 	BCC ++				; Is it less than or equal to the highest implemented command?
@@ -2450,6 +2470,26 @@ CmdB5
 	JSR $E50A		; Set cursor position
 	RTS
 
+;///////////////////////////////////////////////////////////////////////////////////
+; 182: Scroll text window, requires 1 parameter: rows to scroll, signed byte
+CmdB6
+	JSR GetFromPrBuffer
+	BEQ ++
+	BPL +
+	;Scroll up
+	EOR #$FF
+	TAY
+	INY
+-	JSR WinScrollU
+	DEY
+	BNE -
+	BEQ ++
++	TAY
+-	JSR WinScroll
+	DEY
+	BNE -
+
+++	RTS
 
 
 ;///////////////////////////////////////////////////////////////////////////////////
@@ -2467,13 +2507,19 @@ IDString:
 !if _HARDTYPE_ = 38 {
 	!text "RTRETROTERM-SL "
 	+_Version_
-	!text "   "	
-} else {
+	!text "   "
+}
+!if _HARDTYPE_ = 1541 {
+	!text "RTRETROTERM-SLU "
+	+_Version_
+	!text "  "
+}
+!if (_HARDTYPE_ = 232) OR (_HARDTYPE_ = 56) {
 	!text "RTRETROTERM "
 	+_Version_
 	!text "      "
 }
-	!byte $00,$06	;Turbo56K version, subversion
+	!byte $00,$07	;Turbo56K version, subversion
 
 !if _HARDTYPE_ != 56 {
 SendID
@@ -2506,6 +2552,11 @@ Version
 	+_Version_
 	!text "   38400,8n1"
 }
+!if _HARDTYPE_ = 1541 {
+	!text "retroterm ultimate VER "
+	+_Version_
+	!text "    38400,8n1"
+}
 !if _HARDTYPE_ = 56 {
 	!text "retroterm VERSION "
 	+_Version_
@@ -2513,7 +2564,7 @@ Version
 }
 	!byte $05, $00
 
-!ifdef _SYNTH_{
+!ifdef _SYNTH_ {
 VersionSp
 ;	!byte $0D
 	!text "ret'roterm  version ser2opuntocat2orse,,"
@@ -2541,7 +2592,7 @@ Msg07
 	!text "turbo56k V0.6"
 	!byte $0D, $05, $00
 
-!ifdef _SYNTH_{
+!ifdef _SYNTH_ {
 Sp00
 	!text "mik'rosint detektado,"
 	!byte $00
@@ -2551,26 +2602,33 @@ Sp01
 }
 ; Commands routine pointer table, unimplemented commands point to CMDOFF
 CmdTable:
-    !word Cmd80,Cmd81,Cmd82,Cmd83,Cmd84,Cmd85,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
+    !word Cmd80,Cmd81,Cmd82,Cmd83,Cmd84,Cmd85,Cmd86,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     !word Cmd90,Cmd91,Cmd92,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     !word CmdA0,CmdA1,CmdA2,CmdA3,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
-    !word CmdB0,CmdB1,CmdB2,CmdB3,CmdFE,CmdB5
+    !word CmdB0,CmdB1,CmdB2,CmdB3,CmdFE,CmdB5,CmdB6
 
 ; Command parameter number table.
 ; bit-7 = 1 : Parameter not implemented
 CmdParTable:
-	!byte $02  ,$01  ,$02  ,$00  ,$00  ,$00  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
+	!byte $02  ,$01  ,$02  ,$00  ,$00  ,$00  ,$00  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
 	!byte $03  ,$02  ,$03  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
 	!byte $00  ,$00  ,$00  ,$01  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
-	!byte $02  ,$02  ,$01  ,$02  ,$80  ,$02
+	!byte $02  ,$02  ,$01  ,$02  ,$80  ,$02  ,$01
 
 ;///////////////////////////////////////////////////////////////////////////////////
 ; Buffers (Reception + print + voice)
 ;///////////////////////////////////////////////////////////////////////////////////
 
 ENDOFCODE
-!if ENDOFCODE > $CDFF {
-	!error "ERROR - Part 1 data beyond $CDFF"
+
+!ifdef _SYNTH_{
+	_LIMIT_ = $CDFF
+} else {
+	_LIMIT_ = $CEFF
+}
+
+!if ENDOFCODE > _LIMIT_ {
+	!error "ERROR - Part 1 data beyond _LIMIT_"
 }
 
 }
@@ -2585,7 +2643,7 @@ _EXTRACODE_
 EXTRACODE:
 
 !if _HARDTYPE_ = 56 {
-!ifdef _SYNTH_{
+!ifdef _SYNTH_ {
 USintDet:
 	STA	TXBYTE		; Store .A in TXBYTE
 	LDA	$DD00		; Save a copy of PRA (port A, CIA2)
@@ -3251,12 +3309,53 @@ c84start
 	;STA STREAMFLAG
 
 	;<<<< SID Stuff here
-+
--	;LDA $D012			; Raster sync
-	;CMP #150
-	;BCS -
+	; Check if any of the 'Hardrestart' flags is set
++	LDA STREAMBM+3
+	AND #$FE			
+	BEQ .srw
+	LDY #$00
+	ASL					; C = Voice 3 Gate HR
+	BCC +
+	STY $D412
++	ASL					; C = Voice 2 Gate HR
+	BCC +
+	STY $D40B
++	ASL					; C = Voice 1 Gate HR
+	BCC +
+	STY $D404
++	ASL					; C = Voice 3 ADSR HR
+	BCC +
+	STY $D413
+	STY $D414
++	ASL					; C = Voice 2 ADSR HR
+	BCC +
+	STY $D40C
+	STY $D40D
++	ASL					; C = Voice 1 ADSR HR
+	BCC .srw
+	STY $D405
+	STY $D406
+	BCS .srw
 
-+	INC $D020
+; SID IRQ Exit, here to save space
+ci1exit
+	STA STREAMFLAG		; Clear the interrupt flag, exit streaming mode
+	DEC $D020
+ci1end2
+	LDA #$01
+	STA $D01A			; Enable raster interrupts
+	CLI
+	PLA
+	TAY
+	PLA
+	TAX
+	PLA
+	RTI
+;-------------------
+
+; Write SID registers
+.srw
+	INC $D020
 	LDA #$00			; Current register
 	LDY STREAMCNT		; Number of register to write-1
 	BMI ci1end			; Exit loop if there's no registers to write
@@ -3309,19 +3408,6 @@ ci1end
 }
 	JMP ci1end2			;c84start
 
-ci1exit
-	STA STREAMFLAG		; Clear the interrupt flag, exit streaming mode
-	DEC $D020
-ci1end2
-	LDA #$01
-	STA $D01A			; Enable raster interrupts
-	CLI
-	PLA
-	TAY
-	PLA
-	TAX
-	PLA
-	RTI
 	;JMP $EA31
 
 ;-----------------------------------------
@@ -3371,6 +3457,456 @@ SpriteSetup:
 	STX $D028	; Sprite 1 Grey2
 	RTS
 
+
+; ------------------------------------------
+; Save to disk routines
+	CRC = 	$0740	;$FD		; CRC result $FD/$FE
+	CRCHI = $0900	; CRC tables
+	CRCLO = $0A00
+	FNAME = $0334	; Null terminated file name
+	FNL = 	$03FB	; Filename length
+
+_Cmd86
+	JSR MAKECRCTABLE
+DESTADDR	= $0B00
+CSIZE		= $58
+SOURCEPTR 	= $FB
+DESTPTR		= $FD
+BBUF		= $0600
+
+	; Copy routine to lower RAM ($0B00)
+	LDA #<_bsstart
+	STA SOURCEPTR
+	LDA #>_bsstart
+	STA SOURCEPTR+1
+	LDA #<DESTADDR
+	STA DESTPTR
+	LDA #>DESTADDR
+	STA DESTPTR+1
+	LDA #<(_bsend-_bsstart)
+	STA CSIZE
+	LDA #>(_bsend-_bsstart)
+	STA CSIZE+1
+
+--	LDY #$00
+-	LDA (SOURCEPTR),Y
+	STA (DESTPTR),Y
+	LDA CSIZE
+	BNE +
+	LDA CSIZE+1
+	BEQ .zd
+	DEC CSIZE+1
++	DEC CSIZE	
+    INY
+    BNE -
+
+    INC	SOURCEPTR+1
+    INC DESTPTR+1
+    BNE --
+;done
+.zd
+	LDA #$00
+	STA $D020
+	STA $D021
+	JSR b3cancel	; Cancel split screen
+	JMP bsave
+
+_bsstart:
+!pseudopc $0B00{
+bsave:
+	+EnKernal
+	CLI
+	LDA	#<bst1		; Print message
+	LDY	#>bst1
+	JSR	STROUT
+	SEI
+!if _HARDTYPE_ = 56{
+	+DisKernal
+}
+-	LDA $D012
+	CMP #251
+	BNE -				; Waits for raster line 251
+	JSR	ReadByte		; Get file type
+	BCC-
+!if _HARDTYPE_ = 56{
+	+EnKernal
+}
+	CLI
+	LDA RXBYTE
+	STA $02
+	BMI +				; Bit 7 = 1 : PRG, else SEQ
+	LDA #<bst5
+	STA .ft+1			; Set file type OPEN string addr
+	LDA #>bst5
+	STA .ft+2
+	LDY #>bst3
+	LDA #<bst3
+	BNE ++
++	LDA #<bst4
+	STA .ft+1			; Set file type OPEN string addr
+	LDA #>bst4
+	STA .ft+2
+	LDA #<bst2
+	LDY #>bst2
+++	JSR STROUT
+	LDA #<bst1a
+	LDY #>bst1a
+	JSR STROUT
+	JSR ReadString	; Get filename
+	CLC
+	LDY #$0A
+	LDX #$01
+	JSR $FFF0
+	LDA #<FNAME		; Print filename
+	LDY #>FNAME
+	JSR STROUT
+	CLC
+	LDY #$20
+	LDX #$0B
+	JSR $FFF0
+	LDA #<bst6
+	LDY #>bst6
+	JSR STROUT		; Print buffer frame
+
+	JSR UBlock		; Print counters
+	JSR URetry
+
+-	LDA $C5			; Matrix value for last keypress
+	CMP #$19		; Wait for 'Y'
+	BEQ +
+	CMP #$27		; Or 'N'
+	BNE -
+	LDY #$42		; CANCEL
+	BNE .bb
++	CLC
+	LDY #$0B
+	LDX #$08
+	JSR $FFF0		; Set cursor
+	LDA #<bst9
+	LDY #>bst9
+	JSR STROUT		; Print abort message
+
+	LDY FNL			; add write string to filename
+	LDX #$00
+.ft	LDA bst4,X
+	STA FNAME,Y
+	INY
+	INX
+	CPX #$04
+	BNE .ft
+	TXA
+	CLC
+	ADC FNL
+	;STA FNL
+	JSR .bo				; Open file. Input .A = filename length. Returns flag on .Y
+	;LDY	#$80		; OK Flag
+
+; Read block
+	LDA #$00
+	STA $D015			; Disable sprites
+	LDA	#$10			; Triangle wave on channel 1 / gate off
+	STA	SIDREG+4
+.bb
+	LDA $C5				; Keymatrix
+	CMP #$03			; F7?
+	BNE +
+	LDY #$42			; ABORT!
++	SEI
+!if _HARDTYPE_ = 56{
+	+DisKernal
+}
+	TYA
+!if _HARDTYPE_ = 56{	; Send Response character:	$80 = OK
+	JSR SendByte		; 							$00 = Retry
+} else {				; After retrying 'n' times host may decide to abort
+	JSR SendID
+}
+
+	LDX #$03
+-	LDA $D012
+	CMP #251
+	BNE -				; Waits for raster line 251
+
+	JSR	ReadByte		; Get 4 bytes: Block size LSB,MSB | CRC16 LSB,MSB
+	BCC-
+	LDA RXBYTE			; $FB/$FC : CRC16
+	STA $FB,X			; $FD/$FE : Size
+	DEX
+	BPL -
+	;If block size = 0, exit transfer
+	LDY $FD
+	STY .c+1		; Set CRC check counter limit
+	BNE +
+	LDA $FE
+	BNE +
+	JMP .be			; 0 length -> end transfer
++	LDA #<BBUF
+	STA BLOCKPTR
+	LDA	#>BBUF
+	STA BLOCKPTR+1	; Destination
+	LDX $FE
+	JSR _Cmd82		; Receive block
+	;check CRC
+	LDY #$FF
+	STY CRC
+	STY CRC+1
+	INY
+-	LDA BBUF,Y
+	JSR UPDCRC
+	INY
+.c	CPY #$00
+	BNE -
+	LDA $FB
+	CMP CRC
+	BNE .er			; CRC doesn't match, error
+	LDA $FC
+	CMP CRC+1
+	BNE .er			; CRC doesn't match, error
+	;Write to disk
+!if _HARDTYPE_ = 56{
+	+EnKernal
+}
+	JSR UBlock
+	JSR bwrite		; Write block
+	;LDY #$80		; OK
+	JMP .bb			; Get next block
+.er
+!if _HARDTYPE_ = 56{
+	+EnKernal
+}
+	; LDA	#<bst3		; Print BAD block
+	; LDY	#>bst3
+	; JSR	STROUT
+	JSR URetry
+	LDY #$AA		; ERROR
+	BNE .bb			; Retry
+
+	;Open file
+.bo
+ 	;LDA FNL	; Name length
+ 	LDX #<FNAME
+ 	LDY #>FNAME
+ 	JSR $FFBD	  	; call SETNAM
+
+ 	LDA #$02    	; file number 2
+ 	LDX $BA       	; last used device number
+ 	BNE +
+ 	LDX #$08      	; default to device 8
++   LDY #$02      	; secondary address 2
+ 	JSR $FFBA     	; call SETLFS
+ 	JSR $FFC0     	; call OPEN
+	BCS .error		; if carry set, file couldnt not be opened
+	LDX #$02		; filenumber 2
+	JSR $FFC9		; call CHKOUT (file 2 now used as output)
+	BEQ +
+	BNE .error
++	JSR $FFCC		; CLRCHN
+	LDY #$81		; OK
+	RTS
+
+.error	; Handle errors - Cancels transfer
+	JSR .bc			; Close file
+	LDY #$42		; CANCEL
+	RTS
+
+.bc		; Close file
+	LDA #$02
+	JSR $FFC3		; CLOSE
+	JSR $FFCC		; CLRCHN
+	RTS
+
+.be		; Transfer complete
+!if _HARDTYPE_ = 56{
+	+EnKernal
+}
+	JSR	.bc			; Close file
+	SEI
+	+DisKernal
+	RTS
+
+bwrite 	; Write data
+!if _HARDTYPE_ = 56{
+	+EnKernal
+}
+	LDY $FD			; Get counter limit
+	STY .b1+1
+	LDX #$02		; filenumber 2
+	JSR $FFC9		; call CHKOUT (file 2 now used as output)
+
+	LDY #$00
+-	JSR	$FFB7		; call READST
+	BNE .error			; handle error
+	LDA BBUF,Y
+	JSR $FFD2		; call CHROUT (write byte to file)
+	INY
+.b1	CPY #$00
+	BNE -
+	JSR $FFCC		; CLRCHN
+	LDY #$81		; OK
+	RTS
+
+; Quick CRC computation with lookup tables
+UPDCRC:
+	EOR CRC+1
+	TAX
+	LDA CRC
+	EOR CRCHI,X
+	STA CRC+1
+	LDA CRCLO,X
+	STA CRC
+	RTS
+
+;Update received block count
+UBlock:
+	CLC
+	LDY #$00
+	LDX #$03
+	JSR $FFF0
+	LDA #<bst7
+	LDY #>bst7
+	JSR STROUT
+	LDA bcount
+	LDX bcount+1
+	JSR $BDCD		; Print number
+	INC bcount+1
+	BNE +
+	INC bcount
++	RTS
+
+bcount
+	!byte	$00,$00
+
+;Update retries count
+URetry:
+	CLC
+	LDY #$00
+	LDX #$04
+	JSR $FFF0
+	LDA #<bst8
+	LDY #>bst8
+	JSR STROUT
+	LDA rcount
+	LDX rcount+1
+	JSR $BDCD		; Print number
+	INC rcount+1
+	BNE +
+	INC rcount
++	RTS
+
+rcount
+	!byte	$00,$00
+
+;Receive NULL terminated String
+ReadString:
+	SEI
+!if _HARDTYPE_ = 56{
+	+DisKernal
+}
+	LDY	#$00
+--	TYA
+	PHA
+-	LDA $D012
+	CMP #251
+	BCC -
+	JSR ReadByte
+	BCC -
+	PLA
+	TAY
+	LDA RXBYTE
+	STA FNAME,Y		; Store name
+	BEQ +			; Stop if $00 received
+	INY
+	CPY #$11
+	BNE --			; Repeat until 16 characters (+ null) are read
++	
+!if _HARDTYPE_ = 56{
+	+EnKernal
+}
+	LDA #$00
+	STA FNAME,Y		; Make sure the string is NULL terminated
+	STY	FNL			; String length
+	CLI
+	RTS
+
+; File save text
+bst1:
+	!byte	$93,$8E,$05	;Clear, upp/gfx, white
+	!text	"HOST REQUESTED TO SAVE "
+	!byte	$00
+bst1a:
+	!text 	"FILE"
+	!byte 	$0D
+	!text	"FILENAME:"
+	!byte	$0D
+	!text	"CONTINUE? (Y/N)"
+	!byte	$00
+bst2:	;Program
+	!text	"PROGRAM "
+	!byte	$00
+bst3:	;Sequential
+	!text	"SEQUENTIAL "
+	!byte	$00
+bst4:	;Write Program
+	!text	",P,W"
+bst5:	;Write Sequential
+	!text	",S,W"
+; Buffer frame
+bst6:
+	!byte $9E		; Yellow
+	!fill $27,$AF	; 39 _
+	!byte $BA
+	!fill $07,$0D
+	!fill $08,$1D	; cursor
+	!byte $6F
+	!fill $27,$B7	; 39
+	!byte $05, $00	; White
+; Block count
+bst7:
+	!text "BLOCKS:      "
+	!fill $05,$9D
+	!byte $00
+; Retry count
+bst8:
+	!text "RETRIES:      "
+	!fill $05,$9D
+	!byte $00
+; Abort text
+bst9:
+	!text "HOLD "
+	!byte $12	; RVS ON
+	!text " F7 "
+	!byte $92	; RVS OFF
+	!text " TO ABORT"
+	!byte $00
+bsend
+}
+_bsend
+; Generate CRC tables
+MAKECRCTABLE:
+	LDX #0          ; X counts from 0 to 255
+BYTELOOP
+	LDA #0          ; A contains the low 8 bits of the CRC-16
+	STX CRC         ; and CRC contains the high 8 bits
+	LDY #8          ; Y counts bits in a byte
+BITLOOP  
+	ASL
+	ROL CRC         ; Shift CRC left
+	BCC NOADD       ; Do nothing if no overflow
+	EOR #$21        ; else add CRC-16 polynomial $1021
+	PHA             ; Save low byte
+	LDA CRC         ; Do high byte
+	EOR #$10
+	STA CRC
+	PLA             ; Restore low byte
+NOADD
+    DEY
+	BNE BITLOOP     ; Do next bit
+	STA CRCLO,X     ; Save CRC into table, low byte
+	LDA CRC         ; then high byte
+	STA CRCHI,X
+	INX
+	BNE BYTELOOP    ; Do next byte
+	RTS
 
 SPON:
 !byte $00,$00,$00,$00,$00,$00,$00,$18

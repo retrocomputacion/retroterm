@@ -50,6 +50,7 @@ For example the following byte sequence enters command mode, sets the screen to 
 | `$83` | `131` | Starts audio streaming until receiving a `$00` character
 | `$84` | `132` | Starts SID streaming until receiving a data block with size `0`, or interrupted by the user
 | `$85` | `133` | `New v0.6`<br><br>Sets the stream and write order of the registers for SID streaming<br>**Parameters**<br> - Stream : 25 bytes
+| `$86` | `134` | `New v0.7`<br><br>Starts a file transfer (to be saved on a storage device client side)
 
 <br>
 
@@ -84,7 +85,7 @@ For example the following byte sequence enters command mode, sets the screen to 
 | `$B3` | `179` | Screen split<br>**Parameters**<br>- Modes : 1 byte<br>  `Bit 0 - 4` : Split Row `1 - 24`<br>  `Bit 7` : Bitmap Graphics Mode in top section<br>    `0` : Hires<br>    `1` : Multicolor <br><br> - Background Color : 1 byte<br>  `Bit 0 - 3` : Top Section<br>  `Bit 4 - 7` : Bottom Section
 | `$B4` | `180` | **RESERVED**
 | `$B5` | `181` | Set text window<br>**Parameters**<br> - Top Row : 1 byte : `0 - 23`<br> - Bottom Row : 1 byte : `1 - 24`
-
+| `$B6` | `182` | Scroll the text window up or down x rows<br>**Parameters**<br> - Row count: 1 byte -128/+127
 <br>
 
 ### Preset Addresses
