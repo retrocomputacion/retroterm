@@ -632,7 +632,7 @@ MainPrg
 	LDA	#$01		; Init BLOCKPTR to $0801 (BASIC text area)
 	STA	BLOCKPTR
 	LDA	#$08
-	STA	BLOCKPTR
+	STA	BLOCKPTR+1
 	LDA #25
 	STA WBOTTOM
 
@@ -3622,17 +3622,37 @@ bsave:
 	JSR SendID
 }
 
-	LDX #$03
--	LDA $D012
-	CMP #251
-	BNE -				; Waits for raster line 251
+	LDY #$03
+; -	LDA $D012
+; 	CMP #251
+; 	BNE -				; Waits for raster line 251
+; 	LDA #$00
+; 	LDA	$D011		; Disable VIC II screen
 
-	JSR	ReadByte		; Get 4 bytes: Block size LSB,MSB | CRC16 LSB,MSB
-	BCC-
-	LDA RXBYTE			; $FB/$FC : CRC16
-	STA $FB,X			; $FD/$FE : Size
-	DEX
+	LDA CMDFlags
+	ORA #$44
+	STA CMDFlags	; Get 4 parameter bytes
+
+	; Get 4 bytes: Block size LSB,MSB | CRC16 LSB,MSB
+;-	JSR ReadByte
+;	BCC-
+;	LDA RXBYTE			; $FB/$FC : CRC16
+
+!if _HARDTYPE_ = 56{
+	+EnKernal
+}
+	CLI
+-	JSR GetFromPrBuffer
+
+	STA $FB,Y			; $FD/$FE : Size
+	DEY
 	BPL -
+
+	SEI
+!if _HARDTYPE_ = 56{
+	+DisKernal
+}
+
 	;If block size = 0, exit transfer
 	LDY $FD
 	STY .c+1		; Set CRC check counter limit
@@ -3679,7 +3699,7 @@ bsave:
 	; JSR	STROUT
 	JSR URetry
 	LDY #$AA		; ERROR
-	BNE .bb			; Retry
+	JMP .bb			; Retry
 
 	;Open file
 .bo
@@ -3798,34 +3818,45 @@ rcount
 
 ;Receive NULL terminated String
 ReadString:
-	SEI
-!if _HARDTYPE_ = 56{
-	+DisKernal
-}
+; 	SEI
+; !if _HARDTYPE_ = 56{
+; 	+DisKernal
+; }
+	LDA #$46
+	STA CMDFlags
+
+
 	LDY	#$00
---	TYA
-	PHA
--	LDA $D012
-	CMP #251
-	BCC -
-	JSR ReadByte
-	BCC -
-	PLA
-	TAY
-	LDA RXBYTE
+
+--	INC CMDFlags			; +1 Parameter to read
+	JSR GetFromPrBuffer	
+
+
+;--	TYA
+;	PHA
+;-	LDA $D012
+;	CMP #251
+;	BCC -
+;	JSR ReadByte
+;	BCC -
+;	PLA
+;	TAY
+;	LDA RXBYTE
 	STA FNAME,Y		; Store name
 	BEQ +			; Stop if $00 received
 	INY
 	CPY #$11
 	BNE --			; Repeat until 16 characters (+ null) are read
 +	
-!if _HARDTYPE_ = 56{
-	+EnKernal
-}
+; !if _HARDTYPE_ = 56{
+; 	+EnKernal
+; }
 	LDA #$00
 	STA FNAME,Y		; Make sure the string is NULL terminated
 	STY	FNL			; String length
-	CLI
+	LDA #$40
+	STA CMDFlags
+;	CLI
 	RTS
 
 ; File save text
