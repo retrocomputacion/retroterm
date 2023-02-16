@@ -1863,9 +1863,9 @@ _Cmd82	;Alternative entry point
 	LDA	$D020
 	STA	BORDERCLR
 	LDA	BLOCKPTR		; Copy BLOCKPTR pointer to C82Loop
-	STA	C82Loop + 9
+	STA	C82Addr + 1
 	LDA	BLOCKPTR + 1
-	STA	C82Loop + 10
+	STA	C82Addr + 2
 	LDA #$00			; Disable raster interrupts
 	STA $D01A
 	SEI					; Disable IRQs
@@ -1884,14 +1884,30 @@ _Cmd82	;Alternative entry point
 	STA	$D011
 
 C82Loop
+	; Timeout counter
+	LDA	#$0A			; Count ~5.66 seconds
+	STA TEMPCNT2		; H
+	LDA #$00				; 0
+	STA TEMPCNT1		; L
+
 -	JSR	ReadByte		; Receive a character from RS232
-	BCC	-				; Nothing received, retry
-	LDA	RXBYTE			; Store it in RAM
+	BCS ++				; Byte received -> +
+	LDA TEMPCNT1		; Decrement counter
+	BNE +
+	LDA TEMPCNT2
+	BEQ C82End			; Zero, exit
+	DEC TEMPCNT2
++	DEC TEMPCNT1
+	BCC -				; Keep receiving
+
+;	BCC	-				; Nothing received, retry
+++	LDA	RXBYTE			; Store it in RAM
+C82Addr
 	STA	BUFFER			; (self-modifying code)
 	INC	$D020
-	INC	C82Loop + 9		; 6 Increment the memory pointer
+	INC	C82Addr + 1		; 6 Increment the memory pointer
 	BNE	C82Next			; 2 
-	INC	C82Loop + 10	; 6 
+	INC	C82Addr + 2		; 6 
 C82Next					; 1 if coming from the BNE
 	LDY BYTECNT
 	DEY
