@@ -249,6 +249,8 @@ DlyNext2
 		BPL .c0
 !if _HARDTYPE_ = 56{
 		JSR udetect
+} else {
+		JSR aciabase
 }
 		LDA #$00
 		STA $0801
@@ -348,6 +350,47 @@ _DATA2		;Memory move parameters
 !word	PALEND, _PALEND_
 !byte	$00, $00, $00
 !word	_PALSTART_
+} else {
+	; Select ACIA base address
+aciabase:
+	LDA	#<abtxt		; Print message
+	LDY #>abtxt
+	JSR STROUT
+
+-	LDA $C5			; Matrix value for last keypress
+	CMP #$38		; 1?
+	BNE +
+	LDY #$DE
+	BNE acia_1
++	CMP #$3B		; 2?
+	BNE -
+	LDY #$DF
+acia_1
+!if _HARDTYPE_ = 232{
+	LDX #37
+} else {
+	LDX #35
+}
+-	LDA _ACIA_ADDR,X
+	STA .ac1+2
+	DEX
+	LDA _ACIA_ADDR,X
+	STA .ac1+1
+.ac1
+	STY _adata1		;self modifying
+	DEX
+	BPL -
+
+	RTS
+
+abtxt:
+	!byte	$93,$8E,$90	;Clear, upp/gfx, black
+	!text	"SELECT RS232 BASE ADDRESS:"
+	!byte	$0D,$0D
+	!text	"1: DE00"
+	!byte	$0D
+	!text	"2: DF00"
+	!byte	$00
 }
 DELAYTIME !byte 00
 
@@ -371,6 +414,17 @@ _DATA1					; Memory move parameters
 !byte	$00, $00, $00
 !word	_EXTRACODE_
 
+!if _HARDTYPE_ != 56{
+; addresses where ACIA registers are accessed
+_ACIA_ADDR:
+!word	_adata1+2,_adata2+2,_adata3+2,_adata4+2,_adata5+2,_adata6+2
+!word	_astat1+2,_astat2+2,_astat3+2
+!word	_acomm1+2,_acomm2+2,_acomm3+2,_acomm4+2,_acomm5+2,_acomm6+2,_acomm7+2,_acomm8+2
+!word	_actrl1+2
+!if _HARDTYPE_ = 232{
+!word	_aspd1+2
+}
+}
 _CODESTART_
 !pseudopc $C000 {
 	;*= $C000
@@ -434,6 +488,7 @@ ReadByte
  	STA	$DD0E		; 4
 EnRTS
 	LDA	#%00001011	; no parity, no echo, no tx irq (rts=0, enables reception), no rx irq, rx enabled (dtr=0)
+_acomm1
 	STA	T232COMMAND
 WaitRX1
 	 LDA	$DD0D		; 4 Timer A not elapsed yet
@@ -446,6 +501,7 @@ WaitRX1
 
 DisRTS
 	LDA	#%00000011	; no parity, no echo, no tx irq (rts=1, disables reception), no rx irq, rx enabled (dtr=0)
+_acomm2
 	STA	T232COMMAND
 !if _HARDTYPE_ = 232{
 	LDY #$0E		; 2
@@ -457,6 +513,7 @@ DisRTS
 	LDY #$14		; 2
 }
 WaitRX2				; wait for at least the duraction of a whole character
+_astat1
 	LDA	T232STATUS	; 4 Byte received?
 	AND	#%00001000	; 2
 	BNE	Received	; 3 
@@ -471,6 +528,7 @@ CancelRX
 	CLC			; 2 CARRY = 0 (no byte received)
 	RTS			; 6
 Received
+_adata1
 	LDA	T232DATA	; 4 .A= Received byte
 	STA	RXBYTE		; stored in RXBYTE
 	SEC			; 2 CARRY = 1 (byte received)
@@ -490,6 +548,7 @@ TurboRX
 	STA	$DC00
 
 	LDA	#%00001011	; no parity, no echo, no tx irq (rts=0, enable reception), no rx irq, rx enabled (dtr=0)
+_acomm3
 	STA	T232COMMAND
 TurboLoop
 	TXA				; 2 
@@ -536,20 +595,24 @@ TRXWait1
 	STX	$D020		; 4
 TRXWait2
 -
+_astat2
 	LDA	T232STATUS	; 4 Wait for a character
 	AND	#%00001000	; 2
 	BEQ	-			; 3
+_adata2
 	LDA	T232DATA	; 4 .A = Received character
 	TAX				; 2
 
 	BIT $DC01		; 4 Key press?
 	BMI +			; 3
 	LDA #$FF		; Yes, send $FF
+_adata3
 	STA T232DATA
 +	BNE	TurboLoop	; 3
 
 TurboExit
 	LDA	#%00000011	; no parity, no echo, no tx irq (rts=1, reception disabled), no rx irq, rx enabled (dtr=0)
+_acomm4
 	STA	T232COMMAND
 	RTS
 }
@@ -594,6 +657,7 @@ MainPrg
 
 !if _HARDTYPE_ != 56{
 	LDA	#%00000010	; no parity, no echo, no tx irq (rts=1), no rx irq, rx disabled (dtr=1)
+_acomm5
 	STA	T232COMMAND
 !if _HARDTYPE_ = 232 {
 	LDA	#%00000000	; 1 stop bit, 8 data bits, enhanced speed
@@ -601,9 +665,11 @@ MainPrg
 !if (_HARDTYPE_ = 38) OR (_HARDTYPE_ = 1541) {
     LDA #%00011111	; 1 stop bit, 8 data bits, baud rate generator, 38400 bps
 }
+_actrl1
 	STA	T232CONTROL
 !if _HARDTYPE_ = 232 {
 	LDA	#%00000010	; 57600 bps
+_aspd1
 	STA	T232ENSPEED
 }
 }
@@ -1479,6 +1545,7 @@ ExitPrg
 	STA	SIDREG+4
 !if _HARDTYPE_ != 56 {
 	LDA	#%00000010	; no parity, no echo, no tx irq (rts=1), no rx irq, rx disabled (dtr=1)
+_acomm6
 	STA	T232COMMAND
 }
 	+EnKernal
@@ -1738,6 +1805,7 @@ ChkKey
 	JSR SendByte		; otherwise, send the typed character by RS232
 	+EnKernal
 } else {
+_adata4
 	STA	T232DATA		; Store the typed character on the transmit register, to be sent in the next interrupt
 }
 
@@ -2539,13 +2607,17 @@ IDString:
 
 !if _HARDTYPE_ != 56 {
 SendID
+_adata5
 	STA	T232DATA	; Store the character in the transmit register
 	LDA	#%00001011	; no parity, no echo, no tx irq (rts=0, receive enable), no rx irq, rx enabled (dtr=0)
+_acomm7
 	STA	T232COMMAND
+_astat3
 -	LDA	T232STATUS	; Wait for the character to be transmitted
 	AND	#%00010000
 	BEQ	-
 	LDA	#%00000011	; no parity, no echo, no tx irq (rts=1, receive disable), no rx irq, rx enabled (dtr=0)
+_acomm8
 	STA	T232COMMAND
 	RTS
 }
@@ -3420,6 +3492,7 @@ ci1end
 !if _HARDTYPE_ = 56 {
 	JSR _SendByte
 } else {
+_adata6
 	STA	T232DATA
 }
 	JMP ci1end2			;c84start
