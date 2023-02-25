@@ -736,7 +736,7 @@ MainPrg
 _acomm5
 	STA	T232COMMAND
 !if _HARDTYPE_ = 232 {
-	LDA	#%00000000	; 1 stop bit, 8 data bits, enhanced speed
+	LDA	#%00010000	; 1 stop bit, 8 data bits, enhanced speed
 }
 !if (_HARDTYPE_ = 38) OR (_HARDTYPE_ = 1541) {
     LDA #%00011111	; 1 stop bit, 8 data bits, baud rate generator, 38400 bps
