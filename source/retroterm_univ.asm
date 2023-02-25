@@ -3468,7 +3468,7 @@ suIRQ:
 sut1:
 	;Clear, Lower/upper, yellow
 	!text $93,$0E,$9E,"    --== rETROTERM sETUP SCREEN ==--"
-	!text $0D,$0D,"rts PULSE TIMING: ",$12,"+",$92,"       ",$12,"-",$92," MS"
+	!text $0D,$0D,"rts PULSE TIMING: ",$12,"+",$92,"       ",$12,"-",$92," Us"
 !if _HARDTYPE_ != 56{
 	!byte $0D,$0D
 !if _HARDTYPE_ = 232{
