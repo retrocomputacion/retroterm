@@ -3359,6 +3359,7 @@ dosetup:
 }
 	LDX rb1l+1
 	LDA rb1h+1
+
 !if _HARDTYPE_ = 56{
 	+EnKernal y
 	CLI
@@ -3405,7 +3406,7 @@ dosetup:
 +
 }
 	CMP #$85			; (F1)
-	BNE -
+	BNE --
 !if _HARDTYPE_ = 56{
 	+EnKernal a
 	CLI
