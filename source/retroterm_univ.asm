@@ -305,8 +305,6 @@ DlyNext2
 		CLI
 !if _HARDTYPE_ = 56{
 		JSR udetect
-} else {
-		JSR aciabase
 }
 		LDA #$00
 		STA $0801
@@ -406,47 +404,6 @@ _DATA2		;Memory move parameters
 !word	PALEND, _PALEND_
 !byte	$00, $00, $00
 !word	_PALSTART_
-} else {
-	; Select ACIA base address
-aciabase:
-	LDA	#<abtxt		; Print message
-	LDY #>abtxt
-	JSR STROUT
-
--	LDA $C5			; Matrix value for last keypress
-	CMP #$38		; 1?
-	BNE +
-	LDY #$DE
-	BNE acia_1
-+	CMP #$3B		; 2?
-	BNE -
-	LDY #$DF
-acia_1
-!if _HARDTYPE_ = 232{
-	LDX #37
-} else {
-	LDX #35
-}
--	LDA _ACIA_ADDR,X
-	STA .ac1+2
-	DEX
-	LDA _ACIA_ADDR,X
-	STA .ac1+1
-.ac1
-	STY _adata1		;self modifying
-	DEX
-	BPL -
-
-	RTS
-
-abtxt:
-	!byte	$93,$8E,$90	;Clear, upp/gfx, black
-	!text	"SELECT RS232 BASE ADDRESS:"
-	!byte	$0D,$0D
-	!text	"1: DE00"
-	!byte	$0D
-	!text	"2: DF00"
-	!byte	$00
 }
 DELAYTIME !byte 00
 
@@ -474,17 +431,6 @@ _DATA1					; Memory move parameters
 !byte	$00, $00, $00
 !word	_SHADOWCODE_
 
-!if _HARDTYPE_ != 56{
-; addresses where ACIA registers are accessed
-_ACIA_ADDR:
-!word	_adata1+2,_adata2+2,_adata3+2,_adata4+2,_adata5+2,_adata6+2
-!word	_astat1+2,_astat2+2,_astat3+2
-!word	_acomm1+2,_acomm2+2,_acomm3+2,_acomm4+2,_acomm5+2,_acomm6+2,_acomm7+2,_acomm8+2
-!word	_actrl1+2
-!if _HARDTYPE_ = 232{
-!word	_aspd1+2
-}
-}
 _CODESTART_
 !pseudopc $C000 {
 	;*= $C000
@@ -691,6 +637,28 @@ TurboExit
 _acomm4
 	STA	T232COMMAND
 	RTS
+
+;////////////////////////////
+; Init ACIA
+;////////////////////////////
+ACIAinit:
+	LDA	#%00000010	; no parity, no echo, no tx irq (rts=1), no rx irq, rx disabled (dtr=1)
+_acomm5
+	STA	T232COMMAND
+!if _HARDTYPE_ = 232 {
+	LDA	#%00010000	; 1 stop bit, 8 data bits, enhanced speed
+}
+!if (_HARDTYPE_ = 38) OR (_HARDTYPE_ = 1541) {
+    LDA #%00011111	; 1 stop bit, 8 data bits, baud rate generator, 38400 bps
+}
+_actrl1
+	STA	T232CONTROL
+!if _HARDTYPE_ = 232 {
+	LDA	#%00000010	; 57600 bps
+_aspd1
+	STA	T232ENSPEED
+}
+	RTS
 }
 
 ;///////////////////////////////////////////////////////////////////////////////////
@@ -732,22 +700,7 @@ MainPrg
 	JSR InitSID
 
 !if _HARDTYPE_ != 56{
-	LDA	#%00000010	; no parity, no echo, no tx irq (rts=1), no rx irq, rx disabled (dtr=1)
-_acomm5
-	STA	T232COMMAND
-!if _HARDTYPE_ = 232 {
-	LDA	#%00010000	; 1 stop bit, 8 data bits, enhanced speed
-}
-!if (_HARDTYPE_ = 38) OR (_HARDTYPE_ = 1541) {
-    LDA #%00011111	; 1 stop bit, 8 data bits, baud rate generator, 38400 bps
-}
-_actrl1
-	STA	T232CONTROL
-!if _HARDTYPE_ = 232 {
-	LDA	#%00000010	; 57600 bps
-_aspd1
-	STA	T232ENSPEED
-}
+	JSR ACIAinit	; Init ACIA
 }
 	LDX	#$16
 
@@ -3377,6 +3330,16 @@ dosetup:
 	JSR STROUT
 	LDA #$80
 	STA $028A			; Repeat all keys
+!if _HARDTYPE_ != 56{
+	
+	; Get current ACIA base address
+	LDA _adata1+2
+	SEC
+	SBC #$DE
+	LSR
+	ROR			;.A = $00 for DE, $80 for DF
+	JSR udbase	; update base display
+}
 
 --
 !if _HARDTYPE_ = 56{
@@ -3421,8 +3384,28 @@ dosetup:
 	DEC rb1h+1
 +	DEC rb1l+1
 	JMP --
-++	CMP #$85			; (F1)
-	BNE --
+++
+!if _HARDTYPE_ != 56{
+	CMP #$31			; (1)
+	BNE +
+	LDA #$00
+	JSR udbase
+	LDY #$DE
+	JSR rebase_acia
+	JSR ACIAinit
+	BNE -
++	CMP #$32			; (2)
+	BNE +
+	LDA #$80
+	JSR udbase
+	LDY #$DF
+	JSR rebase_acia
+	JSR ACIAinit
+	BNE -
++
+}
+	CMP #$85			; (F1)
+	BNE -
 !if _HARDTYPE_ = 56{
 	+EnKernal a
 	CLI
@@ -3445,6 +3428,36 @@ dosetup:
 	+DisRoms a
 	RTS
 
+!if _HARDTYPE_ != 56{
+; --- Update ACIA base display
+udbase:
+	TAX
+	EOR #$80
+	ORA #$31		;"1"
+	STA $0400+(6*40)+1		;Screen position for 1
+	TXA
+	ORA #$32		;"2"
+	STA $0400+(7*40)+1		;Screen position for 2
+	RTS
+
+; --- Change ACIA base address
+rebase_acia
+!if _HARDTYPE_ = 232{
+	LDX #37
+} else {
+	LDX #35
+}
+-	LDA _ACIA_ADDR,X
+	STA .ac1+2
+	DEX
+	LDA _ACIA_ADDR,X
+	STA .ac1+1
+.ac1
+	STY _adata1		;self modifying
+	DEX
+	BPL -
+	RTS
+}
 ; --- Minimal IRQ
 suIRQ:
 	LDA	#$FF			; Clear the interrupt flags
@@ -3453,18 +3466,20 @@ suIRQ:
 
 ; --- Setup Texts
 sut1:
-	!byte $93,$0E,$9E	;Clear, Lower/upper, yellow
-	!text "    --== rETROTERM sETUP SCREEN ==--"
+	;Clear, Lower/upper, yellow
+	!text $93,$0E,$9E,"    --== rETROTERM sETUP SCREEN ==--"
+	!text $0D,$0D,"rts PULSE TIMING: ",$12,"+",$92,"       ",$12,"-",$92," MS"
+!if _HARDTYPE_ != 56{
 	!byte $0D,$0D
-	!text "rts PULSE TIMING: "
-	!byte $12
-	!text "+"
-	!byte $92
-	!text "       "
-	!byte $12
-	!text "-"
-	!byte $92
-	!text " MS"
+!if _HARDTYPE_ = 232{
+	!text "tURBO232 "
+} else {
+	!text "sWIFTLINK "
+}
+	!text "BASE ADDRESS:",$0D,$0D
+	!text " 1> $de00",$0D
+	!text " 2> $df00"
+}
 	!byte $00
 sut2:
 	!text "     "
@@ -3472,10 +3487,19 @@ sut2:
 	!byte $00
 sut3:
 	!byte $12
-	!text " f1 "
-	!byte $92
-	!text " TO RETURN TO rETROTERM"
-	!byte $00
+	!text $12," f1 ",$92," TO RETURN TO rETROTERM",$00
+
+!if _HARDTYPE_ != 56{
+; addresses where ACIA registers are accessed
+_ACIA_ADDR:
+!word	_adata1+2,_adata2+2,_adata3+2,_adata4+2,_adata5+2,_adata6+2
+!word	_astat1+2,_astat2+2,_astat3+2
+!word	_acomm1+2,_acomm2+2,_acomm3+2,_acomm4+2,_acomm5+2,_acomm6+2,_acomm7+2,_acomm8+2
+!word	_actrl1+2
+!if _HARDTYPE_ = 232{
+!word	_aspd1+2
+}
+}
 suend
 }
 _suend

@@ -57,8 +57,8 @@ Separate versions of the executable are provided for cartridges featuring an ACI
 - New command `$B6` to scroll the text window up or down X number or rows.
 - SID streaming now better supports tunes using _hardrestart_, a special version of _SIDdump_  and updated version of _RetroBBS_ is needed for this.
 - New compile target `ultimate` compiles with timings compatible with the Swiftlink emulation in the Ultimate1541-II/II+ and Ultimate64.
-- ACIA based versions now allow selection of the interface base address ($DE00 or $DF00).
 - Basic configuration screen by pressing `C= + F7`, terminal screen is not preserved.
+- ACIA based versions now allow selection of the interface base address ($DE00 or $DF00).
 
 ### v0.14 (13/04/2022):
 - Source code liberated
