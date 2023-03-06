@@ -122,6 +122,21 @@ If you downloaded a program into memory from a BBS you can also `RUN` it.
 
 *Retroterm* beeps for every received character by default, you can toggle the sound by pressing `CBM + M`.
 
+## 2.1 Setup screen
+
+A simple setup screen can be accessed by pressing `CBM + F7`, pressing `F1` will exit back to the terminal.
+
+The first setting, common to all _Retroterm_ variants sets the **RTS** pulse width. Current values are known to work under VICE, or on real hardware with an userport modem using Zimodem firmware, and with the Ultimate Swiftlink emulation.
+Use the `+` and `-` keys to adjust.
+
+For the ACIA versions there's a couple more settings.
+
+The first one sets the base address for the Swiftlink or Turbo232 cartridge, press `1` for $DE00 or `2` for $DF00. Swiching addresses will drop any current connection.
+
+The second setting available for ACIA versions is the ability to keep the screen visible while transferring at turbo speeds. Press `B` to toggle.
+
+**Important**: Upon exiting the setup screen, _Retroterm_ will default to full screen text mode. Only previous background and border colors will be restored.
+
 ## 3 Building Retroterm
 *Retroterm* is written for the *ACME* crossassembler, to compile use:
 

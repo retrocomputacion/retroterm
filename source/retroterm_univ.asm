@@ -1868,7 +1868,7 @@ ExitIrq
 	STA $D021			; Upper section background color
 	LDA #%00011111
 	STA $D018
-	LDA #%00111010		;%00111011	; Enable bitmap mode
+	LDA #%00111011		;%00111011	; Enable bitmap mode
 	BNE ++
 +	LDA	$D011			; Enable VIC II screen
 	AND	#%01111111
@@ -1992,6 +1992,7 @@ _Cmd82	;Alternative entry point
 	BNE -				; Waits for raster line 251
 
 	LDA	$D011			; Disables VIC II screen
+C82enable
 	AND	#%01101111
 	STA	$D011
 
@@ -2502,7 +2503,7 @@ CmdB3
 	ASL
 	ASL					; .A*8
 	CLC
-	ADC #$30			; +50 = Scanline-3
+	ADC #$31			; +51 = Scanline-2
 	STA SPLITRST
 	JSR GetFromPrBuffer
 	STA UPBGC
@@ -3306,16 +3307,21 @@ dosetup:
 	PHA
 	LDA $0286
 	PHA
+	; LDA #%00011011		;2 Text mode
+	; STA $D011			;4
 
 	LDA #$02
 	STA $D020
 	STA $D021
 	LDA	#%00000001		; Enable raster interrupt signals from VIC
 	STA	$D01A
-	LDA	$D011			; Enable VIC II screen
-	AND	#%01111111
+	LDA	$D011			; Enable VIC II screen in text mode
+	AND	#%00011111
 	ORA	#$10
 	STA	$D011
+	LDA #%11001000		;
+	STA $D016			; Disable multicolor
+
 	CLI
 ;...
 	LDA #<sut1			; Print message
@@ -3404,9 +3410,32 @@ dosetup:
 	JSR ACIAinit
 	BNE -
 +
+	CMP #$42			; (B)
+	BNE++
+	CLC
+	LDY #$17
+	LDX #$09
+	JSR $FFF0			; Set cursor
+	LDX #$FF
+	LDA C82enable+1
+	BPL +
+	LDA #<sut4
+	LDY #>sut4
+	LDX #%01101111		;Disable
++	STX C82enable+1
+	CPX #$FF
+	BNE +
+	LDA #<sut5			;Enable
+	LDY #>sut5
++	JSR STROUT
+	JMP -
+
+++
 }
 	CMP #$85			; (F1)
-	BNE --
+	BEQ +
+	JMP --
++
 !if _HARDTYPE_ = 56{
 	+EnKernal a
 	CLI
@@ -3479,7 +3508,9 @@ sut1:
 }
 	!text "BASE ADDRESS:",$0D,$0D
 	!text " 1> $de00",$0D
-	!text " 2> $df00"
+	!text " 2> $df00",$0D,$0D
+	!text $12,"b",$92,"LOCK TRANSFER SCREEN: disabled"
+	
 }
 	!byte $00
 sut2:
@@ -3489,6 +3520,10 @@ sut2:
 sut3:
 	!byte $12
 	!text $12," f1 ",$92," TO RETURN TO rETROTERM",$00
+sut4:
+	!text "dis",$00
+sut5:
+	!text " en",$00
 
 !if _HARDTYPE_ != 56{
 ; addresses where ACIA registers are accessed
