@@ -133,7 +133,7 @@ For the ACIA versions there's a couple more settings.
 
 The first one sets the base address for the Swiftlink or Turbo232 cartridge, press `1` for $DE00 or `2` for $DF00. Swiching addresses will drop any current connection.
 
-The second setting available for ACIA versions is the ability to keep the screen visible while transferring at turbo speeds. Press `B` to toggle.
+The second setting available for ACIA versions is the ability to keep the screen visible while transferring at turbo speeds. Turbo transfers are slightly slower with the screen enabled. Press `B` to toggle.
 
 **Important**: Upon exiting the setup screen, _Retroterm_ will default to full screen text mode. Only previous background and border colors will be restored.
 
