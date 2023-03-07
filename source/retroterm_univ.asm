@@ -1868,7 +1868,7 @@ ExitIrq
 	STA $D021			; Upper section background color
 	LDA #%00011111
 	STA $D018
-	LDA #%00111011		;%00111011	; Enable bitmap mode
+	LDA #%00111010		;%00111011	; Enable bitmap mode
 	BNE ++
 +	LDA	$D011			; Enable VIC II screen
 	AND	#%01111111
@@ -2503,7 +2503,7 @@ CmdB3
 	ASL
 	ASL					; .A*8
 	CLC
-	ADC #$31			; +51 = Scanline-2
+	ADC #$30			; +50 = Scanline-2
 	STA SPLITRST
 	JSR GetFromPrBuffer
 	STA UPBGC
@@ -2542,23 +2542,23 @@ IrqB3:
 	BNE -				;3
 
 	;NOP				;<----
-	LDY BTBGC
+	;LDY BTBGC			;4
 	;NOP
 	;NOP
 
 	;LDA #$FF			;2
 	ROL $D019			;4
 ;<- 50-55
-	;NOP
-	;NOP
+	NOP
+	NOP
 	LDA #%00011011		;2 Text mode
 	STA $D011			;4
 	LDA #%11001000		;2
 	STA $D016			;4 Disable multicolor
 	;LDA BTBGC			;4
-	STY $D021			;4 Bottom section background color
 	LDA	#23				;2 Switch to text mode (uppercase/lowercase)
 	STA	$D018			;4
+	STY $D021			;4 Bottom section background color
 
 	LDA #251			;2
 	STA $D012			;4
