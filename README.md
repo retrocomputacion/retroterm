@@ -98,7 +98,7 @@ Over time, the protocol has been extended to include 4-bit PCM audio streaming, 
 
 - A Commodore 64 or 128 computer or an emulator such as VICE or Z64K
 - Either an userport WiFi modem with the Zimodem firmware or...
-- A *SwiftLink* or *Turbo232* compatible cartridge conected to a Wifi modem with the Zimodem firmware.
+- A *SwiftLink* or *Turbo232* compatible cartridge connected to a Wifi modem with the Zimodem firmware.
 - ACME crossassembler for building the programs.
 
 ## 2 Usage
@@ -131,7 +131,7 @@ Use the `+` and `-` keys to adjust.
 
 For the ACIA versions there's a couple more settings.
 
-The first one sets the base address for the Swiftlink or Turbo232 cartridge, press `1` for $DE00 or `2` for $DF00. Swiching addresses will drop any current connection.
+The first one sets the base address for the Swiftlink or Turbo232 cartridge, press `1` for $DE00 or `2` for $DF00. Switching addresses will drop any current connection.
 
 The second setting available for ACIA versions is the ability to keep the screen visible while transferring at turbo speeds. Turbo transfers are slightly slower with the screen enabled. Press `B` to toggle.
 
@@ -211,7 +211,7 @@ IDstring:
 **Note: The actual version number string is sourced from the file `source/version.txt` when using the *makefile*, or from `source/version.asm` when running the compiler directly**
 
 
-For compatibility reasons we ask you not to modify the behavior of existing Turbo56K commands, but you're welcomed to add new commands, or remove unwanted ones, as long as command `$A3` correcly reports the existence or not of all queried commands.
+For compatibility reasons we ask you not to modify the behavior of existing Turbo56K commands, but you're welcomed to add new commands, or remove unwanted ones, as long as command `$A3` correctly reports the existence or not of all queried commands.
 
 In any case the *[Turbo56k](docs/turbo56k.md)* version bytes that follow the ID string should remain the correct ones for the official version your modified code support.
 
