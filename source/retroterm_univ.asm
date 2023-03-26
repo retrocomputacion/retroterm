@@ -210,6 +210,19 @@ y = 2
 	}
 }
 
+!macro SetCursor .col, .row {
+	CLC
+	LDY #.col
+	LDX #.row
+	JSR PLOT
+}
+
+!macro StringOut .addr {
+	LDA #<.addr
+	LDY #>.addr
+	JSR STROUT
+}
+
 !macro _Version_{	; Insert version number string
 	!src "version.asm"
 }
@@ -306,6 +319,7 @@ DlyNext2
 !if _HARDTYPE_ = 56{
 		JSR udetect
 }
+		JSR DrvDetect
 		LDA #$00
 		STA $0801
 		STA $0802
@@ -314,38 +328,38 @@ DlyNext2
 !if _HARDTYPE_ = 56{
 ; Detect C64 model
 udetect:
-	sei
-	lda #$FE
-	and $DC0E
-	sta $DC0E
-	lda #$38
-	sta $DC04
-	lda #$4F
-	sta $DC05
-	lda $0314
-	sta TIRQ
-	lda #<MIRQ
-	sta $0314
-	lda $0315
-	sta TIRQ+1
-	lda #>MIRQ
-	sta $0315
+	SEI
+	LDA #$FE
+	AND $DC0E
+	STA $DC0E
+	LDA #$38
+	STA $DC04
+	LDA #$4F
+	STA $DC05
+	LDA $0314
+	STA TIRQ
+	LDA #<MIRQ
+	STA $0314
+	LDA $0315
+	STA TIRQ+1
+	LDA #>MIRQ
+	STA $0315
 ;Wait for raster line zero
-.z1	lda $D012
-	bne .z1
-	lda $D011
-	and #$80
-	bne .z1
-	sta Flg		;Clear test flag
-	inc $DC0E	;Start timer
-	cli
-.f1	ldy Flg
-	beq .f1		;Wait for test flag
-	lda Ras
-.s1	cmp #$0B	;PAL-B/G?
-	bne .n0
+.z1	LDA $D012
+	BNE .z1
+	LDA $D011
+	AND #$80
+	BNE .z1
+	STA Flg		;Clear test flag
+	INC $DC0E	;Start timer
+	CLI
+.f1	LDY Flg
+	BEQ .f1		;Wait for test flag
+	LDA Ras
+.s1	CMP #$0B	;PAL-B/G?
+	BNE .n0
 	;yes, copy PAL-B TurboRX routine
-	INC $D020
+	;INC $D020
 	;LDX #$08
 
 --	LDY #$08		;<-
@@ -362,39 +376,39 @@ udetect:
 	;TAX
 	;BPL --
 ;
-.n0	sei
-	lda TIRQ	;Back to normal
-	sta $0314
-	lda TIRQ+1
-	sta $0315
-	lda #$FE
-	and $DC0E
-	sta $DC0E
-	lda $02A6
-	beq .n1
-	lda #$25
-	sta $DC04
-	lda #$40
-	bne .n2
-.n1	lda #$95
-	sta $DC04
-	lda #$42
-.n2	sta $DC05
-	inc $DC0E
-	cli
-	rts
+.n0	SEI
+	LDA TIRQ	;Back to normal
+	STA $0314
+	LDA TIRQ+1
+	STA $0315
+	LDA #$FE
+	AND $DC0E
+	STA $DC0E
+	LDA $02A6
+	BEQ .n1
+	LDA #$25
+	STA $DC04
+	LDA #$40
+	BNE .n2
+.n1	LDA #$95
+	STA $DC04
+	LDA #$42
+.n2	STA $DC05
+	INC $DC0E
+	CLI
+	RTS
 
 MIRQ
-	lda $DC0D
-	cmp #$81
-	bne .p1
-	ldx Flg
-	bne .p1
-	inc Flg
-	lda $D012
-	sta Ras
-	;inc V_BORDER
-.p1	jmp $ea81
+	LDA $DC0D
+	CMP #$81
+	BNE .p1
+	LDX Flg
+	BNE .p1
+	INC Flg
+	LDA $D012
+	STA Ras
+	;INC V_BORDER
+.p1	JMP $ea81
 
 TIRQ	!byte 00,00
 Flg	!byte 00
@@ -406,6 +420,158 @@ _DATA2		;Memory move parameters
 !word	_PALSTART_
 }
 DELAYTIME !byte 00
+
+;Detect present drives for devices 8-15
+DrvDetect:
+--      JSR chdrive
+        LDA result
+        BEQ ++            ; Not found? continue with next device
+        LDA #IDQTY
+        STA IDtmp
+-       LDA IDtmp
+        ASL
+        TAY
+        LDA IDptr,Y
+        LDX IDptr+1,Y
+        JSR cmpstr
+        BPL +           ;If found ->
+        DEC IDtmp       ;not found, try next ID string
+        BPL -
+        ; found or out of ID strings
++       LDA device
+        SEC
+        SBC #$08
+        TAX
+        LDA IDtmp
+        STA DRVlst,X
+
+++      INC device
+        LDA #$10
+        CMP device
+        BNE --
+
+		;Copy drive list
+		SEI
+		+DisKernal a
+		LDX #$07
+-		LDA DRVlst,X
+		STA DRIVES,X
+		DEX
+		BPL -
+		+EnKernal a
+		CLI
+		RTS
+
+chdrive:
+;first check if device present
+        LDA #$00
+        STA $90			; clear STATUS flags
+
+        LDA device		; device number
+        JSR $FFB1		; call LISTEN
+        LDA #$6F		; secondary address 15 (command channel)
+        JSR $FF93		; call SECLSN (SECOND)
+        JSR $FFAE		; call UNLSN
+        LDA $90		; get STATUS flags
+        BNE .devnp		; device not present
+
+        LDA #cmd_end-cmd
+        LDX #<cmd
+        LDY #>cmd
+        JSR $FFBD		; call SETNAM
+
+        LDA #$0F		; file number 15
+        LDX device       ; last used device number
+        BNE +
+        LDX #$08		; default to device 8
++  		LDY #$0F		; secondary address 15
+        JSR $FFBA		; call SETLFS
+
+        JSR $FFC0		; call OPEN
+        BCS ++			; if carry set, the file could not be opened
+        LDX #$0F		; filenumber 15
+        JSR $FFC6		; CHKIN file now used as input
+        LDY #$03
+-		JSR $FFB7		; call READST (read status byte)
+        BNE +			; either EOF or read error
+        JSR $FFCF		; call CHRIN (get a byte from file)
+        DEY				; skip first 3 chars
+        BNE -
+-	    JSR $FFB7		; call READST
+        BNE +
+        JSR $FFCF		; call CHRIN
+        STA result,Y
+        INY
+        JMP -			; next byte
++
+-       LDA #$00
+        STA result,Y	; Null terminate result string
+        LDA #$0F
+        JSR $FFC3		; call CLOSE
+
+        JSR $FFCC		; call CLRCHN
+        RTS
+++
+        ;... error handling for open errors ...
+        LDY #$00
+        BEQ -			; even if OPEN failed, the file has to be closed
+.devnp
+        LDY #$00
+        STY result      ; 'clear' result string
+        RTS
+
+cmpstr: ;Find substring, ID string addr in .a/.x. Return .x :$00 if found, $FF otherwise
+        STA $FC
+        STX $FD
+        LDX #$FF
+        STX match
+        ; Iterate ID string until finding the 1st character of the substing
+        LDY #$FF
+--      INY
+-       INX
+        LDA ($FC),Y
+        BEQ ++			; If null, exit
+        CMP result,X
+        BNE +
+        ; match
+        LDA #$00
+        STA match
+        BEQ --			; continue with the next character in both strings
+        ; no match
++       LDA #$FF
+        STA match
+        LDA result,X
+        BEQ ++			; end of ID string?
+        LDY #$00		; reset substring index
+        BEQ -
+++      LDX match
+        RTS
+
+
+device:		!byte $08
+cmd:		!text "UI",$0d          ; command string
+cmd_end:
+match		!byte $ff               ; string matched $00 or not $ff
+
+result:		!fill $40, $00          ; Drive response tmp string
+DRVlst:		!fill $08, $ff          ; Available Drive list ($FF = not found)
+; Expected ID substrings
+ID1541:		!text "1541",$00		; #ID 9
+ID1570:		!text "1570",$00		; #ID 8
+ID1571:		!text "1571",$00		; #ID 7
+ID1581:		!text "1581",$00		; #ID 6
+IDCMDFD:	!text "CMD FD",$00		; #ID 5
+IDSD2IEC:	!text "SD2IEC",$00		; #ID 4
+IDULTI:		!text "ULTIMATE",$00	; #ID 3
+IDVICEFS:	!text "VICE",$00		; #ID 2
+IDVICE:		!text "VIRTUAL",$00		; #ID 1
+IDPI1541:	!text "PI1541",$00		; #ID 0
+
+IDQTY = 10-1
+
+IDptr: !word IDPI1541,IDVICE,IDVICEFS,IDULTI, IDSD2IEC, IDCMDFD, ID1581, ID1571, ID1570, ID1541
+IDtmp: !byte IDQTY
+
 
 ;Intro screen
 !if _INTRO_ > 0 {
@@ -1613,9 +1779,8 @@ _acomm6
 	LDA $2E
 	STA $32			; Restore BASIC array pointer 
 
-	LDA	#<Msg05		; Print exit message
-	LDY	#>Msg05
-	JSR	STROUT
+	; Print exit message
+	+StringOut Msg05
 
 	LDA	#21			; Switch to text mode
 	STA	$D018
@@ -2826,6 +2991,11 @@ BBUF		= $0600
 	BPL -
 
 	JSR _MemCpy		;Do mem copy
+	LDX #$08
+-	LDA DRIVES,X	;Copy list of detected drives to low RAM
+	STA _drives,X
+	DEX
+	BPL -
 	JMP bsave
 _86data
 	!word _bsstart,DESTADDR,_bsend-_bsstart
@@ -2840,9 +3010,8 @@ bsave:
 	JSR b3cancel	; Cancel split screen
 
 	CLI
-	LDA	#<bst1		; Print message
-	LDY	#>bst1
-	JSR	STROUT
+	; Print message
+	+StringOut bst1
 	SEI
 !if _HARDTYPE_ = 56{
 	+DisKernal x
@@ -2873,42 +3042,49 @@ bsave:
 	LDA #<bst2
 	LDY #>bst2
 ++	JSR STROUT
-	LDA #<bst1a
-	LDY #>bst1a
-	JSR STROUT
+	+StringOut bst1a
 	JSR ReadString	; Get filename
-	CLC
-	LDY #$0A
-	LDX #$01
-	JSR $FFF0
-	LDA #<FNAME		; Print filename
-	LDY #>FNAME
-	JSR STROUT
-	CLC
-	LDY #$20
-	LDX #$0B
-	JSR $FFF0
-	LDA #<bst6
-	LDY #>bst6
-	JSR STROUT		; Print buffer frame
+	+SetCursor $0A,$01
+	; Print filename
+	+StringOut FNAME
+	+SetCursor $20,$0B
+	; Print buffer frame
+	+StringOut bst6
 
 	JSR UBlock		; Print counters
 	JSR URetry
 
+	LDX #$00
+	STX _curdrv		; Find first available drive #
+-	CPX #$08
+	BEQ ++			; No available drive found > CANCEL
+	LDA _drives,X
+	BPL +			; Available drive
+	INX
+	BNE -
+
++	STX _curdrv		; Store as current drive
+	JSR ddrive
+
 -	LDA $C5			; Matrix value for last keypress
 	CMP #$19		; Wait for 'Y'
-	BEQ +
+	BEQ .y1
 	CMP #$27		; Or 'N'
-	BNE -
-	LDY #$42		; CANCEL
+	BNE +
+++	LDY #$42		; CANCEL
 	BNE .bb
-+	CLC
-	LDY #$0B
-	LDX #$08
-	JSR $FFF0		; Set cursor
-	LDA #<bst9
-	LDY #>bst9
-	JSR STROUT		; Print abort message
++	CMP #$28		; '+'
+	BNE +
+	JSR ndrive		; Get next drive
+	JMP -
++	CMP #$2B		; '-'
+	BNE -
+	JSR pdrive		; Get previous drive
+	JMP -
+
+.y1	;Continue
+	+SetCursor $0B,$08
+	+StringOut bst9	; Print abort message
 
 	LDY FNL			; add write string to filename
 	LDX #$00
@@ -3032,12 +3208,13 @@ bsave:
  	LDY #>FNAME
  	JSR $FFBD	  	; call SETNAM
 
- 	LDA #$02    	; file number 2
- 	LDX $BA       	; last used device number
- 	BNE +
- 	LDX #$08      	; default to device 8
-+   LDY #$02      	; secondary address 2
- 	JSR $FFBA     	; call SETLFS
+	LDA _curdrv		; current selected drive
+	CLC
+	ADC #$08
+	TAX
+	LDA #$02    	; file number 2
+	LDY #$02      	; secondary address 2
+	JSR $FFBA     	; call SETLFS
  	JSR $FFC0     	; call OPEN
 	BCS .error		; if carry set, file couldnt not be opened
 	LDX #$02		; filenumber 2
@@ -3102,13 +3279,8 @@ UPDCRC:
 
 ;Update received block count
 UBlock:
-	CLC
-	LDY #$00
-	LDX #$03
-	JSR $FFF0
-	LDA #<bst7
-	LDY #>bst7
-	JSR STROUT
+	+SetCursor $00,$04
+	+StringOut bst7
 	LDA bcount
 	LDX bcount+1
 	JSR $BDCD		; Print number
@@ -3122,13 +3294,8 @@ bcount
 
 ;Update retries count
 URetry:
-	CLC
-	LDY #$00
-	LDX #$04
-	JSR $FFF0
-	LDA #<bst8
-	LDY #>bst8
-	JSR STROUT
+	+SetCursor $00,$05
+	+StringOut bst8
 	LDA rcount
 	LDX rcount+1
 	JSR $BDCD		; Print number
@@ -3183,24 +3350,58 @@ ReadString:
 ;	CLI
 	RTS
 
+; Find next available drive
+ndrive:
+	LDX _curdrv
+-	INX
+	CPX #$08
+	BEQ +
+	LDA _drives,X
+	BMI -
+	STX _curdrv
++	JSR ddrive
+	RTS
+
+;Find previous available drive
+pdrive:
+	LDX _curdrv
+-	DEX
+	BMI +
+	LDA _drives,X
+	BMI -
+	STX _curdrv
++	JSR ddrive
+	RTS
+
+;Print drive number
+ddrive:
+	+SetCursor 11,2
+	+StringOut bst10
+	CLC
+	LDA _curdrv
+	ADC #$08
+	TAX
+	LDA #$00
+	JSR $BDCD	; Print number
+	; and wait for key release
+-	LDA $C5
+	CMP #$40
+	BNE -
+	RTS
+
 ; File save text
 bst1:
 	!byte	$93,$8E,$05	;Clear, upp/gfx, white
-	!text	"HOST REQUESTED TO SAVE "
-	!byte	$00
+	!text	"HOST REQUESTED TO SAVE ",$00
 bst1a:
-	!text 	"FILE"
-	!byte 	$0D
-	!text	"FILENAME:"
-	!byte	$0D
-	!text	"CONTINUE? (Y/N)"
-	!byte	$00
+	!text 	"FILE",$0D
+	!text	"FILENAME:",$0D
+	!text	"TO DRIVE ",$12,"+",$92,"    ",$12,"-",$0D
+	!text	"CONTINUE? (Y/N)",$00
 bst2:	;Program
-	!text	"PROGRAM "
-	!byte	$00
+	!text	"PROGRAM ",$00
 bst3:	;Sequential
-	!text	"SEQUENTIAL "
-	!byte	$00
+	!text	"SEQUENTIAL ",$00
 bst4:	;Write Program
 	!text	",P,W"
 bst5:	;Write Sequential
@@ -3227,12 +3428,15 @@ bst8:
 	!byte $00
 ; Abort text
 bst9:
-	!text "HOLD "
-	!byte $12	; RVS ON
-	!text " F7 "
-	!byte $92	; RVS OFF
-	!text " TO ABORT"
+	!text "HOLD ",$12," F7 ",$92," TO ABORT",$00
+; Drive clean spaces
+bst10:
+	!text "  ",$9D,$9D,$00
+
+; Detected drives copy
+_curdrv:
 	!byte $00
+_drives:
 bsend
 }
 _bsend
@@ -3324,16 +3528,10 @@ dosetup:
 
 	CLI
 ;...
-	LDA #<sut1			; Print message
-	LDY #>sut1
-	JSR STROUT
-	CLC
-	LDY #$07
-	LDX #$18
-	JSR $FFF0
-	LDA #<sut3
-	LDY #>sut3
-	JSR STROUT
+	; Print message
+	+StringOut sut1
+	+SetCursor $07,$18
+	+StringOut sut3
 	LDA #$80
 	STA $028A			; Repeat all keys
 !if _HARDTYPE_ != 56{
@@ -3352,13 +3550,8 @@ dosetup:
 	+EnKernal a
 	CLI
 }
-	CLC
-	LDY #$14
-	LDX #$02
-	JSR $FFF0
-	LDA #<sut2
-	LDY #>sut2
-	JSR STROUT
+	+SetCursor $14,$02
+	+StringOut sut2
 !if _HARDTYPE_ = 56{
 	SEI
 	+DisKernal x
@@ -3412,10 +3605,7 @@ dosetup:
 +
 	CMP #$42			; (B)
 	BNE++
-	CLC
-	LDY #$17
-	LDX #$09
-	JSR $FFF0			; Set cursor
+	+SetCursor $17,$09
 	LDX #$FF
 	LDA C82enable+1
 	BPL +
@@ -4389,6 +4579,10 @@ SPMUTE:
 !byte $09,$04,$01,$08,$00,$00,$88,$00
 !byte $00,$48,$00,$00,$28,$00,$00,$18
 !byte $00,$00,$00,$00,$00,$00,$00,$03
+
+; List of detected drives. Filled at first startup
+DRIVES:
+!fill $08,$FF
 
 EXTRAEND
 }
