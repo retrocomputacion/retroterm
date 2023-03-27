@@ -297,8 +297,7 @@ DlyNext2
 ; Second loop:	move first section to $C000-
 
 		SEI
-		LDA #$34		;Disable ROMS
-		STA $01
+		+DisRoms a
 
 		LDX #$1A
 .c0		LDY #$08		;<-
@@ -310,7 +309,11 @@ DlyNext2
 		BPL .c2
 		TXA
 		PHA
+		TYA
+		PHA
 		JSR $A3BF		; >>Open space in memory
+		PLA
+		TAY
 		PLA
 		TAX
 		BPL .c0
@@ -3279,7 +3282,7 @@ UPDCRC:
 
 ;Update received block count
 UBlock:
-	+SetCursor $00,$04
+	+SetCursor $00,$06
 	+StringOut bst7
 	LDA bcount
 	LDX bcount+1
@@ -3294,7 +3297,7 @@ bcount
 
 ;Update retries count
 URetry:
-	+SetCursor $00,$05
+	+SetCursor $00,$07
 	+StringOut bst8
 	LDA rcount
 	LDX rcount+1
@@ -3391,13 +3394,13 @@ ddrive:
 
 ; File save text
 bst1:
-	!byte	$93,$8E,$05	;Clear, upp/gfx, white
+	!byte	$93,$8E,$99,$92	;Clear, upp/gfx, light green, rvsoff
 	!text	"HOST REQUESTED TO SAVE ",$00
 bst1a:
 	!text 	"FILE",$0D
-	!text	"FILENAME:",$0D
-	!text	"TO DRIVE ",$12,"+",$92,"    ",$12,"-",$0D
-	!text	"CONTINUE? (Y/N)",$00
+	!text	$05,"FILENAME:",$0D
+	!text	$9E,"TO DRIVE ",$12,"+",$92,"    ",$12,"-",$0D
+	!text	$11,$81,"CONTINUE? (Y/N)",$05,$00
 bst2:	;Program
 	!text	"PROGRAM ",$00
 bst3:	;Sequential

@@ -53,12 +53,13 @@ Separate versions of the executable are provided for cartridges featuring an ACI
 
 ### v0.20 (in development):
 - Fixed bug in command $A3 which caused the parameter to be missread, or the terminal to hang
-- New command `$86` to initiate a download to disk. Destination drive cannot be selected yet.
+- New command `$86` to initiate a download to disk.
 - New command `$B6` to scroll the text window up or down X number or rows.
 - SID streaming now better supports tunes using _hardrestart_, a special version of _SIDdump_  and updated version of _RetroBBS_ is needed for this.
 - New compile target `ultimate` compiles with timings compatible with the Swiftlink emulation in the Ultimate1541-II/II+ and Ultimate64.
 - Basic configuration screen by pressing `C= + F7`, terminal screen is not preserved.
 - ACIA based versions now allow selection of the interface base address ($DE00 or $DF00).
+- Connected disk drives are scanned on first run, and can be selected when downloading a file with command `$86`.
 
 ### v0.14 (13/04/2022):
 - Source code liberated
@@ -145,7 +146,7 @@ make
 ```
 to compile all versions.
 
-or you can specify which version you want to compile, either `userport`, `swiflink` or `turbo232`.
+Or you can specify which version you want to compile, either `userport`, `swiflink` or `turbo232`.
 
 ie:
 ```
@@ -170,13 +171,15 @@ A number of compile time symbols are defined to customize the resulting executab
 
 `232`: Compile for *Turbo232* cartridges at **57600bps**
 
+`1541`: Compile for the *Ultimate 1541-II* or *Ultimate 64* Swiftlink emulation, same code as for `38` but different timing.
+
 ### `_INTRO_`:
 `0`: No intro screen
 
 `1`: Include the intro screen -- **_Default_**
 
 ### `_SPACE_`:
-If defined wait for the user to press the space bar on the intro screen. Otherwise the intro screen only last a couple of seconds.
+If defined wait for the user to press the space bar at the intro screen. Otherwise the intro screen only last a couple of seconds.
 
 **_Not defined by default_**
 
@@ -199,13 +202,13 @@ If you want to release a modified version of _Retroterm_ which differs in functi
 IE, the normal ID string is:
 ```
 IDstring:
-!text "RTRETROTERM 0.14      "
+!text "RTRETROTERM 0.20      "
 ```
 but the string when compiling for the *SwiftLink* cartridge is:
 
 ```
 IDstring:
-!text "RTRETROTERM-SL 0.14   "
+!text "RTRETROTERM-SL 0.20   "
 ```
 
 **Note: The actual version number string is sourced from the file `source/version.txt` when using the *makefile*, or from `source/version.asm` when running the compiler directly**
@@ -220,11 +223,9 @@ In any case the *[Turbo56k](docs/turbo56k.md)* version bytes that follow the ID 
 
 - Losing connection while streaming data or audio will hang the program
 - Exiting `Retroterm`, restarting it with  `SYS49152`, exiting again and causing a BASIC error will crash the computer.
-- SID files using the hard-restart technique will sound wrong, or not play at all.
 
 ## 5 To-do
 - Extend the command parameter space to support more than 8 parameters per command.
-- Add support for hard-restart to the SID streaming protocol.
 - Faster throughput when using any of the ACIA cartridges.
 
 ## 6 Acknowledgments
