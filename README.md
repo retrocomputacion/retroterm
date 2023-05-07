@@ -3,10 +3,10 @@
 # Retroterm
 ### VERSION 0.20 RC
 
-Jorge Castillo  &  Pablo Roldán
+Jorge Castillo & Pablo Roldán
 
 
-![Badge commdore](https://img.shields.io/badge/Commodore-64%2f128-1E2A4E?logo=commodore&logoColor=1E2A4E&labelColor=ccc) ![GitHub all releases](https://img.shields.io/github/downloads/retrocomputacion/retroterm/total?labelColor=ccc) ![Badge license](https://img.shields.io/github/license/retrocomputacion/retroterm?labelColor=ccc)
+![Badge commodore](https://img.shields.io/badge/Commodore-64%2f128-1E2A4E?logo=commodore&logoColor=1E2A4E&labelColor=ccc) ![GitHub all releases](https://img.shields.io/github/downloads/retrocomputacion/retroterm/total?labelColor=ccc) ![Badge license](https://img.shields.io/github/license/retrocomputacion/retroterm?labelColor=ccc)
 
 ---
 </div>
@@ -36,11 +36,11 @@ Jorge Castillo  &  Pablo Roldán
 
 It implements the *[Turbo56k](docs/turbo56k.md)* protocol for high speed data transfer & streaming when connecting to a BBS supporting the protocol, such as [_RetroBBS_](https://github.com/retrocomputacion/retrobbs).
 
-While the userport data rate is fixed at *57600bps* , the effective throughput with the screen on is *1500 / 1800bps* depending on *PAL/NTSC* timings respectively.
+While the userport data rate is fixed at *57600bps*, the effective throughput with the screen on is *1500 / 1800bps* depending on *PAL/NTSC* timings respectively.
 
 *The full data throughput while using the turbo transfer / streaming can only be achieved with the screen disabled.*
 
-*Retroterm* is optimized for use with **WiFi** modems using the *Zimodem* firmware.
+*Retroterm* is optimized for use with **Wi-Fi** modems using the *Zimodem* firmware.
 
 *It also runs on the latest **VICE** / **Z64K** emulators.*
 
@@ -52,10 +52,10 @@ Separate versions of the executable are provided for cartridges featuring an ACI
 ## 1.1 Release history
 
 ### v0.20 (in development):
-- Fixed bug in command $A3 which caused the parameter to be missread, or the terminal to hang
+- Fixed bug in command $A3 which caused the parameter to be misread, or the terminal to hang
 - New command `$86` to initiate a download to disk.
-- New command `$B6` to scroll the text window up or down X number or rows.
-- SID streaming now better supports tunes using _hardrestart_, a special version of _SIDdump_  and updated version of _RetroBBS_ is needed for this.
+- New command `$B6` to scroll the text window up or down X number of rows.
+- SID streaming now better supports tunes using _hardrestart_, a special version of _SIDdump_ and updated version of _RetroBBS_ is needed for this.
 - New compile target `ultimate` compiles with timings compatible with the Swiftlink emulation in the Ultimate1541-II/II+ and Ultimate64.
 - Basic configuration screen by pressing `C= + F7`, terminal screen is not preserved.
 - ACIA based versions now allow selection of the interface base address ($DE00 or $DF00).
@@ -89,7 +89,7 @@ Over time, the protocol has been extended to include 4-bit PCM audio streaming, 
 - Split Screen | Hi-res or Multicolor + Text
 - 11520Hz 4 - bit PCM audio streaming
 - Bitmap display | Hi-res + Multicolor
-- Consumes less that 5KB of memory
+- Consumes less than 5 KB of memory
 - 1x speed SID music streaming
 - Scrolling Text Windows
 - Set Cursor Position
@@ -98,8 +98,8 @@ Over time, the protocol has been extended to include 4-bit PCM audio streaming, 
 ## 1.4 Requirements
 
 - A Commodore 64 or 128 computer or an emulator such as VICE or Z64K
-- Either an userport WiFi modem with the Zimodem firmware or...
-- A *SwiftLink* or *Turbo232* compatible cartridge connected to a Wifi modem with the Zimodem firmware.
+- Either an userport Wi-Fi modem with the Zimodem firmware or...
+- A *SwiftLink* or *Turbo232* compatible cartridge connected to a Wi-Fi modem with the Zimodem firmware.
 - ACME crossassembler for building the programs.
 
 ## 2 Usage
@@ -115,9 +115,9 @@ Over time, the protocol has been extended to include 4-bit PCM audio streaming, 
 
 After LOADing and RUNning *Retroterm*, you can dial to your favorite BBS using your Modem commands as usual.
 
-**The modem should be setup to the correct baudrate before running _Retroterm_.**
+**The modem should be setup to the correct baud rate before running _Retroterm_.**
 
-To exit *Retroterm*, just press `RUN/STOP`, it will remain in memory and you can recall it with `SYS49152`.
+To exit *Retroterm*, just press `RUN/STOP`, it will remain in memory, and you can recall it with `SYS49152`.
 
 If you downloaded a program into memory from a BBS you can also `RUN` it.
 
@@ -139,7 +139,7 @@ The second setting available for ACIA versions is the ability to keep the screen
 **Important**: Upon exiting the setup screen, _Retroterm_ will default to full screen text mode. Only previous background and border colors will be restored.
 
 ## 3 Building Retroterm
-*Retroterm* is written for the *ACME* crossassembler, to compile use:
+*Retroterm* is written for the *ACME* cross-assembler, to compile use:
 
 ```
 make
@@ -162,7 +162,7 @@ from the `source` directory.
 This will compile the default userport version of *Retroterm* with an intro screen that last a couple of seconds. In this case the resulting executable will be written to the `source` directory
 
 ## 3.1 Symbols
-A number of compile time symbols are defined to customize the resulting executable. Specially if you're running the compiler directly instead of using the makefile
+A number of compile time symbols are defined to customize the resulting executable. Specially if you're running the compiler directly instead of using the Makefile
 
 ### `_HARDTYPE_`:
 `38`: Compile for *SwiftLink/Turbo232* cartridges at **38400bps**
@@ -179,7 +179,7 @@ A number of compile time symbols are defined to customize the resulting executab
 `1`: Include the intro screen -- **_Default_**
 
 ### `_SPACE_`:
-If defined wait for the user to press the space bar at the intro screen. Otherwise the intro screen only last a couple of seconds.
+If defined wait for the user to press the space bar at the intro screen. Otherwise, the intro screen only last a couple of seconds.
 
 **_Not defined by default_**
 
@@ -222,7 +222,7 @@ In any case the *[Turbo56k](docs/turbo56k.md)* version bytes that follow the ID 
 ## 4 Known bugs
 
 - Losing connection while streaming data or audio will hang the program
-- Exiting `Retroterm`, restarting it with  `SYS49152`, exiting again and causing a BASIC error will crash the computer.
+- Exiting `Retroterm`, restarting it with `SYS49152`, exiting again and causing a BASIC error will crash the computer.
 
 ## 5 To-do
 - Extend the command parameter space to support more than 8 parameters per command.
@@ -234,6 +234,7 @@ In any case the *[Turbo56k](docs/turbo56k.md)* version bytes that follow the ID 
 - **Ezequiel Filgueiras**
 - **Thierry Kurt**
 - **Diego di Franceschi**
+- **ChrisKewl**
 
 ### Thanks To
   

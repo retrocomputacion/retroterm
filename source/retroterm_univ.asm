@@ -1785,7 +1785,7 @@ _acomm6
 	; Print exit message
 	+StringOut Msg05
 
-	LDA	#21			; Switch to text mode
+	LDA	#20			; Switch to text mode
 	STA	$D018
 	LDA	#$08		; Disable multicolor mode
 	STA	$D016
@@ -2445,7 +2445,7 @@ Cmd90
 	STA	$D020
 	JSR	GetFromPrBuffer	; Reads a byte from the print buffer
 	STA	$D021
-	LDA	#23				; Switch to texto mode (uppercase/lowercase)
+	LDA	#22				; Switch to texto mode (uppercase/lowercase)
 	STA	$D018
 	LDA	#$08			; Disable multicolor mode
 	STA	$D016
@@ -2724,7 +2724,7 @@ IrqB3:
 	LDA #%11001000		;2
 	STA $D016			;4 Disable multicolor
 	;LDA BTBGC			;4
-	LDA	#23				;2 Switch to text mode (uppercase/lowercase)
+	LDA	#22				;2 Switch to text mode (uppercase/lowercase)
 	STA	$D018			;4
 	STY $D021			;4 Bottom section background color
 
@@ -2890,7 +2890,7 @@ Msg06
 	!byte $0D		;, $00
 Msg07
 	!byte $9a
-	!text "turbo56k V0.6"
+	!text "turbo56k V0.7"
 	!byte $0D, $05, $00
 
 !ifdef _SYNTH_ {
@@ -3528,6 +3528,8 @@ dosetup:
 	STA	$D011
 	LDA #%11001000		;
 	STA $D016			; Disable multicolor
+	LDA #22
+	STA $D018			; Upper/Lowercase text
 
 	CLI
 ;...
