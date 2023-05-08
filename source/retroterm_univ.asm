@@ -2739,8 +2739,33 @@ IrqB3:
 	JMP $EA81
 
 
-	
+;///////////////////////////////////////////////////////////////////////////////////
+; 180: Get cursor position, returns 2 bytes, column and row. Exit CMD mode
 
+CmdB4
+	SEI
+	SEC
+	JSR $E50A			; Get cursor position
+	TXA
+	PHA
+	TYA					; Column
+!if _HARDTYPE_ = 56{
+	+DisKernal x 
+	JSR SendByte
+	+EnKernal a
+} else {
+	JSR SendID
+}
+	PLA					; Row
+!if _HARDTYPE_ = 56{
+	+DisKernal x 
+	JSR SendByte
+	+EnKernal a
+} else {
+	JSR SendID
+}
+	CLI
+	JMP CmdFE
 ;///////////////////////////////////////////////////////////////////////////////////
 ; 181: Set text window, requires 2 parameters, top and bottom rows
 
@@ -2906,7 +2931,7 @@ CmdTable:
     !word Cmd80,Cmd81,Cmd82,Cmd83,Cmd84,Cmd85,Cmd86,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     !word Cmd90,Cmd91,Cmd92,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     !word CmdA0,CmdA1,CmdA2,CmdA3,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
-    !word CmdB0,CmdB1,CmdB2,CmdB3,CmdFE,CmdB5,CmdB6
+    !word CmdB0,CmdB1,CmdB2,CmdB3,CmdB4,CmdB5,CmdB6
 
 ; Command parameter number table.
 ; bit-7 = 1 : Parameter not implemented
