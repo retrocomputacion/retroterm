@@ -2747,8 +2747,12 @@ CmdB4
 	SEC
 	JSR $E50A			; Get cursor position
 	TXA
+	SEC
+	SBC WTOP
 	PHA
 	TYA					; Column
+	SEC
+	SBC WTOP
 !if _HARDTYPE_ = 56{
 	+DisKernal x 
 	JSR SendByte
