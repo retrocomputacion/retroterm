@@ -136,7 +136,7 @@
 ; Buffers
 	SIDREGS = $033C			; SID streaming register buffer 
 }
-	MAXCMD = $B6			; Highest command implemented
+	MAXCMD = $B7			; Highest command implemented
 
 
 ; Output file names, this will trigger a warning when compiling thru Makefile
@@ -302,7 +302,7 @@ DlyNext2
 		LDX #$1A
 .c0		LDY #$08		;<-
 .c2		LDA _DATA1,X	;<-
-		BEQ .c1
+		;BEQ .c1
 		STA $0058,Y
 .c1		DEX				;<-
 		DEY
@@ -1701,15 +1701,12 @@ GetFromPrBuffer
 ;///////////////////////////////////////////////////////////////////////////////////
 
 AddToPrBuffer
-	;STA	PRBYTE		; Store the character in PRBYTE
 	PHA
 	LDY	PRINDEXIN	; Loads .Y with PRINDEXIN
-ChkPrBuffer
-	LDA	PRBUFFERCNT	; If PRBUFFERCNT=255 (buffer full) waits until a space is open
+-	LDA	PRBUFFERCNT	; If PRBUFFERCNT=255 (buffer full) waits until a space is open
 	EOR	#$FF
-	BEQ	ChkPrBuffer
+	BEQ	-
 	SEI				; Disable IRQs
-	;LDA	PRBYTE		; Store PRBYTE in the next free space in the print buffer (PrBuffer)
 	PLA
 	STA	PrBuffer, Y
 	INC	PRINDEXIN	; Increment PRINDEXIN
@@ -2445,7 +2442,7 @@ Cmd90
 	STA	$D020
 	JSR	GetFromPrBuffer	; Reads a byte from the print buffer
 	STA	$D021
-	LDA	#22				; Switch to texto mode (uppercase/lowercase)
+	LDA	#22				; Switch to text mode (uppercase/lowercase)
 	STA	$D018
 	LDA	#$08			; Disable multicolor mode
 	STA	$D016
@@ -2689,6 +2686,7 @@ CmdB3
 	JSR $E50A			; Set cursor position
 	RTS
 b3cancel				; Cancel split screen
+	JSR GetFromPrBuffer	; We had an orphan parameter before?
 	LDA #%11101111
 	AND FLAGS1
 	STA FLAGS1
@@ -2770,6 +2768,7 @@ CmdB4
 }
 	CLI
 	JMP CmdFE
+
 ;///////////////////////////////////////////////////////////////////////////////////
 ; 181: Set text window, requires 2 parameters, top and bottom rows
 
@@ -2817,6 +2816,13 @@ CmdB6
 
 ++	RTS
 
+;///////////////////////////////////////////////////////////////////////////////////
+; 183: Set Ink color, requires 1 parameter: Color index
+CmdB7
+	JSR GetFromPrBuffer
+	AND #$0F
+	STA $0286
+	JMP CmdFE
 
 ;///////////////////////////////////////////////////////////////////////////////////
 ; 254: Exit command mode, setting FLAGS1 bit 7 to 0
@@ -2915,7 +2921,7 @@ Msg05
 	!byte $0D, $0D, $00
 Msg06
 	!byte $0D
-	!text "(c)2022 pastbytes/durandal"
+	!text "(c)2023 pastbytes/durandal"
 	!byte $0D		;, $00
 Msg07
 	!byte $9a
@@ -2935,7 +2941,7 @@ CmdTable:
     !word Cmd80,Cmd81,Cmd82,Cmd83,Cmd84,Cmd85,Cmd86,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     !word Cmd90,Cmd91,Cmd92,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     !word CmdA0,CmdA1,CmdA2,CmdA3,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
-    !word CmdB0,CmdB1,CmdB2,CmdB3,CmdB4,CmdB5,CmdB6
+    !word CmdB0,CmdB1,CmdB2,CmdB3,CmdB4,CmdB5,CmdB6,CmdB7
 
 ; Command parameter number table.
 ; bit-7 = 1 : Parameter not implemented
@@ -2943,7 +2949,7 @@ CmdParTable:
 	!byte $02  ,$01  ,$02  ,$00  ,$00  ,$00  ,$00  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
 	!byte $03  ,$02  ,$03  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
 	!byte $00  ,$00  ,$00  ,$01  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
-	!byte $02  ,$02  ,$01  ,$02  ,$80  ,$02  ,$01
+	!byte $02  ,$02  ,$01  ,$02  ,$00  ,$02  ,$01  ,$01
 
 ;///////////////////////////////////////////////////////////////////////////////////
 ; Buffers (Reception + print + voice)

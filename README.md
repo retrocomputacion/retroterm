@@ -6,7 +6,7 @@
 Jorge Castillo & Pablo Roldán
 
 
-![Badge commodore](https://img.shields.io/badge/Commodore-64%2f128-1E2A4E?logo=commodore&logoColor=1E2A4E&labelColor=ccc) ![GitHub all releases](https://img.shields.io/github/downloads/retrocomputacion/retroterm/total?labelColor=ccc) ![Badge license](https://img.shields.io/github/license/retrocomputacion/retroterm?labelColor=ccc)
+![Badge commodore](https://img.shields.io/badge/Commodore-64%2f128%20%26%20Plus%2f4-1E2A4E?logo=commodore&logoColor=1E2A4E&labelColor=ccc) ![GitHub all releases](https://img.shields.io/github/downloads/retrocomputacion/retroterm/total?labelColor=ccc) ![Badge license](https://img.shields.io/github/license/retrocomputacion/retroterm?labelColor=ccc)
 
 ---
 </div>
@@ -32,7 +32,7 @@ Jorge Castillo & Pablo Roldán
 
 ## 1 Introduction
 
-*Retroterm* is a small, minimal *PETSCII* terminal for the *Commodore 64 / 128 (in 64 mode)*.
+*Retroterm* is a small, minimal *PETSCII* terminal for the *Commodore 64 / 128 (in 64 mode)* and the *Commodore Plus/4 (in development)*.
 
 It implements the *[Turbo56k](docs/turbo56k.md)* protocol for high speed data transfer & streaming when connecting to a BBS supporting the protocol, such as [_RetroBBS_](https://github.com/retrocomputacion/retrobbs).
 
@@ -44,9 +44,8 @@ While the userport data rate is fixed at *57600bps*, the effective throughput wi
 
 *It also runs on the latest **VICE** / **Z64K** emulators.*
 
-Separate versions of the executable are provided for cartridges featuring an ACIA 6551 such as *SwiftLink* (limited to **38400bps**) and *Turbo232*.
-
-  
+Separate *Commodore 64* versions of the executable are provided for cartridges featuring an ACIA 6551 such as *SwiftLink* (limited to **38400bps**) and *Turbo232*.</br>
+The *Commodore Plus/4* version is limited to the maximum speed for the built in ACIA: **19200bps**
 <br>
 
 ## 1.1 Release history
@@ -97,7 +96,7 @@ Over time, the protocol has been extended to include 4-bit PCM audio streaming, 
 
 ## 1.4 Requirements
 
-- A Commodore 64 or 128 computer or an emulator such as VICE or Z64K
+- A Commodore 64, 128 or Plus/4 computer or an emulator such as VICE or Z64K
 - Either an userport Wi-Fi modem with the Zimodem firmware or...
 - A *SwiftLink* or *Turbo232* compatible cartridge connected to a Wi-Fi modem with the Zimodem firmware.
 - ACME crossassembler for building the programs.
@@ -107,9 +106,10 @@ Over time, the protocol has been extended to include 4-bit PCM audio streaming, 
 
 *Retroterm* comes in three flavors:
 
-- **rt_v0.14.prg** Userport version 57600bps
-- **rt_sl_v0.14.prg** SwiftLink version 38400bps
-- **rt_232_v0.14.prg** Turbo232 version 57600bps
+- **rt_v0.20.prg** Userport version 57600bps
+- **rt_sl_v0.20.prg** SwiftLink version 38400bps
+- **rt_232_v0.20.prg** Turbo232 version 57600bps
+- **rt_p4_v0.10.prg** Plus/4 version 19200bps
 
 *Retroterm* lacks classic file transfer functions, when used to communicate with a normal PETSCII BBS, file transfers are not available.
 
@@ -117,7 +117,7 @@ After LOADing and RUNning *Retroterm*, you can dial to your favorite BBS using y
 
 **The modem should be setup to the correct baud rate before running _Retroterm_.**
 
-To exit *Retroterm*, just press `RUN/STOP`, it will remain in memory, and you can recall it with `SYS49152`.
+To exit *Retroterm*, just press `RUN/STOP`, it will remain in memory, and you can recall it with `SYS49152` (Commodore 64), or `SYS28672` (Commodore Plus/4).
 
 If you downloaded a program into memory from a BBS you can also `RUN` it.
 

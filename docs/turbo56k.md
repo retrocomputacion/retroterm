@@ -86,6 +86,7 @@ For example the following byte sequence enters command mode, sets the screen to 
 | `$B4` | `180` | `New v0.7`<br><br>Get text cursor position, returns 2 characters, column and row.
 | `$B5` | `181` | Set text window<br>**Parameters**<br> - Top Row : 1 byte : `0 - 23`<br> - Bottom Row : 1 byte : `1 - 24`
 | `$B6` | `182` | `New v0.7`<br><br>Scroll the text window up or down x rows<br>**Parameters**<br> - Row count: 1 byte -128/+127
+| `$B7` | `183` | `New v0.7`<br><br>Set ink color<br>**Parameters**<br> - Color index: 1 byte
 <br>
 
 ### Preset Addresses
