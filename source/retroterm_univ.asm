@@ -1,6 +1,6 @@
 ;////////////////////////////////////////////////////////////////////////////////////////////
 ; BBS PETSCII compatible terminal, RS232 with tcpser/BBSServer or wifi with zimodem firmware
-; Supports TURBO56K v0.6 protocol at 57600 bps, using TX, RX and RTS
+; Supports TURBO56K v0.7 protocol at 57600 bps, using TX, RX and RTS
 ;////////////////////////////////////////////////////////////////////////////////////////////
 ; 
 ; Versions / corrections
@@ -2687,6 +2687,7 @@ CmdB3
 	RTS
 b3cancel				; Cancel split screen
 	JSR GetFromPrBuffer	; We had an orphan parameter before?
+b3cancel2
 	LDA #%11101111
 	AND FLAGS1
 	STA FLAGS1
@@ -3045,7 +3046,7 @@ bsave:
 	LDA #$00
 	STA $D020
 	STA $D021
-	JSR b3cancel	; Cancel split screen
+	JSR b3cancel2	; Cancel split screen
 
 	CLI
 	; Print message
@@ -3509,7 +3510,7 @@ NOADD
 ; Setup screen
 ;//////////////////////////
 _SETUP
-	JSR b3cancel	;Cancel split screen
+	JSR b3cancel2	;Cancel split screen
 	LDA #<suIRQ		;Set minimal IRQ routine
 	STA $0314
 	LDA #>suIRQ
