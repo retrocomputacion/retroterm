@@ -1,15 +1,8 @@
 ;////////////////////////////////////////////////////////////////////////////////////////////
-; Micro terminal para Commodore Plus/4
+; BBS PETSCII compatible terminal, RS232 with tcpser/BBSServer or wifi with zimodem firmware
+; Supports TURBO56K v0.7 protocol at 19200 bps, using TX, RX and RTS
 ;////////////////////////////////////////////////////////////////////////////////////////////
-; Ultima modificacion: 7-Nov-2020
-;
-; Versiones / correcciones
-; ========================
-; 07-11-2020	Primera version.
-; 26-11-2020	
-; 27-11-2020	Segunda version.
-;========================================================================================
-
+; 
 ; Constants
 
 	STROUT = $9088			; BASIC String out routine
@@ -37,6 +30,31 @@
 	!to "rt_p4_v0.10.prg", cbm
     !sl "labels-p4.txt"
 
+
+;///////////////////////////////////////////////////////////////////////////////////
+; MACROSS
+;///////////////////////////////////////////////////////////////////////////////////
+!macro SetCursor .col, .row {
+	CLC
+	LDY #.col
+	LDX #.row
+	JSR PLOT
+}
+
+!macro StringOut .addr {
+	LDA #<.addr
+	LDY #>.addr
+	JSR STROUT
+}
+
+!macro DisROMs {
+	STA $FF3F
+}
+
+!macro EnROMs {
+	STA $FF3E
+}
+
 	*= $1001
 
 ;///////////////////////////////////////////////////////////////////////////////////
@@ -54,14 +72,25 @@
 
 _Start:
 
-	LDY #$08
--	LDA _DATA2,Y
-	BEQ +
-	STA $0058,Y
-+	DEY
-	BPL -
-	JSR $88C7		; >>Open space in memory
-
+		LDX #$11
+.c0		LDY #$08		;<-
+.c2		LDA _DATA2,X	;<-
+		;BEQ .c1
+		STA $0058,Y
+.c1		DEX				;<-
+		DEY
+		BPL .c2
+		TXA
+		PHA
+		TYA
+		PHA
+		JSR $88C7		; >>Open space in memory
+		PLA
+		TAY
+		PLA
+		TAX
+		BPL .c0
+	
 	LDA	#113		; Fondo y borde blancos
 	STA	$FF15
 	STA	$FF19
@@ -101,15 +130,170 @@ _Start:
 -	LDA $A5
 	BNE -
 
-
+	JSR DrvDetect
 
 	JMP CODESTART
+
+;Detect present drives for devices 8-15
+DrvDetect:
+--      JSR chdrive
+        LDA result
+        BEQ ++            ; Not found? continue with next device
+        LDA #IDQTY
+        STA IDtmp
+-       LDA IDtmp
+        ASL
+        TAY
+        LDA IDptr,Y
+        LDX IDptr+1,Y
+        JSR cmpstr
+        BPL +           ;If found ->
+        DEC IDtmp       ;not found, try next ID string
+        BPL -
+        ; found or out of ID strings
++       LDA device
+        SEC
+        SBC #$08
+        TAX
+        LDA IDtmp
+        STA DRVlst,X
+
+++      INC device
+        LDA #$10
+        CMP device
+        BNE --
+
+		;Copy drive list
+		SEI
+		+DisROMs
+		LDX #$07
+-		LDA DRVlst,X
+		STA DRIVES,X
+		DEX
+		BPL -
+		+EnROMs
+		CLI
+		RTS
+
+chdrive:
+;first check if device present
+        LDA #$00
+        STA $90			; clear STATUS flags
+
+        LDA device		; device number
+        JSR $FFB1		; call LISTEN
+        LDA #$6F		; secondary address 15 (command channel)
+        JSR $FF93		; call SECLSN (SECOND)
+        JSR $FFAE		; call UNLSN
+        LDA $90		; get STATUS flags
+        BNE .devnp		; device not present
+
+        LDA #cmd_end-cmd
+        LDX #<cmd
+        LDY #>cmd
+        JSR $FFBD		; call SETNAM
+
+        LDA #$0F		; file number 15
+        LDX device       ; last used device number
+        BNE +
+        LDX #$08		; default to device 8
++  		LDY #$0F		; secondary address 15
+        JSR $FFBA		; call SETLFS
+
+        JSR $FFC0		; call OPEN
+        BCS ++			; if carry set, the file could not be opened
+        LDX #$0F		; filenumber 15
+        JSR $FFC6		; CHKIN file now used as input
+        LDY #$03
+-		JSR $FFB7		; call READST (read status byte)
+        BNE +			; either EOF or read error
+        JSR $FFCF		; call CHRIN (get a byte from file)
+        DEY				; skip first 3 chars
+        BNE -
+-	    JSR $FFB7		; call READST
+        BNE +
+        JSR $FFCF		; call CHRIN
+        STA result,Y
+        INY
+        JMP -			; next byte
++
+-       LDA #$00
+        STA result,Y	; Null terminate result string
+        LDA #$0F
+        JSR $FFC3		; call CLOSE
+
+        JSR $FFCC		; call CLRCHN
+        RTS
+++
+        ;... error handling for open errors ...
+        LDY #$00
+        BEQ -			; even if OPEN failed, the file has to be closed
+.devnp
+        LDY #$00
+        STY result      ; 'clear' result string
+        RTS
+
+cmpstr: ;Find substring, ID string addr in .a/.x. Return .x :$00 if found, $FF otherwise
+        STA $D8
+        STX $D9
+        LDX #$FF
+        STX match
+        ; Iterate ID string until finding the 1st character of the substing
+        LDY #$FF
+--      INY
+-       INX
+        LDA ($D8),Y
+        BEQ ++			; If null, exit
+        CMP result,X
+        BNE +
+        ; match
+        LDA #$00
+        STA match
+        BEQ --			; continue with the next character in both strings
+        ; no match
++       LDA #$FF
+        STA match
+        LDA result,X
+        BEQ ++			; end of ID string?
+        LDY #$00		; reset substring index
+        BEQ -
+++      LDX match
+        RTS
+
+
+device:		!byte $08
+cmd:		!text "UI",$0d          ; command string
+cmd_end:
+match		!byte $ff               ; string matched $00 or not $ff
+
+result:		!fill $40, $00          ; Drive response tmp string
+DRVlst:		!fill $08, $ff          ; Available Drive list ($FF = not found)
+; Expected ID substrings
+ID1541:		!text "1541",$00		; #ID 10
+ID1551:		!text "TDISK",$00		; #ID 9
+ID1570:		!text "1570",$00		; #ID 8
+ID1571:		!text "1571",$00		; #ID 7
+ID1581:		!text "1581",$00		; #ID 6
+IDCMDFD:	!text "CMD FD",$00		; #ID 5
+IDSD2IEC:	!text "SD2IEC",$00		; #ID 4
+IDULTI:		!text "ULTIMATE",$00	; #ID 3
+IDVICEFS:	!text "VICE",$00		; #ID 2
+IDVICE:		!text "VIRTUAL",$00		; #ID 1
+IDPI1541:	!text "PI1541",$00		; #ID 0
+
+IDQTY = 11-1
+
+IDptr: !word IDPI1541,IDVICE,IDVICEFS,IDULTI, IDSD2IEC, IDCMDFD, ID1581, ID1571, ID1570, ID1551, ID1541
+IDtmp: !byte IDQTY
 
 _DATA2:
 !word ENDOFCODE, _ENDOFCODE_
 !byte $00, $00, $00
 !word _CODESTART_
 
+!word	ENDSHADOW, _ENDSHADOW_
+!byte	$00, $00, $00
+!word	_SHADOWCODE_
 
 ;///////////////////////////////////////////////////////////////////////////////////
 ; Logo de retrocomputacion
@@ -197,11 +381,13 @@ ReadByte
 	AND	#%00000010
 	BNE	CancelRX
 EnRTS
-	LDA #$1A
+rb1l:
+	LDA #$1C
 	STA $FF02
+rb1h:
 	LDA #$00
 	STA $FF03		; Wait ~30uS
-	LDA #%00010000	; Clear Timer 2 IRQ
+	LDA #%10010000	; Clear Timer 2 IRQ
 	STA $FF09
 
 	LDA	#%00001011	; no parity, no echo, no tx irq (rts=0, habilita envio), no rx irq, rx enabled (dtr=0)
@@ -224,7 +410,7 @@ DisRTS
 	STA	$FF02		; 4
 	LDA	#$01		; 2
 	STA	$FF03		; 4
-	LDA	#%00010000	; 2 Limpia el bit de interrupcion de Timer 2
+	LDA	#%10010000	; 2 Limpia el bit de interrupcion de Timer 2
 	STA	$FF09		; 4
 WaitRX2
 	LDA	ACIASTATUS	; Verifica si se recibio un byte
@@ -330,6 +516,7 @@ MainPrg
 	LDA	#$00		; Fondo y borde negros
 	STA	$FF15
 	STA	$FF19
+	STA $0540		; Repeat Space, INS/DEL and cursor keys only
 
 	LDA	#%00000010	; no parity, no echo, no tx irq (rts=1), no rx irq, rx disabled (dtr=1)
 	STA	ACIACOMMAND
@@ -969,6 +1156,10 @@ WaitPrint
 
 ExitPrg
 	SEI			; Deshabilita las interrupciones
+	JSR b3cancel2	;Cancel split screen
+	JSR _txtmode		; Switch to text mode
+	LDA #24
+	STA $07E5
 	LDA	#$0F		; Volumen = 15 (maximo), desactiva canales 1 y 2
 	STA	$FF11
 	LDA	#32		; Imprime un espacio
@@ -1152,11 +1343,26 @@ ChkKey
 	LDA	#$0A		; y si es asi, la convierte en LF
 	BNE ++
 +	CMP #$A7			; CBM+M
-	BNE ++
+	BNE +
 	LDA #$FF
 	EOR SNDSTATUS
 	STA SNDSTATUS
 	JMP ExitIrq
++	CMP #$88		; F7?
+	BNE ++
+	LDX $0543		; Shift keys flag
+	CPX #$02		; C= pressed?
+	BNE ++
+	;Test terminal not in command mode
+	BIT CMDFlags
+	BVS ExitIrq
+	LDA #>SETUP			; Modify Stack
+	PHA
+	LDA #<SETUP
+	PHA
+	LDA #$00			
+	PHA
+	RTI	
 
 ++	BIT CMDFlags
 	BVS ExitIrq
@@ -1211,6 +1417,10 @@ ExitIrq
 	;JMP	$CE0E		; Jump into KERNAL's standard interrupt service routine to handle keyboard scan, cursor display etc.
 	JMP $FCBE
 
+;///////////////////////////////
+; Init color codes palette
+;///////////////////////////////
+
 InitPalette:
 	LDX #$0F
 -	LDA Palette,X
@@ -1218,6 +1428,16 @@ InitPalette:
 	DEX
 	BPL -
 	RTS
+
+;///////////////////////////////////////////////////////////////////////////////////
+; SETUP SCREEN
+;///////////////////////////////////////////////////////////////////////////////////
+
+SETUP:
+	+DisROMs
+	JSR _SETUP
+	+EnROMs
+	JMP ExitIrq
 
 ;///////////////////////////////////////////////////////////////////////////////////
 ; COMMANDS
@@ -1307,7 +1527,7 @@ _Cmd82	;Alternative entry point
 	LDA	#%10100000		; Disable raster interrupt signals from TED
 	STA	$FF0A
 	SEI					; Disable IRQs
-	LDA	$DC0D			; Clear interrupt flags
+	;LDA	$DC0D			; Clear interrupt flags
 
 -	LDA $FF1D
 	CMP #204
@@ -1363,7 +1583,7 @@ C82Cont					; 1 if coming from the BNE
 C82End
 	LDA	BORDERCLR
 	STA	$FF19
-	LDA	$DC0D			; Clear the interrupt flags ***
+	;LDA	$DC0D			; Clear the interrupt flags ***
 
 	LDA	$FF06			; Enable screen
 	ORA	#%00010000
@@ -1399,13 +1619,24 @@ Cmd83
 	LDA	$FF06		; Enable TED screen
 	ORA	#%00010000
 	STA	$FF06
-	LDA #$02
+	LDA #$82
 	STA $FF09		; Ack raster interrupts
 
 
 	LDA	BORDERCLR
 	STA	$FF19
 	RTS
+
+;////////////////////////////////////////////////////////////////////////////////////
+; 134: Start a file transfer
+Cmd86
+	SEI
+	+DisROMs
+	JSR _Cmd86
+	+EnROMs
+	CLI
+	JMP CmdFE			; Exit command mode
+
 
 ;///////////////////////////////////////////////////////////////////////////////////
 ; 144: Returns to the default text mode, requires 3 parameter bytes
@@ -1418,6 +1649,7 @@ Cmd90
 	STA	$FF19
 	JSR	GetFromPrBuffer	; Reads a byte from the print buffer
 	STA	$FF15
+_txtmode
 	LDA	#%00011011		; Switch to text mode
 	STA	$FF06
 	LDA	$FF07			; Disable multicolor mode
@@ -1681,11 +1913,13 @@ CmdB3
 	RTS
 b3cancel				; Cancel split screen
 	JSR GetFromPrBuffer
+b3cancel2
 	LDA #%11101111
 	AND FLAGS1
 	STA FLAGS1
 	LDA #$00
 	STA WTOP			; Set text window
+	STA $07E6
 	RTS
 
 ;---------------------------------
@@ -1837,7 +2071,7 @@ SendID
 
 ; Commands routine pointer table, unimplemented commands point to CMDOFF
 CmdTable:
-    !word Cmd80,Cmd81,Cmd82,Cmd83,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
+    !word Cmd80,Cmd81,Cmd82,Cmd83,CmdFE,CmdFE,Cmd86,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     !word Cmd90,Cmd91,Cmd92,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     !word CmdA0,CmdA1,CmdA2,CmdA3,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     !word CmdB0,CmdB1,CmdB2,CmdB3,CmdB4,CmdB5,CmdB6,CmdB7
@@ -1849,7 +2083,7 @@ CmdParTable:
 	; !byte $03  ,$02  ,$03  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
 	; !byte $00  ,$00  ,$00  ,$01  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
 	; !byte $02  ,$02  ,$01  ,$02  ,$80  ,$02  ,$01
-	!byte $02  ,$01  ,$02  ,$00  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
+	!byte $02  ,$01  ,$02  ,$00  ,$80  ,$80  ,$00  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
 	!byte $03  ,$02  ,$04  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
 	!byte $00  ,$00  ,$00  ,$01  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
 	!byte $02  ,$02  ,$01  ,$02  ,$00  ,$02  ,$01  ,$01
@@ -1897,8 +2131,648 @@ FTable
 ;///////////////////////////////////////////////////////////////////////////////////
 
 ENDOFCODE
-!if ENDOFCODE > $8EFF {
+!if ENDOFCODE > $7EFF {
 	!error "ERROR - Part 1 data beyond $8EFF"
 }
 }
 _ENDOFCODE_
+
+;///////////////////////////////////////////////////////////////////////////////////
+; Mobile code section $D000->
+;///////////////////////////////////////////////////////////////////////////////////
+_SHADOWCODE_
+!pseudopc $8000{
+SHADOWCODE:
+
+; ------------------------------------------
+; Save to disk routines
+	CRC = 	$1740	;$FD		; CRC result $FD/$FE
+	CRCHI = $1900	; CRC tables
+	CRCLO = $1A00
+	FNAME = $0332	; Null terminated file name
+	FNL = 	$03F2	; Filename length
+
+; Copy Memory
+; Source at SOURCEPTR($D8/$D9)
+; Destination at DESTPTR($DA/$DB)
+; Size at CSIZE($58/$59)
+CSIZE		= $E8
+SOURCEPTR 	= $D8
+DESTPTR		= $DA
+
+; List of detected drives. Filled at first startup
+DRIVES:
+!fill $08,$FF
+
+_MemCpy
+--	LDY #$00
+-	LDA (SOURCEPTR),Y
+	STA (DESTPTR),Y
+	LDA CSIZE
+	BNE +
+	LDA CSIZE+1
+	BEQ ++
+	DEC CSIZE+1
++	DEC CSIZE	
+    INY
+    BNE -
+
+    INC	SOURCEPTR+1
+    INC DESTPTR+1
+    BNE --
+++	RTS
+
+_Cmd86
+	JSR MAKECRCTABLE
+
+DESTADDR	= $1B00
+BBUF		= $0E00
+
+	; Copy routine to lower RAM ($1B00)
+	LDX #$01
+-	LDA _86data,X
+	STA SOURCEPTR,X
+	LDA _86data+2,X
+	STA DESTPTR,X
+	LDA _86data+4,X
+	STA CSIZE,X
+	DEX
+	BPL -
+
+	JSR _MemCpy		;Do mem copy
+	LDX #$08
+-	LDA DRIVES,X	;Copy list of detected drives to low RAM
+	STA _drives,X
+	DEX
+	BPL -
+	JMP bsave
+_86data
+	!word _bsstart,DESTADDR,_bsend-_bsstart
+
+_bsstart:
+!pseudopc $1B00{
+bsave:
+	+EnROMs
+	LDA #$00
+	STA $FF19
+	STA $FF15
+	JSR b3cancel2	; Cancel split screen
+
+	CLI
+	; Print message
+	+StringOut bst1
+	SEI
+-	LDA $FF1D
+	CMP #251
+	BNE -				; Waits for raster line 251
+	JSR	ReadByte		; Get file type
+	BCC-
+	CLI
+	LDA RXBYTE
+	STA $02
+	BMI +				; Bit 7 = 1 : PRG, else SEQ
+	LDA #<bst5
+	STA .ft+1			; Set file type OPEN string addr
+	LDA #>bst5
+	STA .ft+2
+	LDY #>bst3
+	LDA #<bst3
+	BNE ++
++	LDA #<bst4
+	STA .ft+1			; Set file type OPEN string addr
+	LDA #>bst4
+	STA .ft+2
+	LDA #<bst2
+	LDY #>bst2
+++	JSR STROUT
+	+StringOut bst1a
+	JSR ReadString	; Get filename
+	+SetCursor $0A,$01
+	; Print filename
+	+StringOut FNAME
+	+SetCursor $20,$0B
+	; Print buffer frame
+	+StringOut bst6
+
+	JSR UBlock		; Print counters
+	JSR URetry
+
+	LDX #$00
+	STX _curdrv		; Find first available drive #
+-	CPX #$08
+	BEQ ++			; No available drive found > CANCEL
+	LDA _drives,X
+	BPL +			; Available drive
+	INX
+	BNE -
+
++	STX _curdrv		; Store as current drive
+	JSR ddrive
+
+-	LDA $C6			; Matrix value for last keypress
+	CMP #$19		; Wait for 'Y'
+	BEQ .y1
+	CMP #$27		; Or 'N'
+	BNE +
+++	LDY #$42		; CANCEL
+	BNE .bb
++	CMP #$28		; '+'
+	BNE +
+	JSR ndrive		; Get next drive
+	JMP -
++	CMP #$2B		; '-'
+	BNE -
+	JSR pdrive		; Get previous drive
+	JMP -
+
+.y1	;Continue
+	+SetCursor $0B,$08
+	+StringOut bst9	; Print abort message
+
+	LDY FNL			; add write string to filename
+	LDX #$00
+.ft	LDA bst4,X
+	STA FNAME,Y
+	INY
+	INX
+	CPX #$04
+	BNE .ft
+	TXA
+	CLC
+	ADC FNL
+	;STA FNL
+	JSR .bo				; Open file. Input .A = filename length. Returns flag on .Y
+	;LDY	#$80		; OK Flag
+
+; Read block
+	LDA	#$00			; Sound off
+	STA	$FF11
+.bb
+	LDA $C6				; Keymatrix
+	CMP #$03			; F7?
+	BNE +
+	LDY #$42			; ABORT!
++	SEI
+	TYA
+	JSR SendID
+
+	LDY #$03
+
+	LDA CMDFlags
+	ORA #$44
+	STA CMDFlags	; Get 4 parameter bytes
+
+	; Get 4 bytes: Block size LSB,MSB | CRC16 LSB,MSB
+
+	CLI
+-	JSR GetFromPrBuffer
+
+	STA $D8,Y			; $FD/$FE : Size
+	DEY
+	BPL -
+
+	SEI
+
+	;If block size = 0, exit transfer
+	LDY $DA
+	STY .c+1		; Set CRC check counter limit
+	BNE +
+	LDA $DB
+	BNE +
+	JMP .be			; 0 length -> end transfer
++	LDA #<BBUF
+	STA BLOCKPTR
+	LDA	#>BBUF
+	STA BLOCKPTR+1	; Destination
+	LDX $DB
+	JSR _Cmd82		; Receive block
+	;check CRC
+	LDY #$FF
+	STY CRC
+	STY CRC+1
+	INY
+-	LDA BBUF,Y
+	JSR UPDCRC
+	INY
+.c	CPY #$00
+	BNE -
+	LDA $D8
+	CMP CRC
+	BNE .er			; CRC doesn't match, error
+	LDA $D9
+	CMP CRC+1
+	BNE .er			; CRC doesn't match, error
+	;Write to disk
+	JSR UBlock
+	JSR bwrite		; Write block
+	;LDY #$80		; OK
+	JMP .bb			; Get next block
+.er
+	JSR URetry
+	LDY #$AA		; ERROR
+	JMP .bb			; Retry
+
+	;Open file
+.bo
+ 	;LDA FNL	; Name length
+ 	LDX #<FNAME
+ 	LDY #>FNAME
+ 	JSR $FFBD	  	; call SETNAM
+
+	LDA _curdrv		; current selected drive
+	CLC
+	ADC #$08
+	TAX
+	LDA #$02    	; file number 2
+	LDY #$02      	; secondary address 2
+	JSR $FFBA     	; call SETLFS
+ 	JSR $FFC0     	; call OPEN
+	BCS .error		; if carry set, file couldnt not be opened
+	LDX #$02		; filenumber 2
+	JSR $FFC9		; call CHKOUT (file 2 now used as output)
+	BEQ +
+	BNE .error
++	JSR $FFCC		; CLRCHN
+	LDY #$81		; OK
+	RTS
+
+.error	; Handle errors - Cancels transfer
+	JSR .bc			; Close file
+	LDY #$42		; CANCEL
+	RTS
+
+.bc		; Close file
+	LDA #$02
+	JSR $FFC3		; CLOSE
+	JSR $FFCC		; CLRCHN
+	RTS
+
+.be		; Transfer complete
+	JSR	.bc			; Close file
+	SEI
+	+DisROMs
+	RTS
+
+bwrite 	; Write data
+	LDY $DA			; Get counter limit
+	STY .b1+1
+	LDX #$02		; filenumber 2
+	JSR $FFC9		; call CHKOUT (file 2 now used as output)
+
+	LDY #$00
+-	JSR	$FFB7		; call READST
+	BNE .error			; handle error
+	LDA BBUF,Y
+	JSR $FFD2		; call CHROUT (write byte to file)
+	INY
+.b1	CPY #$00
+	BNE -
+	JSR $FFCC		; CLRCHN
+	LDY #$81		; OK
+	RTS
+
+; Quick CRC computation with lookup tables
+UPDCRC:
+	EOR CRC+1
+	TAX
+	LDA CRC
+	EOR CRCHI,X
+	STA CRC+1
+	LDA CRCLO,X
+	STA CRC
+	RTS
+
+;Update received block count
+UBlock:
+	+SetCursor $00,$06
+	+StringOut bst7
+	LDA bcount
+	LDX bcount+1
+	JSR $A45F		; Print number
+	INC bcount+1
+	BNE +
+	INC bcount
++	RTS
+
+bcount
+	!byte	$00,$00
+
+;Update retries count
+URetry:
+	+SetCursor $00,$07
+	+StringOut bst8
+	LDA rcount
+	LDX rcount+1
+	JSR $A45F		; Print number
+	INC rcount+1
+	BNE +
+	INC rcount
++	RTS
+
+rcount
+	!byte	$00,$00
+
+;Receive NULL terminated String
+ReadString:
+	LDA #$46
+	STA CMDFlags
+
+
+	LDY	#$00
+
+--	INC CMDFlags			; +1 Parameter to read
+	JSR GetFromPrBuffer	
+
+	STA FNAME,Y		; Store name
+	BEQ +			; Stop if $00 received
+	INY
+	CPY #$11
+	BNE --			; Repeat until 16 characters (+ null) are read
++	
+	LDA #$00
+	STA FNAME,Y		; Make sure the string is NULL terminated
+	STY	FNL			; String length
+	LDA #$40
+	STA CMDFlags
+	RTS
+
+; Find next available drive
+ndrive:
+	LDX _curdrv
+-	INX
+	CPX #$08
+	BEQ +
+	LDA _drives,X
+	BMI -
+	STX _curdrv
++	JSR ddrive
+	RTS
+
+;Find previous available drive
+pdrive:
+	LDX _curdrv
+-	DEX
+	BMI +
+	LDA _drives,X
+	BMI -
+	STX _curdrv
++	JSR ddrive
+	RTS
+
+;Print drive number
+ddrive:
+	+SetCursor 11,2
+	+StringOut bst10
+	CLC
+	LDA _curdrv
+	ADC #$08
+	TAX
+	LDA #$00
+	JSR $A45F	; Print number
+	; and wait for key release
+-	LDA $C6
+	CMP #$40
+	BNE -
+	RTS
+
+; File save text
+bst1:
+	!byte	$93,$8E,$99,$92	;Clear, upp/gfx, light green, rvsoff
+	!text	"HOST REQUESTED TO SAVE ",$00
+bst1a:
+	!text 	"FILE",$0D
+	!text	$05,"FILENAME:",$0D
+	!text	$9E,"TO DRIVE ",$12,"+",$92,"    ",$12,"-",$0D
+	!text	$11,$81,"CONTINUE? (Y/N)",$05,$00
+bst2:	;Program
+	!text	"PROGRAM ",$00
+bst3:	;Sequential
+	!text	"SEQUENTIAL ",$00
+bst4:	;Write Program
+	!text	",P,W"
+bst5:	;Write Sequential
+	!text	",S,W"
+; Buffer frame
+bst6:
+	!byte $9E		; Yellow
+	!fill $27,$AF	; 39 _
+	!byte $BA
+	!fill $07,$0D
+	!fill $08,$1D	; cursor
+	!byte $6F
+	!fill $27,$B7	; 39
+	!byte $05, $00	; White
+; Block count
+bst7:
+	!text "BLOCKS:      "
+	!fill $05,$9D
+	!byte $00
+; Retry count
+bst8:
+	!text "RETRIES:      "
+	!fill $05,$9D
+	!byte $00
+; Abort text
+bst9:
+	!text "HOLD ",$12," F7 ",$92," TO ABORT",$00
+; Drive clean spaces
+bst10:
+	!text "  ",$9D,$9D,$00
+
+; Detected drives copy
+_curdrv:
+	!byte $00
+_drives:
+bsend
+}
+_bsend
+; Generate CRC tables
+MAKECRCTABLE:
+	LDX #0          ; X counts from 0 to 255
+BYTELOOP
+	LDA #0          ; A contains the low 8 bits of the CRC-16
+	STX CRC         ; and CRC contains the high 8 bits
+	LDY #8          ; Y counts bits in a byte
+BITLOOP  
+	ASL
+	ROL CRC         ; Shift CRC left
+	BCC NOADD       ; Do nothing if no overflow
+	EOR #$21        ; else add CRC-16 polynomial $1021
+	PHA             ; Save low byte
+	LDA CRC         ; Do high byte
+	EOR #$10
+	STA CRC
+	PLA             ; Restore low byte
+NOADD
+    DEY
+	BNE BITLOOP     ; Do next bit
+	STA CRCLO,X     ; Save CRC into table, low byte
+	LDA CRC         ; then high byte
+	STA CRCHI,X
+	INX
+	BNE BYTELOOP    ; Do next byte
+	RTS
+
+;//////////////////////////
+; Setup screen
+;//////////////////////////
+_SETUP
+	JSR b3cancel2	;Cancel split screen
+	LDA #<suIRQ		;Set minimal IRQ routine
+	STA $0314
+	LDA #>suIRQ
+	STA $0315
+
+	; Copy routine to lower RAM ($0B00)
+	LDX #$01
+-	LDA _sudata,X
+	STA SOURCEPTR,X
+	LDA _sudata+2,X
+	STA DESTPTR,X
+	LDA _sudata+4,X
+	STA CSIZE,X
+	DEX
+	BPL -
+
+	JSR _MemCpy		;Do mem copy
+	JSR dosetup		;Call setup routine
+
+	LDA #<Irq		;Restore main IRQ routine
+	STA $0314
+	LDA #>Irq
+	STA $0315
+
+	RTS
+
+_sudata
+	!word _sustart,$1B00,_suend-_sustart
+;----
+_sustart:
+!pseudopc $1B00{
+dosetup:
+	+EnROMs
+	LDA $FF15		;Save screen colors
+	PHA
+	LDA $FF19
+	PHA
+	LDA $053B
+	PHA
+
+	LDA #$32
+	STA $FF15
+	STA $FF19
+	LDA	#%10100010		; Enable raster interrupt signals from TED, and clear MSB in TED's raster register
+	STA	$FF0A
+	JSR _txtmode		; Switch to text mode
+
+	LDA #24
+	STA $07E5
+
+	CLI
+;...
+	; Print message
+	+StringOut sut1
+	+SetCursor $07,$18
+	+StringOut sut3
+	LDA #$80
+	STA $0540			; Repeat all keys
+
+--
+	+SetCursor $14,$02
+	+StringOut sut2
+	LDX rb1l+1
+	LDA rb1h+1
+
+	JSR $A45F			;Print number
+
+-	JSR $EBDD			; Read keyboard buffer
+	BEQ -
+	CMP	#$2B			; (+)
+	BNE +
+	INC rb1l+1
+	BNE --
+	INC rb1h+1
+	JMP --
++	CMP	#$2D			; (-)
+	BNE ++
+	LDA rb1l+1
+	BNE +
+	DEC rb1h+1
++	DEC rb1l+1
+	JMP --
+++
+	CMP #$85			; (F1)
+	BEQ +
+	BNE --
++
+
+;....
+	LDA #$00
+	STA $0540		; Default key repeat
+	SEI
+	LDA	#%10100000		; Disable raster interrupt signals from TED
+	STA	$FF0A
+
+	PLA
+	STA $053B
+	PLA
+	STA $FF19		;Restore screen colors
+	PLA
+	STA $FF15
+	JSR $D88B		;Clear screen
+	+DisROMs
+	RTS
+
+; --- Minimal IRQ
+suIRQ:
+
+	PHA			; store register A in stack
+	TXA
+	PHA			; store register X in stack
+	TYA
+	PHA			; store register Y in stack
+
+	LDA	#%10000010	; Limpia todas las banderas de interrupcion, incluyendo la de interrupcion de barrido
+	STA	$FF09
+	LDA	#%10100010	; Enable raster interrupt signals from TED, and clear MSB in TED's raster register
+	STA	$FF0A
+
+	LDA $FB
+	PHA
+	LDA #$00
+	STA $FB
+	PHP
+	CLI
+	JSR $DB11		; Scan keyboard
+	PLP
+	PLA
+	STA $FB
+
+
+	PLA
+	TAY			; restore register Y from stack
+	PLA
+	TAX			; restore register X from stack
+	PLA			; restore register A from stack
+	;JMP	$CE0E		; Jump into KERNAL's standard interrupt service routine to handle keyboard scan, cursor display etc.
+	JMP $FCBE
+
+; --- Setup Texts
+sut1:
+	;Clear, Lower/upper, yellow
+	!text $93,$0E,$9E,"    --== rETROTERM sETUP SCREEN ==--"
+	!text $0D,$0D,"rts PULSE TIMING: ",$12,"+",$92,"       ",$12,"-"
+	!byte $00
+sut2:
+	!text "     "
+	!fill $05,$9D
+	!byte $00
+sut3:
+	!byte $12
+	!text $12," f1 ",$92," TO RETURN TO rETROTERM",$00
+suend
+}
+_suend
+ENDSHADOW
+}
+_ENDSHADOW_

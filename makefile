@@ -20,7 +20,7 @@ $$(BUILDFOLDER)/rt_$(1)_v$(VERSION).prg: $(SRCFOLDER)/retroterm_univ.asm $(SRCFO
 
 endef
 
-all: $(SRCFOLDER)/version.asm $(foreach variant,$(VARIANTS),$(BUILDFOLDER)/rt_$(variant)_v$(VERSION).prg )
+all: $(SRCFOLDER)/version.asm $(foreach variant,$(VARIANTS),$(BUILDFOLDER)/rt_$(variant)_v$(VERSION).prg ) plus4
 
 swiftlink: $(BUILDFOLDER)/rt_sl_v$(VERSION).prg
 
@@ -29,6 +29,11 @@ ultimate: $(BUILDFOLDER)/rt_ulti_v$(VERSION).prg
 turbo232: $(BUILDFOLDER)/rt_232_v$(VERSION).prg
 
 userport: $(BUILDFOLDER)/rt_u_v$(VERSION).prg
+
+plus4: $(BUILDFOLDER)/rt_p4_v0.10.prg
+
+$(BUILDFOLDER)/rt_p4_v0.10.prg: $(SRCFOLDER)/retrotermp4.asm
+	acme -f cbm -o $(BUILDFOLDER)/rt_p4_v0.10.prg $(SRCFOLDER)/retrotermp4.asm
 
 $(SRCFOLDER)/version.asm: $(SRCFOLDER)/version.txt
 # Generate version include source/version.asm
