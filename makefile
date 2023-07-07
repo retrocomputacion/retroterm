@@ -4,7 +4,7 @@ SRCFOLDER:=source
 
 VARIANTS=u sl ulti 232
 
-DEFINES_FOR_u=
+DEFINES_FOR_u=-D_HARDTYPE_=56
 DEFINES_FOR_sl=-D_HARDTYPE_=38
 DEFINES_FOR_ulti=-D_HARDTYPE_=1541
 DEFINES_FOR_232=-D_HARDTYPE_=232
@@ -16,7 +16,7 @@ VERSION:=$(file < $(SRCFOLDER)/version.txt)
 
 define make_target =
 $$(BUILDFOLDER)/rt_$(1)_v$(VERSION).prg: $(SRCFOLDER)/retroterm_univ.asm $(SRCFOLDER)/version.asm
-	acme $$(DEFINES_FOR_$(1)) -I $(SRCFOLDER) -f cbm -o $$@ $$<
+	acme $$(DEFINES_FOR_$(1)) -D_MAKE_=1 -I $(SRCFOLDER) -f cbm -o $$@ $$<
 
 endef
 
@@ -33,7 +33,7 @@ userport: $(BUILDFOLDER)/rt_u_v$(VERSION).prg
 plus4: $(BUILDFOLDER)/rt_p4_v0.10.prg
 
 $(BUILDFOLDER)/rt_p4_v0.10.prg: $(SRCFOLDER)/retrotermp4.asm
-	acme -f cbm -o $(BUILDFOLDER)/rt_p4_v0.10.prg $(SRCFOLDER)/retrotermp4.asm
+	acme -f cbm -D_MAKE_=1 -o $(BUILDFOLDER)/rt_p4_v0.10.prg $(SRCFOLDER)/retrotermp4.asm
 
 $(SRCFOLDER)/version.asm: $(SRCFOLDER)/version.txt
 # Generate version include source/version.asm

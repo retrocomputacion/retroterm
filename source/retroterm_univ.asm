@@ -139,7 +139,8 @@
 	MAXCMD = $B7			; Highest command implemented
 
 
-; Output file names, this will trigger a warning when compiling thru Makefile
+; Output file names
+!ifndef _MAKE_{
 !if _HARDTYPE_ = 232 {
 	!to "rt_232_v0.20.prg", cbm
 	!sl "labels_232.txt"
@@ -155,6 +156,7 @@
 !if _HARDTYPE_ = 56 {
 	!to "rt_u_v0.20.prg", cbm
 	!sl "labels_u.txt"
+}
 }
 
 * = $0801
@@ -650,30 +652,6 @@ rb1h:
 rb1l:
 	LDA #<_RBdelay
 	STA $DD04
-;  !if _HARDTYPE_ = 232 {
-;  	LDA	#$00		; 2 Timer A - Wait 86uS
-;  }
-;  !if _HARDTYPE_ = 1541 {
-; 	; v0.13 value (works with ultimate)
-; 	LDA #$01
-;  }
-;  !if _HARDTYPE_ = 38 {
-; 	; v0.14 value follow->
-;     LDA #$00        ; 2 Timer A - Wait 120uS was 130uS
-;  }
-;  	STA	$DD05		; 4
-;  !if _HARDTYPE_ = 232 {
-;  	LDA	#$56	; 2
-;  }
-;  !if _HARDTYPE_ = 1541 {
-; 	; v0.13 value (works with ultimate)
-; 	LDA #$37
-;  }
-;  !if _HARDTYPE_ = 38 {
-; 	; v0.14 value follow->
-;     LDA #$78		; was $82
-;  }
-; 	STA	$DD04		; 4
  	LDA	$DD0D		; 4 Clear interrupt bits(CIA2: NMI)
  	LDA	#$19		; 2 Force load and start Timer A
  	STA	$DD0E		; 4
@@ -685,10 +663,6 @@ WaitRX1
 	 LDA	$DD0D		; 4 Timer A not elapsed yet
 	 AND	#$01		; 2
 	 BEQ	WaitRX1		; 2 back to WaitRX1 and waits to disable RTS at half a character
-	;NOP
-	;NOP
-	;NOP
-	;NOP
 
 DisRTS
 	LDA	#%00000011	; no parity, no echo, no tx irq (rts=1, disables reception), no rx irq, rx enabled (dtr=0)

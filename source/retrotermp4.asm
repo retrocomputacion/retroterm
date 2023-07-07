@@ -26,8 +26,9 @@
 
 	MAXCMD = $B7			; Highest command implemented
 
-
+!ifndef _MAKE_{
 	!to "rt_p4_v0.10.prg", cbm
+}
     !sl "labels-p4.txt"
 
 
@@ -397,18 +398,13 @@ WaitRX1
 	BIT $FF09
 	;AND #$10
 	BEQ WaitRX1
-	; NOP
-	; NOP
-	; NOP
-	; NOP
-	; NOP
-	; NOP
+
 DisRTS
 	LDA	#%00000011	; no parity, no echo, no tx irq (rts=1, deshabilita envio), no rx irq, rx enabled (dtr=0)
 	STA	ACIACOMMAND
-	LDA	#$D2		; 2 Coloca 466 ($01D2) microsegundos en el Timer A
+	LDA	#$EE		;$D2		; 2 Coloca 2000 ($06EE) microsegundos en el Timer A
 	STA	$FF02		; 4
-	LDA	#$01		; 2
+	LDA	#$06		;$01		; 2
 	STA	$FF03		; 4
 	LDA	#%10010000	; 2 Limpia el bit de interrupcion de Timer 2
 	STA	$FF09		; 4
@@ -1064,9 +1060,11 @@ ddCtrl ;Control chars
 ; Print beep
 ;///////////////////////////////////////////////////////////////////////////////////
 Beep
+	LDA BEEPTIMER
+	BNE +
 	LDA #BEEPTIME
 	STA BEEPTIMER	; Reset beep timer
-	LDA	#$01		; Si TEMPCNT1 es impar sigue en DoBeep2
++	LDA	#$01		; Si TEMPCNT1 es impar sigue en DoBeep2
 	AND	TEMPCNT1
 	BNE	+
 	LDA	#$1A		; Freq channel 1 = ~470 Hz
@@ -1077,17 +1075,17 @@ Beep
 	AND	#$FC
 	ORA	#$03
 	STA	$FF12
-	LDA	#$01		; Si TEMPCNT1 es impar sigue en DoBeep2
-	AND	TEMPCNT1
+	; LDA	#$01		; Si TEMPCNT1 es impar sigue en DoBeep2
+	; AND	TEMPCNT1
 	LDA	#%00010010	; Volumen = 2 (Low), activa canales 1 y 2 en modo tono
 	ORA $FF11
-++	STA	$FF11
+	STA	$FF11
 
 	INC	TEMPCNT1
 	RTS	;JMP	EndBeep
 
 NoChar
-	LDA	#%00010000	; Volumen = 8 (maximo), activa canales 1 y 2 en modo tono y reinicia los osciladores
+	LDA	#%00010000	; Volumen = 0
 	STA	$FF11
 	RTS
 
@@ -1255,11 +1253,30 @@ EndBeep
 ReadBytes
 	LDA	#%10100000	; Disable raster interrupt signals from TED, and clear MSB in TED's raster register
 	STA	$FF0A
-;	LDA	#%11101111	; Deshabilita la pantalla
-;	AND	$FF06
-;	STA	$FF06
 
-	LDX	#3		; Lee hasta 3 bytes del RS232
+	LDA FLAGS1
+	AND #%00010000	; Is screen split enabled?
+	BEQ+
+	LDA SPLITRST
+	STA $FF0B
+	LDA #<IrqB3
+	STA $0314
+	LDA #>IrqB3
+	STA $0315
+	LDA VMODE
+	ORA $FF07
+	STA $FF07
+	LDA $FF12
+	AND #$FB		; Bitmap in RAM
+	STA $FF12		; Bitmap at $2000
+	LDA #$3B		; Bitmap mode
+	BNE ++
+
++	LDA	#$10		; Habilita el TED (activa la pantalla)
+	ORA	$FF06
+++	STA	$FF06
+
+	LDX	#$03		; Lee hasta 3 bytes del RS232
 ReadBLoop
 	LDA	PRBUFFERCNT	; Si PRBUFFERCNT=255 (buffer lleno) sigue en ReadBEnd
 	EOR	#$FF
@@ -1375,27 +1392,27 @@ ExitIrq
 	LDA	#%10100010	; Enable raster interrupt signals from TED, and clear MSB in TED's raster register
 	STA	$FF0A
 
-	LDA FLAGS1
-	AND #%00010000	; Is screen split enabled?
-	BEQ+
-	LDA SPLITRST
-	STA $FF0B
-	LDA #<IrqB3
-	STA $0314
-	LDA #>IrqB3
-	STA $0315
-	LDA VMODE
-	ORA $FF07
-	STA $FF07
-	LDA $FF12
-	AND #$FB		; Bitmap in RAM
-	STA $FF12			; Bitmap at $2000
-	LDA #$3B		; Bitmap mode
-	BNE ++
+; 	LDA FLAGS1
+; 	AND #%00010000	; Is screen split enabled?
+; 	BEQ+
+; 	LDA SPLITRST
+; 	STA $FF0B
+; 	LDA #<IrqB3
+; 	STA $0314
+; 	LDA #>IrqB3
+; 	STA $0315
+; 	LDA VMODE
+; 	ORA $FF07
+; 	STA $FF07
+; 	LDA $FF12
+; 	AND #$FB		; Bitmap in RAM
+; 	STA $FF12			; Bitmap at $2000
+; 	LDA #$3B		; Bitmap mode
+; 	BNE ++
 
-+	LDA	#$10		; Habilita el TED (activa la pantalla)
-	ORA	$FF06
-++	STA	$FF06
+; +	LDA	#$10		; Habilita el TED (activa la pantalla)
+; 	ORA	$FF06
+; ++	STA	$FF06
 
 	LDA $FB
 	PHA
@@ -1910,6 +1927,9 @@ CmdB3
 	AND #$03
 	ORA #$08
 	STA $FF12			; Bitmap at $2000
+
+	; LDA #$03
+	; STA ReadBLoop-1		; Limit reception to 3 characters per frame
 	RTS
 b3cancel				; Cancel split screen
 	JSR GetFromPrBuffer
@@ -1920,6 +1940,8 @@ b3cancel2
 	LDA #$00
 	STA WTOP			; Set text window
 	STA $07E6
+	; LDA #$03
+	; STA ReadBLoop-1
 	RTS
 
 ;---------------------------------
@@ -2146,7 +2168,7 @@ SHADOWCODE:
 
 ; ------------------------------------------
 ; Save to disk routines
-	CRC = 	$1740	;$FD		; CRC result $FD/$FE
+	CRC = 	$0F40	;$FD		; CRC result $FD/$FE
 	CRCHI = $1900	; CRC tables
 	CRCLO = $1A00
 	FNAME = $0332	; Null terminated file name
