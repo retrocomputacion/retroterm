@@ -88,13 +88,15 @@ Over time, the protocol has been extended to include 4-bit PCM audio streaming, 
 - Full duplex PETSCII color terminal
 - Turbo data transfers to custom / preset memory locations
 - Split Screen | Hi-res or Multicolor + Text
-- 11520Hz 4 - bit PCM audio streaming
+- Up to 11520Hz 4 - bit PCM audio streaming
 - Bitmap display | Hi-res + Multicolor
 - Consumes less than 5 KB of memory
-- 1x speed SID music streaming
+- 1x speed SID music streaming (C64 versions only)
 - Scrolling Text Windows
 - Set Cursor Position
 - Text Line Fill
+- Bidirectional scrolling
+- Download files to disk
 
 ## 1.4 Requirements
 
