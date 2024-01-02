@@ -36,7 +36,7 @@ Jorge Castillo & Pablo Roldán
 
 It implements the *[Turbo56k](docs/turbo56k.md)* protocol for high speed data transfer & streaming when connecting to a BBS supporting the protocol, such as [_RetroBBS_](https://github.com/retrocomputacion/retrobbs).
 
-While the userport data rate is fixed at *57600bps*, the effective throughput with the screen on is *1500 / 1800bps* depending on *PAL/NTSC* timings respectively.
+While the userport data rate is fixed at *57600bps* (*19200bps* for the Plus/4), the effective throughput with the screen on is *1500 / 1800bps* depending on *PAL/NTSC* timings respectively.
 
 *The full data throughput while using the turbo transfer / streaming can only be achieved with the screen disabled.*
 
@@ -50,11 +50,13 @@ The *Commodore Plus/4* version is limited to the maximum speed for the built in 
 
 ## 1.1 Release history
 
-### v0.20 (in development):
+### v0.20 (02/01/2024):
+- Turbo56K v0.7
+- New _Commodore Plus/4_ port. _Turbo56K v0.7_ commands implemented, except for the ones regarding SID tune streaming.
 - Fixed bug in command $A3 which caused the parameter to be misread, or the terminal to hang
 - New command `$86` to initiate a download to disk.
 - New command `$B6` to scroll the text window up or down X number of rows.
-- SID streaming now better supports tunes using _hardrestart_, a special version of _SIDdump_ and updated version of _RetroBBS_ is needed for this.
+- SID streaming now better supports tunes using _hardrestart_, a special version of _SIDdump_ and updated version of _RetroBBS_ is required.
 - New compile target `ultimate` compiles with timings compatible with the Swiftlink emulation in the Ultimate1541-II/II+ and Ultimate64.
 - Basic configuration screen by pressing `C= + F7`, terminal screen is not preserved.
 - ACIA based versions now allow selection of the interface base address ($DE00 or $DF00).

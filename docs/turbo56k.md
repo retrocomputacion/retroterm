@@ -60,7 +60,7 @@ For example the following byte sequence enters command mode, sets the screen to 
 |:---:|:---:|------------
 | `$90` | `144` | Returns to the default text mode<br>**Parameters**<br>- Page Number : 1 byte<br>- Border Color : 1 byte<br>- Background Color : 1 byte
 | `$91` | `145` | Switches to hi-res bitmap mode<br>**Parameters**<br>- Page Number : 1 byte<br>- Border Color : 1 byte
-| `$92` | `146` | Switches to multicolor bitmap mode <br> **Parameters**<br>- Page Number : 1 byte<br>- Border Color : 1 byte<br>- Background Color : 1 byte
+| `$92` | `146` | Switches to multicolor bitmap mode <br> **Parameters**<br>- Page Number : 1 byte<br>- Border Color : 1 byte<br>- Background Color : 1 byte<br>**Only for Plus/4:**<br>- Multicolor 3 color : 1 byte
 
 <br>
 
