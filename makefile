@@ -30,10 +30,10 @@ turbo232: $(BUILDFOLDER)/rt_232_v$(VERSION).prg
 
 userport: $(BUILDFOLDER)/rt_u_v$(VERSION).prg
 
-plus4: $(BUILDFOLDER)/rt_p4_v0.10.prg
+plus4: $(BUILDFOLDER)/rt_p4_v$(VERSION).prg
 
-$(BUILDFOLDER)/rt_p4_v0.10.prg: $(SRCFOLDER)/retrotermp4.asm
-	acme -f cbm -D_MAKE_=1 -o $(BUILDFOLDER)/rt_p4_v0.10.prg $(SRCFOLDER)/retrotermp4.asm
+$(BUILDFOLDER)/rt_p4_v$(VERSION).prg: $(SRCFOLDER)/retrotermp4.asm
+	acme -f cbm -D_MAKE_=1 -I $(SRCFOLDER) -o $(BUILDFOLDER)/rt_p4_v$(VERSION).prg $(SRCFOLDER)/retrotermp4.asm
 
 $(SRCFOLDER)/version.asm: $(SRCFOLDER)/version.txt
 # Generate version include source/version.asm
