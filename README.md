@@ -6,7 +6,7 @@
 Jorge Castillo & Pablo Roldán
 
 
-![Badge commodore](https://img.shields.io/badge/Commodore-64%2f128%20%26%20Plus%2f4-1E2A4E?logo=commodore&logoColor=1E2A4E&labelColor=ccc) ![GitHub all releases](https://img.shields.io/github/downloads/retrocomputacion/retroterm/total?labelColor=ccc) ![Badge license](https://img.shields.io/github/license/retrocomputacion/retroterm?labelColor=ccc)
+![Badge commodore](https://img.shields.io/badge/Commodore-64%2f128%20%26%20Plus%2f4-1E2A4E?logo=commodore&logoColor=1E2A4E&labelColor=ccc) ![Badge MSX1](https://img.shields.io/badge/MSX1-darkred) ![GitHub all releases](https://img.shields.io/github/downloads/retrocomputacion/retroterm/total?labelColor=ccc) ![Badge license](https://img.shields.io/github/license/retrocomputacion/retroterm?labelColor=ccc)
 
 ---
 </div>
@@ -32,7 +32,9 @@ Jorge Castillo & Pablo Roldán
 
 ## 1 Introduction
 
-*Retroterm* is a small, minimal *PETSCII* terminal for the *Commodore 64 / 128 (in 64 mode)* and the *Commodore Plus/4 (in development)*.
+*Retroterm* is a small, minimal *PETSCII* terminal for the *Commodore 64 / 128 (in 64 mode)*, *Commodore Plus/4* and *MSX1 (in development)*.
+
+**ATTENTION THE MSX PORT IS CURRENTLY IN ALPHA STATE**
 
 It implements the *[Turbo56k](docs/turbo56k.md)* protocol for high speed data transfer & streaming when connecting to a BBS supporting the protocol, such as [_RetroBBS_](https://github.com/retrocomputacion/retrobbs).
 
@@ -47,6 +49,7 @@ While the userport data rate is fixed at *57600bps* (*19200bps* for the Plus/4),
 Separate *Commodore 64* versions of the executable are provided for cartridges featuring an ACIA 6551 such as *SwiftLink* (limited to **38400bps**) and *Turbo232*.</br>
 The *Commodore Plus/4* version is limited to the maximum speed for the built in ACIA: **19200bps**
 <br>
+The *MSX 1* version is also at this moment limited to **19200bps**, and only supports RS-232 interfaces that adhere to the MSX standard (ie: SVI-738 and HX-22 built-in ports, SVI-737 and Sony HB-232, or any other interface implemented with the i8251 + i8253 USART and Timer combo)<br>
 
 ## 1.1 Release history
 
@@ -83,7 +86,7 @@ Over time, the protocol has been extended to include 4-bit PCM audio streaming, 
 
 ## 1.3 Features
 
-*Implements all commands of the __[Turbo56k](docs/turbo56k.md)__ v0.6 protocol.*
+*Implements all commands of the __[Turbo56k](docs/turbo56k.md)__ v0.7 protocol.*
 
 - Full duplex PETSCII color terminal
 - Turbo data transfers to custom / preset memory locations
@@ -103,17 +106,19 @@ Over time, the protocol has been extended to include 4-bit PCM audio streaming, 
 - A Commodore 64, 128 or Plus/4 computer or an emulator such as VICE or Z64K
 - Either an userport Wi-Fi modem with the Zimodem firmware or...
 - A *SwiftLink* or *Turbo232* compatible cartridge connected to a Wi-Fi modem with the Zimodem firmware.
-- ACME crossassembler for building the programs.
+- A MSX1 or superior computer with 64K of RAM. With either a built-in RS-232 port or an MSX standard RS-232 interface cartridge.
+- ACME and PASMO crossassemblers for building the programs.
 
 ## 2 Usage
 *Retroterm* is very simple to use, most of its functionality being controlled externally from a *[Turbo56k](docs/turbo56k.md)* enabled BBS.
 
-*Retroterm* comes in three flavors:
+*Retroterm* comes in five flavors:
 
 - **rt_v0.20.prg** Userport version 57600bps
 - **rt_sl_v0.20.prg** SwiftLink version 38400bps
 - **rt_232_v0.20.prg** Turbo232 version 57600bps
 - **rt_p4_v0.10.prg** Plus/4 version 19200bps
+- **rtermm1.com** MSX version 19200bps
 
 *Retroterm* lacks classic file transfer functions, when used to communicate with a normal PETSCII BBS, file transfers are not available.
 
@@ -143,14 +148,14 @@ The second setting available for ACIA versions is the ability to keep the screen
 **Important**: Upon exiting the setup screen, _Retroterm_ will default to full screen text mode. Only previous background and border colors will be restored.
 
 ## 3 Building Retroterm
-*Retroterm* is written for the *ACME* cross-assembler, to compile use:
+The Commodore versions of *Retroterm* is written for the *ACME* cross-assembler, while *PASMO* is used for the MSX port, to compile use:
 
 ```
 make
 ```
 to compile all versions.
 
-Or you can specify which version you want to compile, either `userport`, `swiflink` or `turbo232`.
+Or you can specify which version you want to compile, either `userport`, `swiflink`, `turbo232`, `plus4` or `msx`.
 
 ie:
 ```
@@ -162,7 +167,12 @@ You can also manually compile with:
 ```
 acme retroterm_univ.asm
 ```
-from the `source` directory.
+
+or:
+```
+pasmo retrotermm1.asm rtermm1.com
+```
+from the `source` directory.</br>
 This will compile the default userport version of *Retroterm* with an intro screen that last a couple of seconds. In this case the resulting executable will be written to the `source` directory
 
 ## 3.1 Symbols

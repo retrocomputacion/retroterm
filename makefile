@@ -20,7 +20,9 @@ $$(BUILDFOLDER)/rt_$(1)_v$(VERSION).prg: $(SRCFOLDER)/retroterm_univ.asm $(SRCFO
 
 endef
 
-all: $(SRCFOLDER)/version.asm $(foreach variant,$(VARIANTS),$(BUILDFOLDER)/rt_$(variant)_v$(VERSION).prg ) plus4
+all: $(SRCFOLDER)/version.asm $(foreach variant,$(VARIANTS),$(BUILDFOLDER)/rt_$(variant)_v$(VERSION).prg ) plus4 msx
+comm: $(SRCFOLDER)/version.asm $(foreach variant,$(VARIANTS),$(BUILDFOLDER)/rt_$(variant)_v$(VERSION).prg ) plus4
+
 
 swiftlink: $(BUILDFOLDER)/rt_sl_v$(VERSION).prg
 
@@ -32,8 +34,13 @@ userport: $(BUILDFOLDER)/rt_u_v$(VERSION).prg
 
 plus4: $(BUILDFOLDER)/rt_p4_v$(VERSION).prg
 
+msx: $(BUILDFOLDER)/rtermm1.com
+
 $(BUILDFOLDER)/rt_p4_v$(VERSION).prg: $(SRCFOLDER)/retrotermp4.asm
 	acme -f cbm -D_MAKE_=1 -I $(SRCFOLDER) -o $(BUILDFOLDER)/rt_p4_v$(VERSION).prg $(SRCFOLDER)/retrotermp4.asm
+
+$(BUILDFOLDER)/rtermm1.com: $(SRCFOLDER)/retrotermm1.asm
+	pasmo -I $(SRCFOLDER) $(SRCFOLDER)/retrotermm1.asm $(BUILDFOLDER)/rtermm1.com $(SRCFOLDER)/rtm1.symbol
 
 $(SRCFOLDER)/version.asm: $(SRCFOLDER)/version.txt
 # Generate version include source/version.asm

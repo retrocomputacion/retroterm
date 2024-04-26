@@ -27,7 +27,7 @@
 	MAXCMD = $B7			; Highest command implemented
 
 !ifndef _MAKE_{
-	!to "rt_p4_v0.10.prg", cbm
+	!to "rt_p4_v0.20.prg", cbm
 }
     !sl "labels-p4.txt"
 
@@ -54,6 +54,10 @@
 
 !macro EnROMs {
 	STA $FF3E
+}
+
+!macro _Version_{	; Insert version number string
+	!src "version.asm"
 }
 
 	*= $1001
@@ -427,7 +431,7 @@ Received
 	RTS			; 6 Retorna
 
 ;//////////////////////////////////////////////////////////////////////////////////////////
-; TurboRX, receives a byte stream and plays it as nibbles through the SID volume register
+; TurboRX, receives a byte stream and plays it as nibbles through the TED volume register
 ;------------------------------------------------------------------------------------------
 
 TurboRX
@@ -2121,7 +2125,9 @@ Version
 	!byte $05, $93, $99, $08, $0E
 ;	!text "retroterm VERSION 0.5 turbo    57600,8n1"
 ;	!text "retroterm turbo232 VER 0.11    57600,8n1"
-	!text "retroterm plus/4 VER 0.10      19200,8n1"
+	!text "retroterm plus/4 VER "
+	+_Version_
+	!text "      19200,8n1"
 	!byte $05, $0D , $00
 Msg06
 	!text "(c)2023 RETROCOMPUTACION.COM"
@@ -2137,7 +2143,9 @@ ExitMsg
 	!byte $0D, $0D, $00
 
 IDString:
-	!text "RTRETROTERM-P4 0.10   "	; ID String 22 characters long
+	!text "RTRETROTERM-P4 "
+	+_Version_
+	!text "   "	; ID String 22 characters long
 	!byte $00,$07	;Turbo56K version, subversion
 
 Palette
