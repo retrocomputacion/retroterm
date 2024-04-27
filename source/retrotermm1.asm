@@ -876,10 +876,10 @@ _Cmd82	;Alternative entry point
 	LD		A,SHORTRX
 	LD		(.rts0+1),A		; Set shorter Rx timing
 
-	LD		A,128+7
-	OUT		(&h99),A
-	LD		A,17+128
-	OUT		(&h99),A		;Setup border color write
+	; LD		A,128+7
+	; OUT		(&h99),A
+	; LD		A,17+128
+	; OUT		(&h99),A		;Setup border color write
 
 C82Loop
 	; Timeout counter
@@ -929,7 +929,9 @@ C82Loop
 C82Addr
 	LD		(HL),A
 	LD		A,L
-	OUT		(&h9B),A
+	OUT		(&h99),A
+	LD		A,&h80+7
+	OUT		(&h99),A
 C82FX
 	INC		HL
 C82Next
@@ -957,7 +959,9 @@ C82End
 	JP 		.c822
 .c823
 	LD		A,(BORDER)
-	OUT		(&h9B),A	; Set Border color back
+	LD		D,A	; Set Border color back
+	LD		E,7
+	CALL	WriteVReg
 	EI					; Enable IRQs
 	RET
 
@@ -1505,16 +1509,21 @@ Received
 TurboRX
 	LD		A,%00100111	; RTS Enabled, Rx/Tx enabled, DTS Active
 	OUT		(USARTCmd),A
-	LD		A,128+7
-	OUT		(&h99),A
-	LD		A,17+128
-	OUT		(&h99),A		;Setup border color write
+	; LD		A,128+7
+	; OUT		(&h99),A
+	; LD		A,17+128
+	; OUT		(&h99),A		;Setup border color write
 TurboLoop
 	LD		D,0
 	LD		A,(RXBYTE)
 	AND 	&h0F
-	OUT		(&h9B),A
+
+
+	OUT		(&h99),A
 	LD		E,A
+	LD		A,&h80+7
+	OUT		(&h99),A
+
 	LD		HL,Sam1
 	ADD		HL,DE
 	LD		B,(HL)
@@ -1539,17 +1548,21 @@ TurboLoop
 	INC		A
 	OUT		(C),H
 	;
-	; Delay HERE 933-430 cycles (527)
+	; Delay HERE 933-301 cycles (632)
 	;
-	LD		B,&h23
+	LD		B,&h2E
 .tdelay
 	DJNZ 	.tdelay
 	LD		A,0
 	LD		HL,RXBYTE
 	RRD
 	LD		A,(RXBYTE)
-	OUT		(&h9B),A
+
+	OUT		(&h99),A
 	LD		E,A
+	LD		A,&h80+7
+	OUT		(&h99),A
+
 	LD		HL,Sam1
 	ADD		HL,DE
 	LD		B,(HL)
@@ -1590,10 +1603,10 @@ TRXWait2
 	OUT		(PPI.CW),A
 	IN		A,(PPI.BR)
 	AND		&h10			; Check for STOP
-	JR		NZ,TurboLoop
+	JP		NZ,TurboLoop
 	LD		A,&hFF			; Yes, send $FF
 	OUT		(USARTData),A
-	JR		TurboLoop
+	JP		TurboLoop
 TurboExit
 	LD		A,%00000111	; RTS Disabled, Rx/Tx enabled, DTS Active
 	OUT		(USARTCmd),A
@@ -1603,7 +1616,7 @@ TurboExit
 	CALL	ReadByte
 	JR		NC,.tex2	; if no character received, exit
 	CALL	AddToPrBuffer
-	JP 		.tex1
+	JR 		.tex1
 .tex2
 	JP		PSGIni
 	; RET
