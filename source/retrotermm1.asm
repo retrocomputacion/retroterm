@@ -2542,9 +2542,14 @@ CharOut:
 	JP		Z,.ct7f		; yes->jump
 	BIT		0,B			; Test if GRAPH mode
 	JR		Z,.co0		; No, skip
+	CP		&h60		; Look for half triangles (0x0160 and 0x0161)
+	JR		C,.co00		; No, normal extended gfx chars
+	ADD		A,&h9e
+	JR		.co0
+.co00
 	SUB		&h40		; Substract GRAPH offset
-	RES		0,(HL)		; Reset GRAPH mode
 .co0	; Printable character
+	RES		0,(HL)		; Reset GRAPH mode
     LD      C,A             ; C: Character
     LD      A,(ACOLORS)
     LD      B,A             ; B: color
