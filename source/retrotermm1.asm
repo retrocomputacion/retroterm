@@ -50,7 +50,7 @@ INIGRP		EQU &h0072		; Switches to SCREEN 2 (high resolution screen with 256×192
 GICINI		EQU &h0090		; Initialises PSG and sets initial value for the PLAY statement
 CHGET		EQU	&h009F		; One character input (waiting)
 CHPUT		EQU &h00A2		; Displays one character
-BEEP		EQU &h0060		; Generates beep
+BEEP		EQU &h00C0		; Generates beep
 GTSTCK		EQU	&h00D5		; returns the joystick status
 GTTRIG		EQU	&h00D8		; returns the trigger button status
 GTPDL		EQU	&h00DE		; returns the paddle value
@@ -754,6 +754,23 @@ PSGIni:		;Initialize PSG
 	OUT		(C),A
 	INC		C
 	OUT		(C),D		; Set Channel 1 volume to 8
+	INC		A
+	DEC		C
+	OUT		(C),A
+	INC		C
+	LD		A,&h1F
+	OUT		(C),A		; Set Channel 2 to Envelope
+	DEC		C
+	LD		DE,&h0B4F
+	LD		A,11
+	OUT		(C),A
+	INC		C
+	OUT		(C),E		; Envelope period LSB
+	DEC 	C
+	INC		A
+	OUT		(C),A
+	INC		C
+	OUT		(C),D		; Envelope period MSB
 	RET
 
 ;///////////////////////////////////////////////////////////////////////////////////
@@ -785,6 +802,43 @@ DoBeep2
 	INC 	C
 	LD		A,%10111110	; Channel 1 Tone enable
 	OUT		(C),A
+	RET
+
+;///////////////////////////////////////////////////////////////////////////////////
+; Play BELL
+;///////////////////////////////////////////////////////////////////////////////////
+DoBell:
+	LD		C,AYINDEX
+	LD		B,AYWRITE
+	LD		DE,&h00B0
+	LD		A,2
+	OUT		(C),A		; #R2 Channel 2 Freq LSB
+	INC		C
+	OUT		(C),E
+	DEC		C
+	INC		A
+	OUT		(C),A
+	INC		C
+	OUT		(C),D		; #R3 Channel 2 Freq MSB
+	DEC		C
+	LD		A,7
+	OUT		(C),A
+	INC		C
+	LD		A,%10111101	; Channel 2 Tone enable
+	OUT		(C),A
+	LD		A,13
+	DEC		C
+	OUT		(C),A
+	INC		C
+	LD		A,&h09		; Trigger envelope
+	OUT		(C),A
+	LD		A,&hAF
+.db0
+	LD		B,&hFF
+.db1
+	DJNZ	.db1
+	DEC		A
+	JR		NZ,.db0
 	RET
 
 WaitNoChar
@@ -2620,10 +2674,12 @@ CharOut:
 .ct07
 	CP		&h07		; BELL?
 	JR		NZ,.ct08		; no, skip
-	LD		IX,BEEP
-	LD		IY,(EXPTBL-1)
-	CALL	CALSLT		; Call BIOS BEEP routine
-	EI
+	; LD		IX,BEEP
+	; LD		IY,(EXPTBL-1)
+	; CALL	CALSLT		; Call BIOS BEEP routine
+	; EI
+	; CALL	PSGIni
+	CALL	DoBell
 	RET
 .ct08
 	CP		&h08		; Backspace?
