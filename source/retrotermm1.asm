@@ -162,6 +162,14 @@ MAXCMD		EQU	&hB7	; Highest command implemented
 SHORTRX		EQU	50		; Short wait time for ReadByte routine
 LONGRX		EQU 100		; Longer wait time for ReadByte routine
 
+;
+CRCTABLE	EQU	&h4000	; CRC Table address
+FILEFCB		EQU	&h4200	; FCB for file transfer
+FNAME		EQU	&h4230	; File name for downloads
+BSIZE		EQU &h4240	; Block size
+BCRC		EQU &h4242	; Block CRC
+BBUF		EQU &h4300	; Block buffer
+
 ; Variables
 FLAGS1:		DB	&h08	; Status flags
 						; Bit 7 : 1 = Command mode; 0 = Normal mode
@@ -207,6 +215,18 @@ PRSPEED		DB	&h00	; Text printing speed
 BLOCKPTR	DW	&h0000	; Memory pointer for the block transfer command
 BYTECNT		DW	&h0000	; Block transfer byte count
 
+;////////////
+; Macros
+;////////////
+MACRO SetCursor,col,row
+	LD		A,row
+	LD		(CSRY),A
+	LD		A,col
+	LD		(CSRX),A
+	CALL	.cup
+ENDM
+
+
 Start:
 	LD		C,WRITESTR
 	LD		DE,INTRO
@@ -234,6 +254,8 @@ Start:
 	; Init screen
 
 	CALL	ClrScr
+	LD		HL,RetroIntro
+	CALL	StrOut
 
 loop1:
 	LD		A,(PRBUFFERCNT)
@@ -459,6 +481,7 @@ ChkTimer2
 .eisr:
 	LD		A,D
 	LD		(Bcount),A
+.eisr0
 	POP		HL
 	POP		DE
 	POP		BC
@@ -470,6 +493,44 @@ Blink:
 	DB		&hAA
 Bcount:
 	DB		15
+
+
+;////////////////////////////////////////////////////
+; Minimal IRQ routine
+; Just receive data into the buffer
+; if the receive flag is clear
+; TEMPCNT2: Minimum number of characters to receive
+;///////////////////////////////////////////////////
+minIRQ:
+	DI
+	PUSH	AF
+	PUSH	BC
+	PUSH	DE
+	PUSH	HL
+	LD		A,(TEMPCNT2)
+	LD		B,A				;Character counter
+	LD		HL,EDSTAT
+	BIT		7,(HL)
+	JR		NZ,.eisr0	; Receive bit set, exit ISR
+	RES		7,(HL)
+.mi0
+	LD		A,(PRBUFFERCNT)
+	XOR		&hFF
+	JR		Z,.eisr0	; If buffer is full, exit
+	PUSH	BC
+	CALL	ReadByte
+	POP		BC
+	JP		NC,.mi1		; if no character received, exit ISR
+	CALL	AddToPrBuffer	; otherwise add byte to print buffer
+	;JR		.mi0			; and loop
+.mi1
+	DJNZ	.mi0			; if b!=0, loop
+	LD		HL,EDSTAT
+	BIT		7,(HL)
+	JR		NZ,.eisr0
+	INC		B
+	SET		7,(HL)
+	JR		.mi0
 
 ;/////////////
 ; Init 8251 - Partly based on SVI ROM disassembly
@@ -568,23 +629,15 @@ BaudTable:
 
 PrintBuffer
 .pb0
-	;LD		A,(PRBUFFERCNT)	; If the buffer is empty, exit
-	;CP		0
 	LD		HL,PRBUFFERCNT
 	LD		A,0
 	CP		(HL)
 	RET		Z
-	;DI
-	;LD		B,A
-	;LD		A,(PRINDEXOUT)
-	;LD		E,A
-	;LD		D,HIGH(PrBuffer)
 	LD		A,(FLAGS1)
 	BIT		7,A
 	JR		NZ,.pb2			; Command mode? -> Parse comnands
 	BIT		6,A
 	JR		NZ,.pb4			; Voice mode, skip character
- 	;LD		A,(DE)
 	CALL	GetFromPrBuffer	; Get byte from buffer
 	CP		&hFF			; Check for commands
 	JR		Z,.pb1
@@ -592,15 +645,6 @@ PrintBuffer
 	CP		&hFE			; Check for command mode exit <- Captures extraneous $FE characters
 	JR		Z,.pb0
 
-	; EX		AF,AF'			; Save A
-	; DEC		B
-	; LD		A,B
-	; LD		(PRBUFFERCNT),A
-	; INC		E
-	; LD		A,E
-	; LD		(PRINDEXOUT),A
-	; EX		AF,AF'			; Retrieve A
-	;EI
 	CALL	CharOut			; Output character to screen
 	CALL	DoBeep
 	LD		A,(PRSPEED)
@@ -608,32 +652,14 @@ PrintBuffer
 	JR		.pb0			; Return to .pb0 to process the rest of the buffer
 ; // Enter command mode
 .pb1
-	; DEC		B
-	; LD		A,B
-	; LD		(PRBUFFERCNT),A
-	; INC		E
-	; LD		A,E
-	; LD		(PRINDEXOUT),A	; Skip the $FF character
-	; EI
 	LD		HL,FLAGS1
 	SET		7,(HL)
-	; LD		A,(FLAGS1)
-	; OR		%10000000
-	; LD		(FLAGS1),A		; Enters command mode
 	JR		.pb0
 ; Parse commands
 .pb2
 	CALL	NoChar			; Mutes the print beep
-	;DEC		B
-	;LD		A,B
-	;LD		(PRBUFFERCNT),A
-	;LD		A,E
-	;INC		A
-	;LD		(PRINDEXOUT),A	; Update pointers
-	;LD		A,(DE)			; A = Command byte
 	CALL	GetFromPrBuffer	; Get byte from buffer
 	BIT		7,A
-	;EI
 	JR		Z,.pb2_1		; Invalid command (bit7=0)
 	CP		MAXCMD+1
 	JR		C,.pb2_2		; Is it less than or equal to the highest implemented command?
@@ -659,19 +685,9 @@ PrintBuffer
 
 .pb4                ; Insert byte into the voice buffer
 	CALL	NoChar		; Mute the print beep
- 	;LD		A,(DE)
 	CALL	GetFromPrBuffer	; Get byte from buffer
  	CP 		&hFF		; Check for commands
  	JR		z,.pb1
-	; EX		AF,AF'			; Save A
-	; DEC		B
-	; LD		A,B
-	; LD		(PRBUFFERCNT),A
-	; INC		E
-	; LD		A,E
-	; LD		(PRINDEXOUT),A
-	;EX		AF,AF'			; Retrieve A
-	;EI
  	JR		.pb0
 
 ;///////////////////////////////////////////////////////////////////////////////////
@@ -725,19 +741,18 @@ AddToPrBuffer
 	;EI				; Enable IRQs
 	RET
 
-; ChrGet:
-; 	LD 		IX,CHGET
-; 	LD		IY,(EXPTBL-1)
-; 	CALL	CALSLT
-; 	EI
-; 	RET
-
-; ChrOut:		;Output character from BIOS
-; 	LD		IX,CHPUT
-; 	LD		IY,(EXPTBL-1)
-; 	CALL	CALSLT
-; 	EI
-; 	RET
+;/////////////////////////////////
+; Print string in (HL)
+;/////////////////////////////////
+StrOut:
+	LD		A,(HL)
+	CP		0
+	RET		z
+	PUSH	HL
+	CALL	CharOut
+	POP		HL
+	INC		HL
+	JR		StrOut
 
 PSGIni:		;Initialize PSG
 	; LD		IX,GICINI
@@ -1039,6 +1054,29 @@ Cmd83
 	CALL	WriteVReg			; Restore border color
 	RET
 
+;////////////////////////////////////////////////////////////////////////////////////
+; 134: Start a file transfer
+Cmd86
+	; DI
+	CALL	MAKECRCTABLE
+	; LD		HL,minIRQ		; Set minimal IRQ
+	; LD		(0x0039),HL
+	; LD		HL,EDSTAT		; Disable reception
+	; SET		7,(HL)
+	; EI
+	LD		HL,&h0000		; Reset counters
+	LD		(rcount),HL
+	LD		(bcount),HL
+
+	CALL 	bsave
+	; DI
+	; LD		HL,newISR
+	; LD		(0x0039),HL
+	; LD		HL,EDSTAT
+	; SET		7,(HL)
+	; EI
+	JP		CmdFE			; Exit command mode
+
 ;///////////////////////////////////////////////////////////////////////////////////
 ; 144: Returns to the default text mode, requires 3 parameter bytes
 ;      Page (not used), border color, background color
@@ -1178,23 +1216,6 @@ CmdB0
 	LD		A,B			; Yes, force WBOTTOM-1
 .b0_1
 	LD		(CSRY),A
-; 	CLC
-; 	ADC WTOP
-; 	TAX
-; 	CPX WBOTTOM			; Greater than WBOTTOM?
-; 	BCC +				; No, continue
-; 	LDX WBOTTOM			; Yes, force WBOTTOM
-; +	PLA
-; 	TAY					;LDY TEMP1
-; 	CLC
-	; JSR $D839			; Set cursor position
-	; JSR StartCRSR
-	; LDA WTOP			; Restore OS text window limits
-	; STA $07E6
-	; LDX WBOTTOM
-	; DEX
-	; STX $07E5
-	; JSR $DE80			; Rebuild link table
 	CALL	.cup			; Update cursor pointers
 	JP		CmdFE			; Exit command mode
 
@@ -2903,6 +2924,576 @@ HighCNib
 	OR		B
 	RET
 
+; Generate CRC tables
+MAKECRCTABLE:
+	LD		C,0			; C counts from 0 to 255
+	LD		HL,CRCTABLE
+BYTELOOP
+	LD		E,&h00		; E contains the low 8 bits of the CRC-16
+	LD		D,C			; and D contains the high 8 bits
+	LD		B,8			; B counts bits in a byte
+BITLOOP  
+	SLA		E
+	RL 		D			; Shift CRC left
+	JR		NC,NOADD	; Do nothing if no overflow
+	LD		A,&h21		; else add CRC-16 polynomial $1021
+	XOR		E
+	LD		E,A
+	; PHA             ; Save low byte
+	; LDA CRC         ; Do high byte
+	LD		A,&h10
+	XOR 	D
+	LD		D,A
+	; PLA             ; Restore low byte
+NOADD
+    DJNZ	BITLOOP	; Do next bit
+	; STA CRCLO,X     ; Save CRC into table, low byte
+	; LDA CRC         ; then high byte
+	; STA CRCHI,X
+	LD		(HL),E		;CRCLO
+	INC 	HL
+	LD		(HL),D		;CRCHI
+	INC 	HL
+	INC	C
+	JR		NZ,BYTELOOP    ; Do next byte
+	RET
+
+; Quick CRC computation with lookup tables
+;	A: Value
+UPDCRC:
+	PUSH	HL
+	LD		B,A
+	LD		A,(CRC+1)
+	XOR		B
+	LD		HL,CRCTABLE
+	LD		D,0
+	SLA		A
+	RL		D
+	LD		E,A
+	ADD		HL,DE
+	LD		E,(HL)		;CRCLO
+	INC 	HL
+	LD		D,(HL)		;CRCHI
+	LD		A,(CRC)
+	XOR		D
+	LD		(CRC+1),A
+	LD		A,E
+	LD		(CRC),A
+	POP		HL
+	RET
+CRC:
+	DW	&h0000
+
+;///////////////////////////////
+; Init FCB for file transfer
+; A: Drive number (0: default)
+; HL: Zero terminated file name
+;///////////////////////////////
+FillFCB:
+	LD		DE,FILEFCB
+	LD		(DE),A		; Set Drive number
+	INC		DE
+	LD		B,8
+.ff0					; Fill name
+	LD		A,(HL)
+	CP		0			; End of string?
+	JR		Z,.ff1
+	CP		'.'			; Dot separator?
+	JR		Z,.ff1
+	LD		(DE),A
+	INC		HL
+	INC		DE
+	DJNZ	.ff0
+	JR		.ff2
+.ff1
+	CALL	.fffill
+.ff2					; Fill Extension
+	LD		B,3
+.ff20
+	LD		A,(HL)
+	CP		0			; End of string?
+	JR		Z,.ff3
+	CP		'.'			; Dot separator?
+	JR		NZ,.ff22
+    INC     HL
+    JR  .ff2
+.ff22
+	LD		(DE),A
+	INC		HL
+	INC		DE
+	DJNZ	.ff20
+	JR		.ff4
+.ff3
+	CALL	.fffill
+.ff4					; Fill rest of FCB with zeroes
+	LD	B,&h19
+	LD	A,0
+.ff5
+	LD	(DE),A
+    INC DE
+	DJNZ	.ff5
+	RET
+
+.fffill	;Fill remaining characters with spaces
+	LD	A,32
+.fff0
+	LD	(DE),A
+	INC	DE
+	DJNZ	.fff0
+	RET
+
+;written by Zeda
+;Converts a 16-bit unsigned integer to an ASCII string.
+
+uitoa_16:
+;Input:
+;   DE is the number to convert
+;   HL points to where to write the ASCII string (up to 6 bytes needed).
+;Output:
+;   HL points to the null-terminated ASCII string
+;      NOTE: This isn't necessarily the same as the input HL.
+	PUSH	DE
+	PUSH	BC
+	PUSH	AF
+	EX		DE,HL
+
+	LD		BC,-10000
+	LD		A,'0'-1
+	INC		A
+	ADD		HL,BC
+	JR		c,$-2
+	LD		(DE),A
+	INC		DE
+
+	LD		BC,1000
+	LD		A,'9'+1
+	DEC		A
+	ADD		HL,BC
+	JR		nc,$-2
+	LD		(DE),A
+	INC		DE
+
+	LD		BC,-100
+	LD		A,'0'-1
+	INC		A
+	ADD 	HL,BC
+	JR		c,$-2
+	LD		(DE),A
+	INC		DE
+
+	LD		A,L
+	LD		H,'9'+1
+	DEC		H
+	ADD		A,10
+	JR		nc,$-3
+	ADD		A,'0'
+	EX		DE,HL
+	LD		(HL),D
+	INC		HL
+	LD		(HL),A
+	INC		HL
+	LD		(HL),0
+
+;Now strip the leading zeros
+	LD		C,-6
+	ADD		HL,BC
+	LD		A,'0'
+	INC		HL
+	CP		(HL)
+	JR		z,$-2
+
+;Make sure that the string is non-empty!
+	LD		A,(HL)
+	OR		A
+	JR		nz,+_
+	DEC		HL
+_:
+	POP AF
+	POP BC
+	POP DE
+	RET
+
+UINTB:		; uint converter buffer
+	DS	6,0
+
+;/////////////////////////
+; Save binary to disk
+;/////////////////////////
+bsave
+	LD		A,0					; Disable Splitscreen/Text window
+	CALL	setwtop
+	LD		A,23
+	CALL	.b5_1
+	LD		A,(EDSTAT)
+	AND		&hCB				; Cursor off
+	LD		(EDSTAT),A			; Return to text mode
+
+	LD		HL,bst1				; Print download screen
+	CALL	StrOut
+
+	LD		C,&h19
+	CALL	BDOS
+	LD		(_prevdrv),A		; Save current default drive
+	LD		(_curdrv),A
+
+	LD		DE,(GRPCGP)	; Copy full charset
+	LD		A,&h10
+	ADD		A,D
+	LD		D,A
+	LD		HL,CHRSET			; To the 3rd Pattern table
+	LD		BC,&h0800
+	CALL	CpyVRAM
+
+	LD		A,&h41				; Receive 1 byte
+	LD		(CMDFlags),A
+	CALL	GetFromPrBuffer		; Get and discard file type
+	;-- Get filename
+	LD		HL,CMDFlags
+	LD		A,&h46
+	LD		(HL),A
+	LD		DE,FNAME
+	LD		B,0
+.bs0
+	INC		(HL)				; +1 Parameter to read
+	PUSH	HL
+	PUSH	DE
+	CALL	GetFromPrBuffer
+	POP		DE
+	POP		HL
+	LD		(DE),A
+	INC		DE
+	INC		B
+	CP		0
+	JR		z,.bs1
+	LD		A,B
+	CP		&h11				; Repeat until 16 characters (+null) are read
+	JR		nz,.bs0
+.bs1
+	LD		A,0
+	LD		(DE),A
+	LD		A,&h40
+	LD		(HL),A
+	;--
+	; LD		A,1
+	; LD		(CSRY),A
+	; LD		A,10
+	; LD		(CSRX),A
+	; CALL	.cup
+	SetCursor 10,1
+	LD		HL,FNAME
+	CALL	StrOut				; Print FileName
+	CALL 	UBlock
+	CALL	URetry
+
+    LD      C,&h18              ; GetLoginVector
+    CALL    BDOS
+	; L = Available drives
+	LD		A,L
+	LD		(_drives),A
+
+
+; 	LD		A,0
+; 	LD		(_curdrv),A			; Find first available drive
+; 	LD		B,8
+; .bs11
+; 	SRL 	L
+; 	JR		NC,.bs12
+; 	LD		(_curdrv),A
+	CALL	ddrive
+; 	JR		.bs2
+; .bs12
+; 	INC	A
+; 	DJNZ	.bs11
+
+.bs2
+	CALL	GetKey				; Wait for any key
+	CP		0
+	JR		Z,.bs2
+	CP		'y'					;CONTINUE
+	JR		Z,.y1
+	CP		'n'
+	JR		NZ,.bs3
+	LD		B,&h42				; CANCEL
+	DI
+	JR		.bb
+.bs3
+	; Drive selection
+	CP		'+'
+	JR		NZ,.bs4
+	CALL	ndrive
+	JR		.bs2
+.bs4
+	CP		'-'
+	JR		NZ,.bs2
+	CALL	pdrive
+	JR		.bs2
+
+.y1	;CONTINUE
+	CALL	.bo			; Open file
+	PUSH	BC
+	SetCursor 7,8 ; Print abort message
+	LD		HL,bst9
+	CALL	StrOut
+	POP		BC
+	;LD		B,&h81		; << this should come from the open file routine
+.bb
+	DI
+	IN		A,(PPI.CR)
+	AND		&hF0
+	ADD		A,&h07			; 7th row
+	OUT		(PPI.CW),A
+	IN		A,(PPI.BR)
+	AND		&h10			; Check for STOP
+	JP		NZ,.bb1
+	LD		B,&h42			; ABORT!
+.bb1
+	LD		A,B
+	CALL	SendID
+
+	LD		HL,CMDFlags
+	LD		A,&h44
+	LD		(HL),A			; Get 4 parameter bytes: Block size LSB,MSB | CRC16 LSB,MSB
+	LD		B,4
+
+	LD		HL,BSIZE
+	EI
+.bb2
+	PUSH	HL
+	CALL	GetFromPrBuffer
+	POP		HL
+	LD		(HL),A
+	INC		HL
+	DJNZ	.bb2
+
+	DI
+	LD		HL,BSIZE
+	LD		B,(HL)		; Block size MSB
+	INC		HL
+	LD		C,(HL)		; Block size LSB
+	LD		A,C
+	LD		(.c+1),A		; Set CRC check counter limit
+	OR		B
+	JP		Z,.be			; 0 length -> end transfer
+	LD		HL,BBUF
+	LD		(BLOCKPTR),HL	; Destination
+	CALL	_Cmd82			; Receive block
+	;copy received block to vram
+	LD		DE,(GRPNAM)
+	INC		D
+	INC 	D
+	LD		HL,BBUF
+	LD		BC,&h0100
+	CALL	CpyVRAM
+
+
+	;check CRC
+	LD		HL,&hFFFF
+	LD		(CRC),HL
+	LD		C,0				; counter
+	LD		HL,BBUF
+.bb3
+	LD		A,(HL)
+	CALL	UPDCRC
+	INC		HL
+	INC		C
+.c	LD		A,&h00
+	CP		C
+	JR		NZ,.bb3
+	LD		HL,CRC
+	LD		A,(BCRC+1)
+	CP		(HL)
+	JR		NZ,.er		; CRC doesn't match, error
+	INC		HL
+	LD		A,(BCRC)
+	CP		(HL)
+	JR		NZ,.er		; CRC doesn't match, error
+	;Write to disk
+	CALL	UBlock
+	CALL	bwrite
+	;LD		B,&h81		;<<< this should come from the write routine
+	JR		.bb
+.er
+	CALL	URetry
+	LD		B,&hAA		;ERROR
+	JP		.bb
+	RET
+
+.bo	;Open file
+	LD		A,(_curdrv)
+	LD		B,A
+	LD		A,(_prevdrv)
+	CP		B
+	JR		Z,.bo1
+	SetCursor 0,4
+	LD		HL,bst2
+	CALL	StrOut
+	LD		A,(_curdrv)
+	LD		E,A
+	LD		C,&h0E
+	CALL	BDOS		; Change default drive
+
+.bo1
+	LD		HL,FNAME
+	LD		A,0	;(_curdrv)
+	; INC		A
+	CALL	FillFCB		; Init FCB
+	LD      C,&h11      ;Search First (FCB)
+    LD      DE,FILEFCB
+    CALL    BDOS
+    CP      &hFF
+    JR      NZ,.abrt	;Abort if file found
+    LD      C,&h16		;Create file (FCB)
+    LD      DE,FILEFCB
+    CALL    BDOS
+    CP      0
+    JR      NZ,.abrt	; Could not open the file, abort
+    LD      A,1
+    LD      (FILEFCB+&h0e),A    ; Lets try write individual bytes
+	LD		B,&h81
+	RET
+.abrt
+	CALL	.bc			;close file
+	LD		B,&h42
+	RET
+
+.be	; Transfer complete
+	CALL	.bc			;close file <<<
+	EI
+	CALL	ClrScr
+	RET
+
+.bc	;Close file
+	LD      DE,FILEFCB
+    LD      C,&h10		; Close file (FCB)
+    CALL    BDOS
+	RET
+
+bwrite	; Write data
+	LD		DE,BBUF
+	LD      C,&h1A		; Set Disk Transfer Address
+    CALL    BDOS
+    LD      DE,FILEFCB
+    LD      HL,(BSIZE)	; Number of records (byte count in this case)
+	LD		A,H
+	LD		H,L
+	LD		L,A
+    LD      C,&h26		; Random block write (FCB)
+    CALL    BDOS
+	CP		0
+	JR		NZ,.abrt	; Error writing to disk, Abort
+	LD		B,&h81
+	RET
+
+_prevdrv
+	DB	0
+_curdrv
+	DB	0
+_drives
+	DB	0
+
+;Print drive number
+ddrive:
+	SetCursor 11,2
+	LD		A,(_curdrv)
+	ADD		A,'A'
+	LD		HL,bst10
+	LD		(HL),A
+	CALL	StrOut		; Print drive letter
+	; and wait for key release (is this needed?)
+.dd	
+	CALL	GetKey
+	CP		0
+	JR		NZ,.dd
+	RET
+
+; Find next available drive
+ndrive:
+	LD		A,(_curdrv)
+	LD		HL,_drives
+	LD		B,A
+.nd3
+	INC		B
+	LD		A,B
+	CP		8
+	JR		Z,.nd0
+	LD		C,B		;Save B
+	;LD		A,B
+.nd1
+	SLA 	A
+	DEC		B
+	JR		NZ,.nd1
+	AND		(HL)
+	JR		NZ,.nd2
+	LD		B,C
+	JR		.nd3
+.nd2
+	LD		A,C
+	LD		(_curdrv),A
+.nd0
+	CALL	ddrive
+	RET
+
+; Find previous available drive
+pdrive:
+	LD	A,(_curdrv)
+	LD	HL,_drives
+	LD	B,A
+.pd3
+	DEC	B
+	LD	A,B
+	CP	&hFF
+	JR	Z,.nd0
+	CP	0
+	OR	A
+	JR	NZ,.pd2
+	SCF
+.pd2
+	LD	C,B		;Save B
+	;LD	A,B
+.pd1
+	RL	 	B
+	DEC		A
+	JR		Z,.pd4
+	CP		&hFF
+	JR		NZ,.pd1
+.pd4
+	LD		A,B
+	AND		(HL)
+	JR		NZ,.nd2
+	LD		B,C
+	JR		.pd3
+
+
+;Update received block count
+UBlock:
+	SetCursor &h00,&h06
+	LD		HL,bst7
+	CALL	StrOut
+	LD		DE,(bcount)
+	LD		HL,UINTB
+	CALL	uitoa_16
+	CALL	StrOut		;Print number
+	LD		HL,bcount
+	INC 	(HL)
+	RET
+
+bcount	DW &h0000
+
+;Update retries count
+URetry:
+	SetCursor &h00,&h07
+	LD		HL,bst8
+	CALL	StrOut
+	LD		DE,(rcount)
+	LD		HL,UINTB
+	CALL	uitoa_16
+	CALL	StrOut		;Print number
+	LD		HL,rcount
+	INC 	(HL)
+	RET
+
+rcount	DW &h0000
+
 ; Strings
 INTRO:
 	DB	"Retroterm MSX v0.10 ALPHA"
@@ -2910,10 +3501,51 @@ INTRO:
 	DB	"(c)2024 by Retrocomputacion.com"
 	DB	&h0D,&h0A
 	DB	"Press any key$"
+RetroIntro:
+	DB	&h0C,&h01,&h02
+	DB	"Retroterm MSX -ALPHA-  19200,8n1"
+	DB	&h01,&h0A
+	DB	"(c)2024 RETROCOMPUTACION.COM"
+	DB	&h0D,&h01,&h0F,&h00
 
 IDString:
 	DB "RTRETROTERM-M1 0.10   "	; ID String 22 characters long
 	DB &h00,&h07	;Turbo56K version, subversion
+
+
+; File save text
+bst1:
+	DB	&h01,&h11,&h0C,&h01,&h03,&h1A	;BlackBG, Clear, light green, rvsoff
+	DB	"HOST REQUESTED TO SAVE FILE",&h0D
+	DB	&h01,&h0F,"Filename:",&h0D
+	DB	&h01,&h0A,"To Drive ",&h19,"+",&h1A,"   ",&h19,"-",&h0D
+	DB	&h1F,&h01,&h18,"CONTINUE? (Y/N)",&h01,&h0F,&h01,&h11
+	DS	&h0B,&h0D
+; Buffer frame
+	DB	&h01,&h0B	; LYellow
+	DB	&h19," BUFFER ",&h1A
+	DS 	&h18,&hC0	; 32 _
+	DB	&h00
+; Prompt when changing drives
+bst2:
+	DB	"    PRESS ANY KEY WHEN READY",&h00
+
+; Block count
+bst7:
+	DB	"BLOCKS:      "
+	DS	&h05,&h1D
+	DB	&h00
+; Retry count
+bst8:
+	DB	"RETRIES:      "
+	DS	&h05,&h1D
+	DB	$00
+; Abort text
+bst9:
+	DB	"HOLD ",&h19," STOP ",&h1A," TO ABORT",&h00
+; Drive clean spaces
+bst10:
+	DB	" ",&h00
 
 ; Function keys
 Fkeys:
@@ -3011,7 +3643,7 @@ CmdTable:
     ; DW Cmd90,Cmd91,Cmd92,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     ; DW CmdA0,CmdA1,CmdA2,CmdA3,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     ; DW CmdB0,CmdB1,CmdB2,CmdB3,CmdB4,CmdB5,CmdB6,CmdB7
-    DW Cmd80,Cmd81,Cmd82,Cmd83,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
+    DW Cmd80,Cmd81,Cmd82,Cmd83,CmdFE,CmdFE,Cmd86,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     DW Cmd90,Cmd91,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     DW CmdA0,CmdA1,CmdA2,CmdA3,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     DW CmdB0,CmdB1,CmdB2,CmdB3,CmdB4,CmdB5,CmdB6,CmdB7
@@ -3023,7 +3655,7 @@ CmdParTable:
 	; DB &h03  ,&h02  ,&h03  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
 	; DB &h00  ,&h00  ,&h00  ,&h01  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
 	; DB &h02  ,&h02  ,&h01  ,&h02  ,&h00  ,&h02  ,&h01  ,&h01
-	DB &h02  ,&h01  ,&h02  ,&h00  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
+	DB &h02  ,&h01  ,&h02  ,&h00  ,&h80  ,&h80  ,&h00  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
 	DB &h03  ,&h02  ,&h83  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
 	DB &h00  ,&h00  ,&h00  ,&h01  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
 	DB &h02  ,&h02  ,&h01  ,&h02  ,&h00  ,&h02  ,&h01  ,&h01
