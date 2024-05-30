@@ -174,6 +174,7 @@ BBUF		EQU &h4300	; Block buffer
 FLAGS1:		DB	&h08	; Status flags
 						; Bit 7 : 1 = Command mode; 0 = Normal mode
 						; Bit 6 : 1 = Last byte should be redirected to the voice synth; 0 = Last byte is meant for the terminal
+						; Bit 5	: 1 = Setup Mode
 						; Bit 4	: 1 = Split screen enabled
 						; Bit 3 : 1 = Cursor blink enabled; 0 = Cursor blink disabled
 						; Bit 2 : 1 = Microsint enabled; 0 = Microsint disabled / not found 
@@ -279,6 +280,8 @@ doblink
 	LD		A,(FLAGS1)
 	BIT		0,A
 	JR		NZ,End1			; CTRL-C pressed
+	BIT		5,A
+	CALL	NZ,SETUP		; CTRL-F7 pressed
 	BIT		3,A
 	JR		Z,loop1			; Cursor Off, go on to print buffer
 	LD		A,(EDSTAT)
@@ -385,10 +388,19 @@ ChkTimer2
 	JR		Z,.inbyte		; If we were waiting for parameters but all were received, do not receive more characters
 							; until the command is completed
 .rb1
+	LD		A,3
+	CP		B				; First loop?
+	JR		NZ,.rb1_0		; No, use the ReadByte2 instead
 	PUSH	BC
 	CALL	ReadByte
 	POP		BC
-	JP		NC,.rece		; if no character received, loop
+	JR		.rb1_1
+.rb1_0
+	PUSH	BC
+	CALL	ReadByte2
+	POP		BC
+.rb1_1
+	JR		NC,.rece		; if no character received, loop
 	CALL	AddToPrBuffer	; otherwise add byte to print buffer
 
 ; Commented out for I8251 USART
@@ -477,6 +489,22 @@ ChkTimer2
 	SET		0,(HL)			; Set CTRL-C flag
 	JR		.eisr
 .ib1
+	CP		&h0E			; F5?
+	JR		NZ,.ib2
+	LD		B,A
+	IN		A,(PPI.CR)
+	AND		&hF0
+	ADD		A,&h06			; 6th row
+	OUT		(PPI.CW),A
+	IN		A,(PPI.BR)
+	AND		&h02			; Check for CTRL
+	LD		A,B
+	JR		NZ,.ib2
+	;CTRL-F7
+	LD		HL,FLAGS1
+	SET 	5,(HL)			; Set SETUP Mode bit
+	JR		.eisr
+.ib2	
 	OUT		(USARTData),A	; Send key
 .eisr:
 	LD		A,D
@@ -501,36 +529,36 @@ Bcount:
 ; if the receive flag is clear
 ; TEMPCNT2: Minimum number of characters to receive
 ;///////////////////////////////////////////////////
-minIRQ:
-	DI
-	PUSH	AF
-	PUSH	BC
-	PUSH	DE
-	PUSH	HL
-	LD		A,(TEMPCNT2)
-	LD		B,A				;Character counter
-	LD		HL,EDSTAT
-	BIT		7,(HL)
-	JR		NZ,.eisr0	; Receive bit set, exit ISR
-	RES		7,(HL)
-.mi0
-	LD		A,(PRBUFFERCNT)
-	XOR		&hFF
-	JR		Z,.eisr0	; If buffer is full, exit
-	PUSH	BC
-	CALL	ReadByte
-	POP		BC
-	JP		NC,.mi1		; if no character received, exit ISR
-	CALL	AddToPrBuffer	; otherwise add byte to print buffer
-	;JR		.mi0			; and loop
-.mi1
-	DJNZ	.mi0			; if b!=0, loop
-	LD		HL,EDSTAT
-	BIT		7,(HL)
-	JR		NZ,.eisr0
-	INC		B
-	SET		7,(HL)
-	JR		.mi0
+; minIRQ:
+; 	DI
+; 	PUSH	AF
+; 	PUSH	BC
+; 	PUSH	DE
+; 	PUSH	HL
+; 	LD		A,(TEMPCNT2)
+; 	LD		B,A				;Character counter
+; 	LD		HL,EDSTAT
+; 	BIT		7,(HL)
+; 	JR		NZ,.eisr0	; Receive bit set, exit ISR
+; 	RES		7,(HL)
+; .mi0
+; 	LD		A,(PRBUFFERCNT)
+; 	XOR		&hFF
+; 	JR		Z,.eisr0	; If buffer is full, exit
+; 	PUSH	BC
+; 	CALL	ReadByte
+; 	POP		BC
+; 	JP		NC,.mi1		; if no character received, exit ISR
+; 	CALL	AddToPrBuffer	; otherwise add byte to print buffer
+; 	;JR		.mi0			; and loop
+; .mi1
+; 	DJNZ	.mi0			; if b!=0, loop
+; 	LD		HL,EDSTAT
+; 	BIT		7,(HL)
+; 	JR		NZ,.eisr0
+; 	INC		B
+; 	SET		7,(HL)
+; 	JR		.mi0
 
 ;/////////////
 ; Init 8251 - Partly based on SVI ROM disassembly
@@ -1542,25 +1570,13 @@ SendID
 ;---------------------------------------------------------------------------------------
 
 ReadByte
-	; LDA	FLAGS1		; Si estamos inicializando la terminal, ignora la recepcion
-	; AND	#%00000010
-	; BNE	CancelRX
 	LD		HL,EDSTAT
 	BIT		7,(HL)
-	JR		NZ,.rts0	; If receive flag is set then dont pulse RTS
-EnRTS
-rb1l:
-rb1h:
+	JR		NZ,.norts	; If receive flag is set then dont pulse RTS
+
 	LD		A,%00100111	; RTS Enabled, Rx/Tx enabled, DTS Active
 	OUT		(USARTCmd),A
-.rts1
-	LD		B,7
-WaitRX1		; Wait ~30uS
-	DJNZ	WaitRX1
-DisRTS
-	LD		A,%00000111	; RTS Disabled, Rx/Tx enabled, DTS Active
-	OUT		(USARTCmd),A
-.rts0
+.norts
 	LD		B,LONGRX			; Wait ~4*char time
 WaitRX2
 	IN		A,(USARTCmd)	; Read 8251 status
@@ -1568,13 +1584,42 @@ WaitRX2
 	JR		NZ,Received
 	DJNZ	WaitRX2
 CancelRX
+	LD		A,%00000111	; RTS Disabled, Rx/Tx enabled, DTS Active
+	OUT		(USARTCmd),A
+
 	XOR		A		; Write 0 to RXBYTE, clear CARRY
 	RET
 Received
+	LD		A,%00000111	; RTS Disabled, Rx/Tx enabled, DTS Active
+	OUT		(USARTCmd),A
+Received2
 	IN		A,(USARTData)	; Read the received byte
 	LD		(RXBYTE),A
 	SCF						; Set CARRY (Byte received)
 	RES		7,(HL)			; Reset receive flag
+	RET
+
+ReadByte2
+	LD		HL,EDSTAT
+	BIT		7,(HL)
+	JR		NZ,.rts0	; If receive flag is set then dont pulse RTS
+EnRTS
+	LD		A,%00100111	; RTS Enabled, Rx/Tx enabled, DTS Active
+	OUT		(USARTCmd),A
+.rts1
+	LD		B,7
+WaitRX1		; Wait ~30uS
+	DJNZ	WaitRX1
+	LD		A,%00000111	; RTS Disabled, Rx/Tx enabled, DTS Active
+	OUT		(USARTCmd),A
+.rts0
+	LD		B,LONGRX			; Wait ~4*char time
+WaitRX3
+	IN		A,(USARTCmd)	; Read 8251 status
+	AND		&h02			; Byte received?
+	JR		NZ,Received2
+	DJNZ	WaitRX3
+	XOR		A		; Write 0 to RXBYTE, clear CARRY
 	RET
 
 ;//////////////////////////////////////////////////////////////////////////////////////////
@@ -1697,8 +1742,66 @@ TurboExit
 	; RET
 
 
+;//////////////////////////////////////
+; SETUP screen
+SETUP:
+	CALL	RestoreISR
+	LD		A,(BORDER)		;Save screen colors
+	PUSH	AF
+	LD		A,(ACOLORS)
+	PUSH	AF
+	LD		A,(SCOLORS)
+	PUSH	AF
 
-;//////////////////////////////////////7
+	LD		HL,sut1
+	CALL	StrOut
+	SetCursor 3,23
+	LD		HL,sut3
+	CALL	StrOut
+
+.set0
+	SetCursor &h14,&h02
+	LD		HL,sut2
+	CALL	StrOut
+	LD		D,0
+	LD		A,(.rts1+1)
+	LD		E,A
+	LD		HL,UINTB
+	CALL	uitoa_16
+	CALL	StrOut
+.set1
+	CALL	GetKey
+	LD		HL,.rts1+1
+	CP		&h02			;F1?
+	JR		Z,.sete
+	CP		'+'
+	JR		NZ,.set2
+	INC		(HL)
+	JR		.set0
+.set2
+	CP		'-'
+	JR		NZ,.set1
+	DEC		(HL)
+	JR		.set0
+
+.sete
+	LD		HL,FLAGS1
+	RES		5,(HL)			;Clear SETUP Mode
+	CALL	SetISR
+
+	POP		AF
+	LD		(SCOLORS),A
+	POP		AF
+	LD		(ACOLORS),A
+	POP		AF
+	LD		(BORDER),A
+	LD		A,0
+	LD		(CSRX),A
+	LD		(CSRY),A
+	CALL	ClrScr
+	JP		.cup
+
+;//////////////////////////////////////
 ; Setup F-Keys
 
 Setfkeys:
@@ -3144,22 +3247,22 @@ bsave
 	LD		BC,&h0800
 	CALL	CpyVRAM
 
-	LD		A,&h41				; Receive 1 byte
-	LD		(CMDFlags),A
+	; LD		A,&h41				; Receive 1 byte
+	; LD		(CMDFlags),A
 	CALL	GetFromPrBuffer		; Get and discard file type
 	;-- Get filename
-	LD		HL,CMDFlags
-	LD		A,&h46
-	LD		(HL),A
+	; LD		HL,CMDFlags
+	; LD		A,&h46
+	; LD		(HL),A
 	LD		DE,FNAME
 	LD		B,0
 .bs0
-	INC		(HL)				; +1 Parameter to read
-	PUSH	HL
+	; INC		(HL)				; +1 Parameter to read
+	; PUSH	HL
 	PUSH	DE
 	CALL	GetFromPrBuffer
 	POP		DE
-	POP		HL
+	; POP		HL
 	LD		(DE),A
 	INC		DE
 	INC		B
@@ -3171,8 +3274,10 @@ bsave
 .bs1
 	LD		A,0
 	LD		(DE),A
+
 	LD		A,&h40
-	LD		(HL),A
+	; LD		(HL),A
+	LD		(CMDFlags),A
 	;--
 	; LD		A,1
 	; LD		(CSRY),A
@@ -3546,6 +3651,20 @@ bst9:
 ; Drive clean spaces
 bst10:
 	DB	" ",&h00
+
+; --- Setup Texts
+sut1:
+	;Clear, yellow FG, red BG
+	DB &h01,&h0A,&h01,&h16,&h0C," -=",&hF0," RetroTerm Setup screen ",&hF0,"=-"
+	DB &h0D,&h0D,"RTS pulse timing: ",&h19,"+",&h1A,"       ",&h19,"-",&h1A
+	DB &h00
+sut2:
+	DB "     "
+	DS &h05,&h1D
+	DB &h00
+sut3:
+	DB &h19," F1 ",&h1A," to return to RetroTerm",$00
+
 
 ; Function keys
 Fkeys:
