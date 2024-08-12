@@ -375,6 +375,7 @@ BEEPTIMER		!byte $00		; Timer que decrementa en cada interrupcion
 TIMERDIV4		!byte $00		; Timer que decrementa en cada interrupcion, usado para realizar acciones cada 4 interrupciones
 DELAYTIME		!byte $00		; Parametro (tiempos) de las rutinas de temporizacion
 SNDSTATUS		!byte $00		; Character beep enable
+FLASHSTATUS		!byte $00		; FLASHON control code enable
 SPLITRST		!byte $00		; Split screen raster line
 
 ;///////////////////////////////////////////////////////////////////////////////////
@@ -982,13 +983,18 @@ ddCtrl ;Control chars
     STA ($EA),Y
 +   RTS
 ++  CMP #$82			; Check for FLASH ON
-	BNE+
-	LDA #$80
+	BNE++
+	LDA	FLASHSTATUS
+	BEQ	+				; if disabled do nothing
+	RTS
++	LDA #$80
 	STA $53C
-+	CMP #$84			; Check for FLASH OFF
+	RTS
+++	CMP #$84			; Check for FLASH OFF
 	BNE +
 	LDA #$00
 	STA $53C
+	RTS
 +   CMP #$94        	; Check for INSERT
     BNE ++           	; No, siguiente
     LDY #39
@@ -1370,7 +1376,7 @@ ChkKey
 	STA SNDSTATUS
 	JMP ExitIrq
 +	CMP #$88		; F7?
-	BNE ++
+	BNE +
 	LDX $0543		; Shift keys flag
 	CPX #$02		; C= pressed?
 	BNE ++
@@ -1383,7 +1389,20 @@ ChkKey
 	PHA
 	LDA #$00			
 	PHA
-	RTI	
+	RTI
++	CMP #$3C		; <?
+	BNE	++
+	LDX	$0543		; Shift keys flag
+	CPX	#$02		; C= pressed?
+	BNE	++
+	;Toggle FLASHON support
+	LDA #$FF
+	EOR FLASHSTATUS
+	STA FLASHSTATUS
+	LDA #$00
+	STA $53C		; FLASHOFF
+	JMP ExitIrq
+
 
 ++	BIT CMDFlags
 	BVS ExitIrq
