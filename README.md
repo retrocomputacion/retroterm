@@ -1,7 +1,7 @@
 <div align = center>
 
 # Retroterm
-### VERSION 0.20 RC
+### VERSION 0.21 Beta
 
 Jorge Castillo & Pablo Roldán
 
@@ -38,9 +38,16 @@ Jorge Castillo & Pablo Roldán
 
 It implements the *[Turbo56k](docs/turbo56k.md)* protocol for high speed data transfer & streaming when connecting to a BBS supporting the protocol, such as [_RetroBBS_](https://github.com/retrocomputacion/retrobbs).
 
-While the userport data rate is fixed at *57600bps* (*19200bps* for the Plus/4), the effective throughput with the screen on is *1500 / 1800bps* depending on *PAL/NTSC* timings respectively.
+Data rate is fixed at the following speeds:
 
-*The full data throughput while using the turbo transfer / streaming can only be achieved with the screen disabled.*
+- 57600bps for Retroterm 64 for userport and Turbo232**
+- 57600bps for Retroterm MSX for parallel port (very alpha state)
+- 38400bps for Retroterm 64 for Swiftlink**
+- 19200bps for Retroterm Plus/4** and Retroterm MSX for RS232
+
+*(**)The full data throughput while using the turbo transfer / streaming can only be achieved with the screen disabled.*
+
+The effective throughput for text is *1500 / 1800bps* depending on *PAL/NTSC* timings respectively.
 
 *Retroterm* is optimized for use with **Wi-Fi** modems using the *Zimodem* firmware.
 
@@ -49,7 +56,7 @@ While the userport data rate is fixed at *57600bps* (*19200bps* for the Plus/4),
 Separate *Commodore 64* versions of the executable are provided for cartridges featuring an ACIA 6551 such as *SwiftLink* (limited to **38400bps**) and *Turbo232*.</br>
 The *Commodore Plus/4* version is limited to the maximum speed for the built in ACIA: **19200bps**
 <br>
-The *MSX 1* version is also at this moment limited to **19200bps**, and only supports RS-232 interfaces that adhere to the MSX standard (ie: SVI-738 and HX-22 built-in ports, SVI-737 and Sony HB-232, or any other interface implemented with the i8251 + i8253 USART and Timer combo)<br>
+The *MSX 1 RS-232* version (rt232.com) is also at this moment limited to **19200bps**, and only supports RS-232 interfaces that adhere to the MSX standard (ie: SVI-738 and HX-22 built-in ports, SVI-737 and Sony HB-232, or any other interface implemented with the i8251 + i8253 USART and Timer combo)<br>
 
 ## 1.1 Release history
 
@@ -88,13 +95,14 @@ Over time, the protocol has been extended to include 4-bit PCM audio streaming, 
 
 *Implements all commands of the __[Turbo56k](docs/turbo56k.md)__ v0.7 protocol.*
 
-- Full duplex PETSCII color terminal
+- Full duplex PETSCII (Commodore versions)/ASCII (MSX versions) color terminal
 - Turbo data transfers to custom / preset memory locations
 - Split Screen | Hi-res or Multicolor + Text
 - Up to 11520Hz 4 - bit PCM audio streaming
 - Bitmap display | Hi-res + Multicolor
-- Consumes less than 5 KB of memory
+- Consumes less than 5 KB of memory (For de Commodore versions)
 - 1x speed SID music streaming (C64 versions only)
+- PSG music streaming (MSX versions)
 - Scrolling Text Windows
 - Set Cursor Position
 - Text Line Fill
@@ -103,10 +111,10 @@ Over time, the protocol has been extended to include 4-bit PCM audio streaming, 
 
 ## 1.4 Requirements
 
-- A Commodore 64, 128 or Plus/4 computer or an emulator such as VICE or Z64K
+- A Commodore 64, 128 or Plus/4 computer, or an emulator such as VICE or Z64K
 - Either an userport Wi-Fi modem with the Zimodem firmware or...
 - A *SwiftLink* or *Turbo232* compatible cartridge connected to a Wi-Fi modem with the Zimodem firmware.
-- A MSX1 or superior computer with 64K of RAM. With either a built-in RS-232 port or an MSX standard RS-232 interface cartridge.
+- A MSX1 or superior computer with 64K of RAM. With either a built-in RS-232 port or an MSX standard RS-232 interface cartridge. Or openMSX 20.0RC1
 - ACME and PASMO crossassemblers for building the programs.
 
 ## 2 Usage
@@ -114,27 +122,28 @@ Over time, the protocol has been extended to include 4-bit PCM audio streaming, 
 
 *Retroterm* comes in five flavors:
 
-- **rt_v0.20.prg** Userport version 57600bps
-- **rt_sl_v0.20.prg** SwiftLink version 38400bps
-- **rt_232_v0.20.prg** Turbo232 version 57600bps
-- **rt_p4_v0.10.prg** Plus/4 version 19200bps
-- **rtermm1.com** MSX version 19200bps
+- **rt-u.prg** Userport version 57600bps
+- **rt-sl.prg** SwiftLink version 38400bps
+- **rt-232.prg** Turbo232 version 57600bps
+- **rt-p4.prg** Plus/4 version 19200bps
+- **rt232.com** MSX RS-232 version 19200bps
+- **rt56k.com** MSX parallel port version 57600bps
 
-*Retroterm* lacks classic file transfer functions, when used to communicate with a normal PETSCII BBS, file transfers are not available.
+*Retroterm* lacks classic file transfer functions, when used to communicate with a normal PETSCII/ASCII BBS, file transfers are not available.
 
 After LOADing and RUNning *Retroterm*, you can dial to your favorite BBS using your Modem commands as usual.
 
 **The modem should be setup to the correct baud rate before running _Retroterm_.**
 
-To exit *Retroterm*, just press `RUN/STOP`, it will remain in memory, and you can recall it with `SYS49152` (Commodore 64), or `SYS28672` (Commodore Plus/4).
+To exit *Retroterm*, just press `RUN/STOP` (Commodore) or `CTRL-C` (MSX), it will remain in memory, and you can recall it with `SYS49152` (Commodore 64), or `SYS28672` (Commodore Plus/4).
 
-If you downloaded a program into memory from a BBS you can also `RUN` it.
+If you downloaded a program into memory from a BBS you can also `RUN` it (Commodore versions only).
 
-*Retroterm* beeps for every received character by default, you can toggle the sound by pressing `CBM + M`.
+*Retroterm* beeps for every received character by default, you can toggle the sound by pressing `CBM + M` (Commodore) or `CTRL-M` (MSX).
 
 ## 2.1 Setup screen
 
-A simple setup screen can be accessed by pressing `CBM + F7`, pressing `F1` will exit back to the terminal.
+A simple setup screen can be accessed by pressing `CBM + F7` (Commodore) or `CTRL-F5` (MSX), pressing `F1` will exit back to the terminal.
 
 The first setting, common to all _Retroterm_ variants sets the **RTS** pulse width. Current values are known to work under VICE, or on real hardware with an userport modem using Zimodem firmware, and with the Ultimate Swiftlink emulation.
 Use the `+` and `-` keys to adjust.
@@ -155,7 +164,7 @@ make
 ```
 to compile all versions.
 
-Or you can specify which version you want to compile, either `userport`, `swiflink`, `turbo232`, `plus4` or `msx`.
+Or you can specify which version you want to compile, either `userport`, `swiflink`, `turbo232`, `plus4`, `msx232` or `msx56k`.
 
 ie:
 ```
@@ -170,8 +179,10 @@ acme retroterm_univ.asm
 
 or:
 ```
-pasmo retrotermm1.asm rtermm1.com
+pasmo -E IFACE=0 retrotermm1.asm rt232.com
+pasmo -E IFACE=56 retrotermmm1.asm rt56k.com
 ```
+
 from the `source` directory.</br>
 This will compile the default userport version of *Retroterm* with an intro screen that last a couple of seconds. In this case the resulting executable will be written to the `source` directory
 
@@ -197,6 +208,10 @@ If defined wait for the user to press the space bar at the intro screen. Otherwi
 
 **_Not defined by default_**
 
+### `IFACE`:
+`0`: Compile for standard MSX RS232 ports
+`56`: Compile for the MSX parallel port
+
 ### Example:
 
 ```
@@ -211,7 +226,7 @@ This file is generated by exporting `source/intro_sc.petmate` to ACME format fro
 
 ## 3.3 Customizing
 
-If you want to release a modified version of _Retroterm_ which differs in functionality from the official release we recommend you use a custom _ID string_, respecting the maximum 22 character length and always starting in uppercase `RT` (*PETSCII*)
+If you want to release a modified version of _Retroterm_ which differs in functionality from the official release we recommend you use a custom _ID string_, respecting the maximum 22 character length and always starting in uppercase `RT`
 
 IE, the normal ID string is:
 ```
@@ -249,6 +264,8 @@ In any case the *[Turbo56k](docs/turbo56k.md)* version bytes that follow the ID 
 - **Thierry Kurt**
 - **Diego di Franceschi**
 - **ChrisKewl**
+- **Roberto Mandracchia**
+- **x1pepe**
 
 ### Thanks To
   

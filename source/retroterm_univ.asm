@@ -2298,7 +2298,7 @@ Cmd84
 	STA $D011
 ;
 
-	LDA #$00		; Setea keyboard matrix for direct access
+	LDA #$00		; Set keyboard matrix for direct access
 	STA $DC03		; port b ddr (input)
 	LDX #$FF
 	STX $DC02		; port a ddr (output)
@@ -4455,7 +4455,7 @@ c84start
 
 ; SID IRQ Exit, here to save space
 ci1exit
-	STA STREAMFLAG		; Clear the interrupt flag, exit streaming mode
+	STA STREAMFLAG		; Clear the streaming flag, exit streaming mode
 	DEC $D020
 ci1end2
 	LDA #$01
@@ -4473,7 +4473,7 @@ ci1end2
 .srw
 	INC $D020
 	LDA #$00			; Current register
-	LDY STREAMCNT		; Number of register to write-1
+	LDY STREAMCNT		; Number of registers to write-1
 	BMI ci1end			; Exit loop if there's no registers to write
 --	LDX #$03
 	CLC
@@ -4482,7 +4482,7 @@ ci1end2
 	BPL -
 	; C contains the current register bit from the bitmap
 	TAX
-	BCS +				; Carry set, seach and write the SID register
+	BCS +				; Carry set, search and write the SID register
 	; Carry clear, skip to the next SID register, without reading value
 	INX
 	TXA
