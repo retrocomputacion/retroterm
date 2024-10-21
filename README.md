@@ -32,11 +32,11 @@ Jorge Castillo & Pablo Roldán
 
 ## 1 Introduction
 
-*Retroterm* is a small, minimal *PETSCII* terminal for the *Commodore 64 / 128 (in 64 mode)*, *Commodore Plus/4* and *MSX1 (in development)*.
+*Retroterm* is a small, minimal *PETSCII* terminal for the *Commodore 64 / 128 (in 64 mode)*, *Commodore Plus/4* and *MSX1 (in development)*.
 
 **ATTENTION THE MSX PORT IS CURRENTLY IN ALPHA STATE**
 
-It implements the *[Turbo56k](docs/turbo56k.md)* protocol for high speed data transfer & streaming when connecting to a BBS supporting the protocol, such as [_RetroBBS_](https://github.com/retrocomputacion/retrobbs).
+It implements the *[Turbo56k](docs/turbo56k.md)* protocol for high speed data transfer & streaming when connecting to a BBS supporting the protocol, such as [_RetroBBS_](https://github.com/retrocomputacion/retrobbs).
 
 Data rate is fixed at the following speeds:
 
@@ -47,11 +47,11 @@ Data rate is fixed at the following speeds:
 
 *(**)The full data throughput while using the turbo transfer / streaming can only be achieved with the screen disabled.*
 
-The effective throughput for text is *1500 / 1800bps* depending on *PAL/NTSC* timings respectively.
+The effective throughput for text is *1500 / 1800bps* depending on *PAL/NTSC* timings respectively.
 
-*Retroterm* is optimized for use with **Wi-Fi** modems using the *Zimodem* firmware.
+*Retroterm* is optimized for use with **Wi-Fi** modems using the *Zimodem* firmware.
 
-*It also runs on the latest **VICE** / **Z64K** emulators.*
+*It also runs on the latest **VICE**/**Z64K** emulators.*
 
 Separate *Commodore 64* versions of the executable are provided for cartridges featuring an ACIA 6551 such as *SwiftLink* (limited to **38400bps**) and *Turbo232*.</br>
 The *Commodore Plus/4* version is limited to the maximum speed for the built in ACIA: **19200bps**
@@ -93,15 +93,15 @@ Over time, the protocol has been extended to include 4-bit PCM audio streaming, 
 
 ## 1.3 Features
 
-*Implements all commands of the __[Turbo56k](docs/turbo56k.md)__ v0.7 protocol.*
+*Implements all commands of the __[Turbo56k](docs/turbo56k.md)__ v0.7 protocol.*
 
-- Full duplex PETSCII (Commodore versions)/ASCII (MSX versions) color terminal
-- Turbo data transfers to custom / preset memory locations
-- Split Screen | Hi-res or Multicolor + Text
-- Up to 11520Hz 4 - bit PCM audio streaming
-- Bitmap display | Hi-res + Multicolor
-- Consumes less than 5 KB of memory (For de Commodore versions)
-- 1x speed SID music streaming (C64 versions only)
+- Full duplex PETSCII (Commodore versions)/ASCII (MSX versions) color terminal
+- Turbo data transfers to custom/preset memory locations
+- Split Screen | Hi-res or Multicolor+Text
+- Up to 11520Hz 4-bit PCM audio streaming
+- Bitmap display | Hi-res + Multicolor (Commodore) | Screen 2 (MSX)
+- Consumes less than 5KB of memory (For the Commodore versions)
+- 1x speed SID music streaming (C64 versions only)
 - PSG music streaming (MSX versions)
 - Scrolling Text Windows
 - Set Cursor Position
@@ -120,7 +120,7 @@ Over time, the protocol has been extended to include 4-bit PCM audio streaming, 
 ## 2 Usage
 *Retroterm* is very simple to use, most of its functionality being controlled externally from a *[Turbo56k](docs/turbo56k.md)* enabled BBS.
 
-*Retroterm* comes in five flavors:
+*Retroterm* comes in five variants:
 
 - **rt-u.prg** Userport version 57600bps
 - **rt-sl.prg** SwiftLink version 38400bps
@@ -138,6 +138,8 @@ After LOADing and RUNning *Retroterm*, you can dial to your favorite BBS using y
 To exit *Retroterm*, just press `RUN/STOP` (Commodore) or `CTRL-C` (MSX), it will remain in memory, and you can recall it with `SYS49152` (Commodore 64), or `SYS28672` (Commodore Plus/4).
 
 If you downloaded a program into memory from a BBS you can also `RUN` it (Commodore versions only).
+
+On MSX pressing `CTRL-U` will reset the computer, if a ROM file was downloaded to RAM the system will try to execute it. ROMs that expect mirroring are not supported.
 
 *Retroterm* beeps for every received character by default, you can toggle the sound by pressing `CBM + M` (Commodore) or `CTRL-M` (MSX).
 

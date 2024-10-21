@@ -271,6 +271,7 @@ ENDIF
 	LD		HL,RetroIntro
 	CALL	StrOut
 
+	; Main loop
 loop1:
 	LD		A,(PRBUFFERCNT)
 	CP		0
@@ -522,12 +523,18 @@ ENDIF
 	IN		A,(PPI.BR)
 	AND		&h02			; Check for CTRL
 	LD		A,B
-	JR		NZ,.ib2
+	JR		NZ,.ib3
 	;CTRL-F5
 	LD		HL,FLAGS1
 	SET 	5,(HL)			; Set SETUP Mode bit
 	JR		.eisr
 .ib2
+	CP		&h15			; CTRL-U?
+	JR		NZ,.ib3
+	RST		&h30			; RESET!!!
+	DB		&h80
+	DW		&h0000
+.ib3
 IF IFACE = 56
 	CALL	SendByte
 ELSE
@@ -1610,7 +1617,7 @@ CmdB0
 	ADD		A,C
 	CP		B				; Greater than WBOTTOM-1?
 	JR		C,.b0_1			; No, continue
-	LD		A,B			; Yes, force WBOTTOM-1
+	LD		A,B				; Yes, force WBOTTOM-1
 .b0_1
 	LD		(CSRY),A
 	CALL	.cup			; Update cursor pointers
@@ -2339,39 +2346,31 @@ Setfkeys:
 	INC		HL
 	LD		(.sf1+2),HL
 	EX		DE,HL
-	; LD		A,(.sf1+2)
-	; ADD		A,2
-	; LD		(.sf1+2),A
-	;CP		LOW(.fae)
-	;JR		NZ,.sf1
 	DJNZ	.sf1
 	RET
 
 
 ;///////////////////////////////////////////////////////////////////////////////////
-; Subrutina para esperar la pulsacion de una tecla
+; Wait a key press
 
 WaitKey:
-	; LD	C,RAWIO		; Lee el teclado directamente
-	; LD	DE,&h0FF	; FFh: Retorna un caracter sin imprimirlo
-	; CALL	BDOS
 	CALL	GetKey
-	CP		0			; Si no se presiono ninguna tecla (A=0), vuelve a ReadKeyP3
+	CP		0
 	JP		Z,WaitKey
-	RET					; Retorna
+	RET
 
 ;///////////////////////////////////////////////////////////////////////////////////
 ; Get key press, .A = 0 if none
 
 GetKey:
-	LD	C,RAWIO		; Lee el teclado directamente
-	LD	DE,&h0FF	; FFh: Retorna un caracter sin imprimirlo
+	LD	C,RAWIO		; Direct keyboard read
+	LD	DE,&h0FF	; FFh: Only return the character, dont print it
 	CALL	BDOS
-	RET				; Retorna
+	RET
 
 
 ;///////////////////////////////////////////////////////////////////////////////////
-; Rutinas de manejo del VDP
+; VDP routines
 
 ;Routine to get the port of data reading from the VDP for MSX-DOS1/2
 ;Entry: None
@@ -2393,16 +2392,15 @@ VDPDW:
 	CALL	RDSLT
 	RET
 
-; Rutina para cambiar el puntero en el VDP, para lectura de VRAM
-; Se requiere la direccion cargada en DE
+; Change VDP VRAM read pointer to DE
 
 SetVPtrR:
-	LD	A,(VPORTW)		; C = VPORTW+1 (Puerto de registros del VDP)
+	LD	A,(VPORTW)		; C = VPORTW+1 (VDP register port)
 	INC	A
 	LD	C,A
 	DI					; Apunta el VDP a la direccion DE en VRAM
 	LD	A,E
-	AND	%00111111		; (Bit 6 = 0, Lectura en VRAM)
+	AND	%00111111		; (Bit 6 = 0, VRAM read)
 	LD	B,A
 	LD	A,D
 	OUT	(C),A
@@ -2410,17 +2408,16 @@ SetVPtrR:
 	EI
 	RET
 
-; Rutina para cambiar el puntero en el VDP, para escritura en VRAM
-; Se requiere la direccion cargada en DE
+; Change VDP VRAM write pointer to DE
 
 SetVPtrW:
-	LD	A,(VPORTW)		; C = VPORTW+1 (Puerto de registros del VDP)
+	LD	A,(VPORTW)		; C = VPORTW+1 (VDP register port)
 	INC	A
 	LD	C,A
-	DI				; Apunta el VDP a la direccion DE en VRAM (Charset)
+	DI					; Apunta el VDP a la direccion DE en VRAM
 	LD	A,D
 	AND	%00111111
-	OR	%01000000		; (Bit 6 = 1, Escritura en VRAM)
+	OR	%01000000		; (Bit 6 = 1, Write to VRAM)
 	LD	B,A
 	LD	A,E
 	OUT	(C),A
@@ -2428,18 +2425,17 @@ SetVPtrW:
 	EI
 	RET
 
-; Rutina para escribir un valor a un registro del VDP
-; Se requiere el valor en D y el numero de registro en E
+; Write D into VDP register E
 
 WriteVReg:
-	LD	A,(VPORTW)		; C = VPORTW+1 (Puerto de registros del VDP)
+	LD	A,(VPORTW)		; C = VPORTW+1 (VDP register port)
 	INC	A
 	LD	C,A
 	DI
-	LD	A,E			; B = Numero de registro con el bit 7 = 1
+	LD	A,E				; B = Register number with bit 7 = 1
 	OR	%10000000
 	LD	B,A
-	LD	A,D			; A = Dato a escribir en el registro
+	LD	A,D				; A = Data to write into the register
 	OUT	(C),A			; Write the data
 	OUT	(C),B			; Write the register number (with the bit 7 always set)
 	EI
@@ -2474,11 +2470,6 @@ FillRAM:
 ; DE - Start address of VRAM
 ; HL - Start address of memory
 CpyVRAM:
-	; LD      IX,LDIRVM
-    ; LD      IY,(EXPTBL-1)	; get expanded slot status to IYH
-    ; CALL    CALSLT			; perform an inter-slot call
-	; EI
-	; RET
 	PUSH	HL
 	PUSH	BC
 	CALL	SetVPtrW	; Point the VDP towards the destination
@@ -2500,8 +2491,6 @@ ClrCrsr:
 	LD		HL,ColorRAM0
 	ADD 	HL,DE
 	LD		B,(HL)
-	; LD	A,(CUATTR)
-	; LD	B,A
 	LD		A,(CUPATT)
 	LD		E,A
 	CALL	FillColor
@@ -3191,7 +3180,7 @@ ClrScr:
 ClrScreen2:
 	LD		A,(WBOTTOM)
 	LD		HL,WTOP
-	LD		C,(HL)		; C = Initial row
+	LD		C,(HL)			; C = Initial row
 	SUB		C				; Check if full screen
 	CP		24
 	JR		Z,	ClrScr		; Yes, just reinit the screen
