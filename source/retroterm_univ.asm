@@ -1150,6 +1150,13 @@ InitSID
 	LDA	#$0F		; Channel 2 (click) frequency = 229,758 Hz
 	STA	SIDREG+7
 	STA	SIDREG+8
+	
+	LDX	#$FF		; Delay
+--	LDY #$7F
+-	DEY
+	BNE	-
+	DEX
+	BNE --
 	;LDA	#$0F		; Volumen = 15
 	STA	SIDREG+24
 	RTS
