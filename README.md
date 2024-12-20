@@ -60,6 +60,10 @@ The *MSX 1 RS-232* version (rt232.com) is also at this moment limited to **19200
 
 ## 1.1 Release history
 
+### v0.21 (??/??/????):
+- New shortcut key for the Plus/4 port: `CBM+,` disables/enables the FLASH-ON control code. Improves compatibility with BBSs running Centipede 128 software.
+- Bugfix for the Commodore 64 ports: No more extraneous beep after streaming PCM audio.
+
 ### v0.20 (02/01/2024):
 - Turbo56K v0.7
 - New _Commodore Plus/4_ port. _Turbo56K v0.7_ commands implemented, except for the ones regarding SID tune streaming.
