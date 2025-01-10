@@ -834,13 +834,13 @@ MainPrg
 ;	LDA	#$04		; 2 Set RTS to 1 (and DTR to 0)
 ;}
 
+	JSR InitSID
+
 	LDA	#$08		; Set Timer A mode to one-shot 
 	STA	$DD0E
 	LDA	#$00
 	STA	$D020
 	STA	$D021
-
-	JSR InitSID
 
 !if _HARDTYPE_ != 56{
 	JSR ACIAinit	; Init ACIA
