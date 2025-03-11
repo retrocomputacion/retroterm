@@ -9,9 +9,10 @@
 ; Assembly options
 FIRQ		EQU 0			; Set to 1 to use USART IRQs - 0 for VBLANK only
 ;IFACE		EQU 56			; Interface type:
-							; 0 = Standard MSX
+							; 0 = Standard MSX 19200bps
 							; 1 = 16550 UART
-							; 56 = Centronics bitbanging
+							; 56 = Centronics bitbanging with RC circuit 57600bps
+							; 38 = Centronics bitbanging 38400bps
 
 ; System variables
 
@@ -162,10 +163,10 @@ WRITE		EQU	39		; write one CP/M sector to disk
 
 ; Constants
 MAXCMD		EQU	&hB7	; Highest command implemented
-IF IFACE = 56
+IF IFACE > 1
 
 SHORTRX		EQU	39		; Short wait time for ReadByte routine
-LONGRX		EQU	78		; 155;Longer wait time for ReadByte routine
+LONGRX		EQU	78		; 155;Longer wait time for ReadByte routine #78
 RTSTIME		EQU 5
 
 ELSE
@@ -254,6 +255,8 @@ Start:
 	CALL	VDPDW			; Obtiene el puerto de escritura del VDP y lo copia a VPORTW
 	LD		(VPORTW),A
 
+	LD		A,(&hFCC1)		; Get Main ROM slot flag
+	LD		(.bslot),A		; And set it for the CTRL-U exit
 	CALL	PSGIni
 	CALL	SetISR
 	CALL	Setfkeys
@@ -424,7 +427,7 @@ ENDIF
 ; Commented out for I8251 USART
 ; RTS has delay and incoming stream cannot be stopped with precision
 ; 
-IF IFACE = 56
+IF IFACE > 1
 	LD		A,(CMDFlags)
 	BIT		7,A
 	JR		NZ,.cmdchk		; If the last character was CMDON, check which command was received
@@ -471,7 +474,7 @@ ENDIF
 
 ; Commented out for I8251 USART
 ; RTS has delay and incoming stream cannot be stopped with precision
-IF IFACE = 56
+IF IFACE > 1
 .cmdchk						; Check the received command and set CMDFlags accordingly
 	LD		A,(RXBYTE)		; Get the received character
 	BIT		7,A
@@ -532,10 +535,11 @@ ENDIF
 	CP		&h15			; CTRL-U?
 	JR		NZ,.ib3
 	RST		&h30			; RESET!!!
+.bslot
 	DB		&h80
 	DW		&h0000
 .ib3
-IF IFACE = 56
+IF IFACE > 1
 	CALL	SendByte
 ELSE
 	OUT		(USARTData),A	; Send key
@@ -1014,10 +1018,10 @@ ENDIF
 	LD		(BYTECNT),BC
 	LD		HL,(BLOCKPTR)
 
-IF IFACE = 0
+; IF IFACE = 0
 	LD		A,SHORTRX
 	LD		(.rts0+1),A		; Set shorter Rx timing
-ENDIF
+; ENDIF
 	; LD		A,128+7
 	; OUT		(&h99),A
 	; LD		A,17+128
@@ -1034,7 +1038,8 @@ C82Loop
 	PUSH	BC
 	PUSH	HL
 ;IF IFACE = 0
-	LD		A,0
+	; LD		A,0
+	XOR		A
 	LD		HL,PRBUFFERCNT
 	CP		(HL)
 	JR		Z,.c820a
@@ -1052,7 +1057,11 @@ C82Loop
 	JR		.c821
 .c820a
 ;ENDIF
+IF IFACE = 0
 	CALL	ReadByte		; Receive a character from RS232
+ELSE
+	CALL	ReadByte2
+ENDIF
 	POP		HL
 	POP		BC
 	JR		C,.c821			; Byte received -> .c821
@@ -1089,10 +1098,10 @@ C82End
 	; TODO:
 	;	-Check destination address and screen mode and copy data
 	;	 to VRAM if needed
-IF	IFACE = 0
+; IF	IFACE = 0
 	LD		A,LONGRX
 	LD		(.rts0+1),A		; Set longer Rx timing
-
+IF	IFACE = 0
 	LD		HL,EDSTAT
 .c822		; Save any remaining received bytes into the buffer
 	SET		7,(HL)		; Set receive flag
@@ -1300,7 +1309,7 @@ Cmd84
 	LD		A,100
 	LD		(HL),A
 	LD		A,(PSGSTREAMFLAG)
-IF IFACE = 56
+IF IFACE > 1
 	CALL	SendByte
 ELSE
 	OUT		(USARTData),A		; Send Sync byte
@@ -2004,32 +2013,90 @@ SendStop:
 	RET				; 10+1 Retornamos
 ENDIF
 
+IF IFACE = 38
+SendByte:
+	PUSH	HL		; Save registers
+	PUSH	BC
+	LD	B,A			; Guarda el contenido de A en B
+	LD	C,8			; Vamos a enviar 8 bits
+	XOR	A			; Coloca un 0 en A
+SendStart:
+	OUT	($90),A			; Escribe el valor a TX (start)
+					; *** Comienzo del bit de start ***
+	XOR 0				; 7+1 Pierde 18 ciclos para completar los 62 del bit de start
+	NOP				; 4+1
+	NOP				; 4+1
+SBLoop:
+	LD	A,0			; 7+1 Perdemos 31 ciclos para bajar la velocidad a 38400 bps
+	LD	A,0			; 7+1
+	NOP				; 4+1
+	NOP				; 4+1
+	NOP				; 4+1
+ 
+	INC	HL			; 6+1 Pierde 12 ciclos para completar los 62 del bit (start o dato)
+	NOP				; 4+1
+
+	RR	B			; 8+2 Obtiene en CARRY el bit 0 del byte a enviar
+	RL	A			; 8+2 Copia CARRY al bit 0 de A
+	OUT	($90),A			; 11+1 Escribe el valor a TX (bit 0)
+					; *** Comienzo del bit ***
+	DEC	C			; 4+1 Decrementa C
+	JR	NZ,SBLoop		; 12+1 Si C no llego a 0, vuelve a SBLoop
+					; 7+1 Si C llego a 0, JR consume 8 ciclos en lugar de 13
+
+	INC	IY			; 10+2 Pierde 29 ciclos para completar los 62 del bit
+	DEC	IY			; 10+2
+	NOP				; 4+1
+
+
+	LD	A,%00000001		; 7+1 Coloca TX en 1
+SendStop:
+	OUT	($90),A			; 11+1 Escribe el valor a TX (bit 0)
+					; *** Comienzo del bit de stop ***
+	POP		BC		; Retreive registers
+	POP		HL
+
+	LD	A,0			; 7+1 Perdemos 31 ciclos para bajar la velocidad a 38400 bps
+	LD	A,0			; 7+1
+	NOP				; 4+1
+	NOP				; 4+1
+	NOP				; 4+1
+
+	SCF				; 4+1 Pierde 26 ciclos
+	RET	NC			; 5+1
+	; NOP				; 4+1
+	; NOP				; 4+1
+	; NOP				; 4+1
+	; NOP				; 4+1 Pierde 25 ciclos
+;	NOP				; 4+1
+	NOP				; 4+1
+	NOP				; 4+1
+	NOP				; 4+1
+	RET				; 10+1 Retornamos
+ENDIF
+
 ;///////////////////////////////////////////////////////////////////////////////////
 ; ReadByte, receive a byte, store in RXBYTE
 ;---------------------------------------------------------------------------------------
 IF IFACE = 56
+;ReadByte2:
+.rts0
+	LD	L,LONGRX		; Vamos a esperar CANCELTIME (1 milisegundo) antes de cancelar la recepcion
+	XOR	A				; Activamos RTS colocandolo a cero
+	OUT	($91),A
+	JP	.rts1
+
 ReadByte:
 ReadByte2:
-	; LD		HL,EDSTAT
-	; BIT		7,(HL)
-	; JR	NZ,.norts	; If receive flag is set then dont pulse RTS
+.norts
+	LD	L,LONGRX		; Vamos a esperar CANCELTIME (1 milisegundos) antes de cancelar la recepcion
 	XOR	A			; Activamos RTS colocandolo a cero
 	OUT	($91),A
-.norts
+	NOP
+	; NOP
 .rts1
-	LD	L,RTSTIME		; Vamos a activar RTS durante RTSTIME
-WaitStrt1:				; *** Esperamos un byte con RTS activado ***
-	IN	A,($90)			; 11+1 Leemos la entrada RX
-	AND	%00000010		; 7+1 (bit 1)
-	JR	Z,StartBit1		; 12+1 Si RX = 0 seguimos en StartBit1
-						; 7+1 sino
-	DEC	L				; 4+1 decrementamos L
-	JR	NZ,WaitStrt1	; 12+1 Si L no llego a 0, volvemos a WaitStrt1 (bucle de 46 ciclos)
-						; 7+1 si llego a 0
 	LD	A,1				; 7+1 Desactivamos RTS colocandolo a uno
 	OUT	($91),A			; 11+1
-.rts0
-	LD	L,LONGRX		; Vamos a esperar CANCELTIME (2 milisegundos) antes de cancelar la recepcion
 WaitStrt2:				; *** Esperamos un byte con RTS desactivado ***
 	IN	A,($90)			; 11+1 Leemos la entrada RX (aca llevamos 15 ciclos de retraso con respecto al bucle normal)
 	AND	%00000010		; 7+1 (bit 1)
@@ -2041,14 +2108,9 @@ WaitStrt2:				; *** Esperamos un byte con RTS desactivado ***
 ;	LD	L,0			; 7+1
 	RET				; 10+1 cancelamos la recepcion y retornamos
 
-StartBit1:				; *** StartBit con RTS activado ***
-	LD	A,1			; 7+1 Desactivamos RTS colocandolo a uno
-	OUT	($91),A			; 11+1
 StartBit2:				; *** StartBit con RTS desactivado ***
-;	INC	IY			; 10+2 Pierde 48 ciclos
-;	DEC	IY			; 10+2
-;	BIT	0,(HL)			; 12+2
-;	NOP				; 4+1
+	INC	IY			; 10+2 Pierde 48 ciclos
+	DEC	IY			; 10+2
 	LD	BC,$90			; 10+1 BC = puerto $90
 	LD	H,8			; 7+1 Vamos a recibir 8 bits
 ReadBit:
@@ -2072,8 +2134,90 @@ ReadBit:
 	; LD		HL,EDSTAT
 	; RES		7,(HL)			; Reset receive flag
 	RET				; 10+1 y retornamos
+ENDIF
 
-ELSE
+IF IFACE = 38
+ReadByte:
+ReadByte2:
+.norts
+	LD	L,RTSTIME		; Vamos a activar RTS durante RTSTIME
+	LD	BC,$90			; 10+1 BC = puerto $90
+	LD	H,8			; 7+1 Vamos a recibir 8 bits
+	XOR	A				; Activamos RTS colocandolo a cero
+	OUT	($91),A
+WaitStrt1:				; *** Esperamos un byte con RTS activado ***
+	IN	A,($90)			; 11+1 Leemos la entrada RX
+	AND	%00000010		; 7+1 (bit 1)
+	JR	Z,StartBit1		; 12+1 Si RX = 0 seguimos en StartBit1
+						; 7+1 sino
+	DEC	L				; 4+1 decrementamos L
+	JR	NZ,WaitStrt1	; 12+1 Si L no llego a 0, volvemos a WaitStrt1 (bucle de 46 ciclos)
+						; 7+1 si llego a 0
+
+
+	LD	A,1				; 7+1 Desactivamos RTS colocandolo a uno
+	OUT	($91),A			; 11+1
+.rts0
+	LD	L,LONGRX		; Vamos a esperar CANCELTIME (1 milisegundos) antes de cancelar la recepcion
+WaitStrt2:				; *** Esperamos un byte con RTS desactivado ***
+	IN	A,($90)			; 11+1 Leemos la entrada RX (aca llevamos 15 ciclos de retraso con respecto al bucle normal)
+	AND	%00000010		; 7+1 (bit 1)
+	JR	Z,StartBit2		; 12+1 Si RX = 0 seguimos en StartBit2
+					; 7+1 sino
+	DEC	L			; 4+1 decrementamos L
+	JR	NZ,WaitStrt2		; 12+1 Si L no llego a 0, volvemos a WaitStrt2 (bucle de 46 ciclos)
+	XOR	A			; 4+1 Si llego a 0, indicamos que no se recibieron bytes
+;	LD	L,0			; 7+1
+	RET				; 10+1 cancelamos la recepcion y retornamos
+
+StartBit1:				; *** StartBit con RTS activado ***
+	LD	A,1			; 7+1 Desactivamos RTS colocandolo a uno
+	OUT	($91),A			; 11+1
+StartBit2:				; *** StartBit con RTS desactivado ***
+	LD	H,8			; 7+1 Delay para caer dentro del bit 0
+	LD	H,8			; 7+1
+	LD	H,8			; 7+1
+	LD	H,8			; 7+1
+	LD	H,8			; 7+1
+	LD	H,8			; 7+1
+	LD	H,8			; 7+1
+	NOP				; 4+1
+ReadBit:
+	IN	A,(C)			; 12+2 Leemos la entrada RX
+	RR	A			; 8+2 Obtiene en CARRY el bit recibido
+	RR	A			; 8+2
+	RR	L			; 8+2 Agrega el bit recibido al registro L
+
+	LD	A,0			; 7+1 Perdemos 31 ciclos para bajar la velocidad a 38400 bps
+	LD	A,0			; 7+1
+	NOP				; 4+1
+	NOP				; 4+1
+	NOP				; 4+1
+
+	DEC	H			; 4+1 Decrementa H
+	JR	NZ,ReadBit		; 12+1 Si H no llego a 0, vuelve a ReadBit
+					; 7+1 Si H llego a 0, JR consume 8 ciclos en lugar de 13
+	NOP				; 4+1 Completamos los 62 ciclos hasta el bit de stop
+
+	LD	A,0			; 7+1 Perdemos 31 ciclos para bajar la velocidad a 38400 bps
+	LD	A,0			; 7+1
+	NOP				; 4+1
+	NOP				; 4+1
+	NOP				; 4+1
+
+	INC	IY			; 10+2 Pierde 43 ciclos
+	DEC	IY			; 10+2
+	BIT	0,(HL)			; 12+2
+	NOP				; 4+1
+	LD	A,L
+
+	SCF
+	; LD		HL,EDSTAT
+	; RES		7,(HL)			; Reset receive flag
+	RET				; 10+1 y retornamos
+ENDIF
+
+IF IFACE = 0
 
 ReadByte
 	IN		A,(USARTCmd)
@@ -2244,7 +2388,7 @@ TRXWait2
 	AND		&h10			; Check for STOP
 	JP		NZ,TurboLoop
 	LD		A,&hFF			; Yes, send $FF
-IF IFACE = 56
+IF IFACE > 1
 	CALL	SendByte
 ELSE
 	OUT		(USARTData),A
@@ -2275,6 +2419,12 @@ SETUP:
 	PUSH	AF
 	LD		A,(SCOLORS)
 	PUSH	AF
+
+	; Reset text window
+	LD		A,0
+	CALL	setwtop				; Set window top
+	LD		A,23
+	CALL	.b5_1
 
 	LD		HL,sut1
 	CALL	StrOut
@@ -4107,14 +4257,22 @@ rcount	DW &h0000
 INTRO:
 	DB	"Retroterm MSX v0.10 ALPHA"
 	DB	&h0D,&h0A
-	DB	"(c)2024 by Retrocomputacion.com"
+	DB	"(c)2025 by Retrocomputacion.com"
 	DB	&h0D,&h0A
 	DB	"Press any key$"
 RetroIntro:
 	DB	&h0C,&h01,&h02
+IF IFACE = 0
 	DB	"Retroterm MSX -ALPHA-  19200,8n1"
+ENDIF
+IF IFACE = 56
+	DB	"Retroterm MSX -ALPHA-  57600,8n1"
+ENDIF
+IF IFACE = 38
+	DB	"Retroterm MSX -ALPHA-  38400,8n1"
+ENDIF
 	DB	&h01,&h0A
-	DB	"(c)2024 RETROCOMPUTACION.COM"
+	DB	"(c)2025 RETROCOMPUTACION.COM"
 	DB	&h0D,&h01,&h0F,&h00
 
 IDString:
