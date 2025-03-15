@@ -2047,7 +2047,11 @@ SBLoop:
 	INC	IY			; 10+2 Pierde 29 ciclos para completar los 62 del bit
 	DEC	IY			; 10+2
 	NOP				; 4+1
-
+	LD	A,0			; 7+1 Perdemos 31 ciclos para bajar la velocidad a 38400 bps
+	LD	A,0			; 7+1
+	NOP				; 4+1
+	NOP				; 4+1
+	NOP				; 4+1
 
 	LD	A,%00000001		; 7+1 Coloca TX en 1
 SendStop:
