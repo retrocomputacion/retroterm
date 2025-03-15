@@ -2199,20 +2199,20 @@ ReadBit:
 	NOP				; 4+1
 
 	DEC	H			; 4+1 Decrementa H
-	JR	NZ,ReadBit		; 12+1 Si H no llego a 0, vuelve a ReadBit
+	JR	NZ,ReadBit	; 12+1 Si H no llego a 0, vuelve a ReadBit
 					; 7+1 Si H llego a 0, JR consume 8 ciclos en lugar de 13
-	NOP				; 4+1 Completamos los 62 ciclos hasta el bit de stop
+	NOP				; 4+1 Perdemos 19 ciclos para completar los 93 ciclos hasta el bit de stop
+	BIT	0,(HL)		; 12+2
+	; LD	A,0			; 7+1 Perdemos 74 ciclos 
+	; LD	A,0			; 7+1
+	; NOP				; 4+1
+	; NOP				; 4+1
+	; NOP				; 4+1
 
-	LD	A,0			; 7+1 Perdemos 31 ciclos para bajar la velocidad a 38400 bps
-	LD	A,0			; 7+1
-	NOP				; 4+1
-	NOP				; 4+1
-	NOP				; 4+1
-
-	INC	IY			; 10+2 Pierde 43 ciclos
-	DEC	IY			; 10+2
-	BIT	0,(HL)			; 12+2
-	NOP				; 4+1
+	; INC	IY			; 10+2 Pierde 43 ciclos
+	; DEC	IY			; 10+2
+	; BIT	0,(HL)			; 12+2
+	; NOP				; 4+1
 	LD	A,L
 
 	SCF
