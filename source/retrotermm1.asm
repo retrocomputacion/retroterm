@@ -1121,7 +1121,7 @@ ENDIF
 ;///////////////////////////////////////////////////////////////////////////////////
 ; 131: PCM audio streaming until receiving a NUL ($00) character
 
-IF IFACE = 0
+IF IFACE != 56
 Cmd83
 	DI
 	LD		A,0
@@ -2292,7 +2292,7 @@ ENDIF
 ;//////////////////////////////////////////////////////////////////////////////////////////
 ; TurboRX, receives a byte stream and plays it as nibbles through the PSG volume registers
 ;------------------------------------------------------------------------------------------
-IF IFACE = 0
+IF IFACE < 38
 TurboRX
 	LD		A,%00100111	; RTS Enabled, Rx/Tx enabled, DTR Active
 	OUT		(USARTCmd),A
@@ -2392,11 +2392,11 @@ TRXWait2
 	AND		&h10			; Check for STOP
 	JP		NZ,TurboLoop
 	LD		A,&hFF			; Yes, send $FF
-IF IFACE > 1
-	CALL	SendByte
-ELSE
+;IF IFACE > 1
+;	CALL	SendByte
+;ELSE
 	OUT		(USARTData),A
-ENDIF
+;ENDIF
 	JP		TurboLoop
 TurboExit
 	LD		A,%00000111	; RTS Disabled, Rx/Tx enabled, DTR Active
@@ -2411,6 +2411,195 @@ TurboExit
 .tex2
 	JP		PSGIni
 	; RET
+ENDIF
+
+IF IFACE = 38
+Delay51:
+	; Para llegar hasta aqui consumimos 17+1 ciclos del CALL
+	SCF				; 4+1 Perdemos 33 ciclos
+	RET	NC			; 5+1
+	SCF				; 4+1
+	RET	NC			; 5+1
+	RET				; 10+1
+
+TurboRX:
+	LD	B,$07			; 7+1 B=7
+	LD	C,$90			; 7+1 Carga C con el puerto $90
+	LD	L,%10001000		; Comenzamos con 2 muestras de valor medio
+	LD	A,8			; 7+1 Selecciona el registro 8 (VOL1)
+	OUT	(AYINDEX), A		; 11+1
+	XOR	A			; Activamos RTS colocandolo a cero
+	OUT	($91),A
+TurboLoop:				; *** Esperamos un byte con RTS activado ***
+	IN	A,($90)			; 11+1 Leemos la entrada RX
+	AND	%00000010		; 7+1 (bit 1)
+	JP	NZ,TurboLoop		; 10+1 Si RX = 1 volvemos a TurboLoop
+StartBit:				; Duracion: 63 ciclos (para caer dentro del bit 0)
+	LD	H,L			; 4+1 Copiamos el byte recibido a H
+	LD	A,H			; 4+1 Coloca el nibble inferior de H en el registro VOL1
+	AND	&h0F			; 7+1
+	OUT	(AYWRITE), A		; 11+1
+	NOP				; 4+1
+	NOP				; 4+1
+	NOP				; 4+1
+	NOP				; 4+1
+;	NOP				; 4+1
+
+;	NOP				; 4+1
+;	LD	A,0			; 7+1
+	NOP				; 4+1
+	NOP				; 4+1
+	NOP				; 4+1
+
+TurboB0:			; *** Total: 94 ciclos (+1) ***
+	IN	A,(C)		; 12+2 Leemos la entrada RX
+	RR	A			; 8+2 Obtiene en CARRY el bit recibido
+	RR	A			; 8+2
+	RR	L			; 8+2 Agrega el bit recibido al registro L
+
+	; Faltan 51 ciclos para completar los 93 del bit (falta completar 1 ciclo)
+	LD	A,H			; 4+1
+	AND	&h0F			; 7+1
+	OUT	(&h99),A		; 11+1
+	LD	A,&h80+7		; 7+1
+	OUT	(&h99),A		; 11+1
+
+	NOP				; 4+1
+
+TurboB1:			; *** Total: 93 ciclos *** 
+	IN	A,($90)		; 11+1 Leemos la entrada RX
+	RR	A			; 8+2 Obtiene en CARRY el bit recibido
+	RR	A			; 8+2
+	RR	L			; 8+2 Agrega el bit recibido al registro L
+
+	; Faltan 51 ciclos para completar los 93 del bit
+	CALL	Delay51			; 17+1 + 33
+
+TurboB2:			; *** Total: 93 ciclos *** 
+	IN	A,($90)		; 11+1 Leemos la entrada RX
+	RR	A			; 8+2 Obtiene en CARRY el bit recibido
+	RR	A			; 8+2
+	RR	L			; 8+2 Agrega el bit recibido al registro L
+
+	; Faltan 51 ciclos para completar los 93 del bit
+	RR	H			; 8+2 Obtiene en el nibble inferior la segunda muestra
+	RR	H			; 8+2
+	RR	H			; 8+2
+	RR	H			; 8+2
+
+	SCF				; 4+1 Pierde 11 ciclos
+	RET	NC			; 5+1
+
+TurboB3:			; *** Total: 93 ciclos *** 
+	IN	A,($90)		; 11+1 Leemos la entrada RX
+	RR	A			; 8+2 Obtiene en CARRY el bit recibido
+	RR	A			; 8+2
+	RR	L			; 8+2 Agrega el bit recibido al registro L
+
+	; Faltan 51 ciclos para completar los 93 del bit
+	LD	A,H			; 4+1 Coloca el nibble inferior de H en el registro VOL1
+	AND	&h0F			; 7+1
+	OUT	(AYWRITE), A		; 11+1
+
+	SCF				; 4+1 Pierde 26 ciclos
+	RET	NC			; 5+1
+	NOP				; 4+1
+	NOP				; 4+1
+	NOP				; 4+1
+
+TurboB4:			; *** Total: 94 ciclos (+1) ***
+	IN	A,(C)		; 12+2 Leemos la entrada RX
+	RR	A			; 8+2 Obtiene en CARRY el bit recibido
+	RR	A			; 8+2
+	RR	L			; 8+2 Agrega el bit recibido al registro L
+
+	; Faltan 51 ciclos para completar los 93 del bit (falta completar 1 ciclo)
+	LD	A,H			; 4+1
+	AND	&h0F			; 7+1
+	OUT	(&h99),A		; 11+1
+	LD	A,&h80+7		; 7+1
+	OUT	(&h99),A		; 11+1
+
+	NOP				; 4+1
+
+TurboB5:			; *** Total: 93 ciclos *** 
+	IN	A,($90)		; 11+1 Leemos la entrada RX
+	RR	A			; 8+2 Obtiene en CARRY el bit recibido
+	RR	A			; 8+2
+	RR	L			; 8+2 Agrega el bit recibido al registro L
+
+	; Faltan 51 ciclos para completar los 93 del bit
+	CALL	Delay51			; 17+1 + 33
+
+TurboB6:			; *** Total: 93 ciclos *** 
+	IN	A,($90)		; 11+1 Leemos la entrada RX
+	RR	A			; 8+2 Obtiene en CARRY el bit recibido
+	RR	A			; 8+2
+	RR	L			; 8+2 Agrega el bit recibido al registro L
+
+	; Faltan 51 ciclos para completar los 93 del bit
+	CALL	Delay51			; 17+1 + 33
+
+TurboB7:			; *** Total: 134 ciclos (+41) ***
+	IN	A,($90)		; 11+1 Leemos la entrada RX
+	RR	A			; 8+2 Obtiene en CARRY el bit recibido
+	RR	A			; 8+2
+	RR	L			; 8+2 Agrega el bit recibido al registro L
+
+	; Perdemos 51 ciclos para completar los 93 del bit
+	LD	A,L			; 4+1 Verificamos si acabamos de recibir un 0 
+	OR	A			; 4+1
+	JP	Z,TurboExit		; 10+1 Exit if 0 received
+
+	; Este bloque consume 68 ciclos (antes 71)
+	IN	A,(PPI.CR)		; 11+1
+	AND	&hF0			; 7+1
+;	ADD	A,&h07			; 7+1 7th row
+	ADD	A,B			; 4+1 7th row
+	OUT	(PPI.CW),A		; 11+1
+	IN	A,(PPI.BR)		; 11+1
+	AND	&h10			; 7+1 Check for STOP
+	JP	NZ,TurboLoop		; 10+1
+
+; Presionamos STOP, vamos a enviar un byte de valor 255 sincronizado con el siguiente byte
+
+StopStream:
+	IN	A,($90)			; 11+1 Leemos la entrada RX
+	AND	%00000010		; 7+1 (bit 1)
+	JP	NZ,StopStream		; 10+1 Si RX = 1 volvemos a StopStream
+
+	XOR	A			; 4+1 Coloca la salida TX (bit 0) en 0 (para generar un bit de start)
+	OUT	($90),A			; 11+1
+	; Start bit (93 ciclos)
+	CALL	Delay51			; 17+1 + 33
+	SCF				; 4+1 Pierde 22 ciclos
+	RET	NC			; 5+1
+	SCF				; 4+1
+	RET	NC			; 5+1
+	LD	A,1			; 7+1 Coloca la salida TX (bit 0) en 1 (fin del bit de start)
+	OUT	($90),A			; 11+1
+
+	; Data (Espera para llegar al bit de stop y volver a recibir datos)
+	CALL	Delay51			; 17+1 + 33
+	CALL	Delay51			; 17+1 + 33
+	CALL	Delay51			; 17+1 + 33
+	CALL	Delay51			; 17+1 + 33
+	CALL	Delay51			; 17+1 + 33
+	CALL	Delay51			; 17+1 + 33
+	CALL	Delay51			; 17+1 + 33
+	CALL	Delay51			; 17+1 + 33
+	CALL	Delay51			; 17+1 + 33
+	CALL	Delay51			; 17+1 + 33
+	CALL	Delay51			; 17+1 + 33
+	CALL	Delay51			; 17+1 + 33
+	CALL	Delay51			; 17+1 + 33
+	CALL	Delay51			; 17+1 + 33
+	CALL	Delay51			; 17+1 + 33
+	JP	TurboLoop		; 10+1
+TurboExit:
+	LD	A,1			; 7+1 Desactivamos RTS colocandolo a uno
+	OUT	($91),A			; 11+1
+	JP	PSGIni
 ENDIF
 
 ;//////////////////////////////////////
@@ -4280,7 +4469,11 @@ ENDIF
 	DB	&h0D,&h01,&h0F,&h00
 
 IDString:
+IF IFACE != 38
 	DB "RTRETROTERM-M1 0.10   "	; ID String 22 characters long
+ELSE
+	DB "RTRETROTERM-M138 0.10 "
+ENDIF
 	DB &h00,&h07	;Turbo56K version, subversion
 
 
@@ -4436,12 +4629,19 @@ CmdTable:
     ; DW Cmd90,Cmd91,Cmd92,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     ; DW CmdA0,CmdA1,CmdA2,CmdA3,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     ; DW CmdB0,CmdB1,CmdB2,CmdB3,CmdB4,CmdB5,CmdB6,CmdB7
-IF IFACE = 0
+IF IFACE < 38
     DW Cmd80,Cmd81,Cmd82,Cmd83,Cmd84,CmdFE,Cmd86,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     DW Cmd90,Cmd91,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     DW CmdA0,CmdA1,CmdA2,CmdA3,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     DW CmdB0,CmdB1,CmdB2,CmdB3,CmdB4,CmdB5,CmdB6,CmdB7
-ELSE
+ENDIF
+IF IFACE = 38
+    DW Cmd80,Cmd81,Cmd82,Cmd83,CmdFE,CmdFE,Cmd86,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
+    DW Cmd90,Cmd91,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
+    DW CmdA0,CmdA1,CmdA2,CmdA3,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
+    DW CmdB0,CmdB1,CmdB2,CmdB3,CmdB4,CmdB5,CmdB6,CmdB7
+ENDIF
+IF IFACE = 56
     DW Cmd80,Cmd81,Cmd82,CmdFE,CmdFE,CmdFE,Cmd86,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     DW Cmd90,Cmd91,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     DW CmdA0,CmdA1,CmdA2,CmdA3,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
@@ -4455,12 +4655,19 @@ CmdParTable:
 	; DB &h03  ,&h02  ,&h03  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
 	; DB &h00  ,&h00  ,&h00  ,&h01  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
 	; DB &h02  ,&h02  ,&h01  ,&h02  ,&h00  ,&h02  ,&h01  ,&h01
-IF IFACE = 0
+IF IFACE < 38
 	DB &h02  ,&h01  ,&h02  ,&h00  ,&h00  ,&h80  ,&h00  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
 	DB &h03  ,&h02  ,&h83  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
 	DB &h00  ,&h00  ,&h00  ,&h01  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
 	DB &h02  ,&h02  ,&h01  ,&h02  ,&h00  ,&h02  ,&h01  ,&h01
-ELSE
+ENDIF
+IF IFACE = 38
+	DB &h02  ,&h01  ,&h02  ,&h00  ,&h80  ,&h80  ,&h00  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
+	DB &h03  ,&h02  ,&h83  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
+	DB &h00  ,&h00  ,&h00  ,&h01  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
+	DB &h02  ,&h02  ,&h01  ,&h02  ,&h00  ,&h02  ,&h01  ,&h01
+ENDIF
+IF IFACE = 56
 	DB &h02  ,&h01  ,&h02  ,&h80  ,&h80  ,&h80  ,&h00  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
 	DB &h03  ,&h02  ,&h83  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
 	DB &h00  ,&h00  ,&h00  ,&h01  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
