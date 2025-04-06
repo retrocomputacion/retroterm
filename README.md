@@ -145,7 +145,7 @@ If you downloaded a program into memory from a BBS you can also `RUN` it (Commod
 
 On MSX pressing `CTRL-U` will reset the computer, if a ROM file was downloaded to RAM the system will try to execute it. ROMs that expect mirroring are not supported.
 
-*Retroterm* beeps for every received character by default, you can toggle the sound by pressing `CBM + M` (Commodore) or `CTRL-M` (MSX).
+*Retroterm* beeps for every received character by default, you can toggle the sound by pressing `CBM + M` (Commodore) or `CTRL-W` (MSX).
 
 ## 2.1 Setup screen
 

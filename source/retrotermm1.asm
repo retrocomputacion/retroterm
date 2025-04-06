@@ -228,6 +228,7 @@ TIMER1		DB	&h00	; Text timer
 PRSPEED		DB	&h00	; Text printing speed
 BLOCKPTR	DW	&h0000	; Memory pointer for the block transfer command
 BYTECNT		DW	&h0000	; Block transfer byte count
+SNDSTATUS	DB	&h00	; Key beep status: 0 enabled, alse disabled
 
 ;////////////
 ; Macros
@@ -526,7 +527,7 @@ ENDIF
 	IN		A,(PPI.BR)
 	AND		&h02			; Check for CTRL
 	LD		A,B
-	JR		NZ,.ib3
+	JR		NZ,.ib4
 	;CTRL-F5
 	LD		HL,FLAGS1
 	SET 	5,(HL)			; Set SETUP Mode bit
@@ -539,6 +540,12 @@ ENDIF
 	DB		&h80
 	DW		&h0000
 .ib3
+	CP		&h17			; CTRL-W?
+	JR		NZ,.ib4
+	LD		A,(SNDSTATUS)	; Toggle char beep
+	XOR		&hFF
+	LD		(SNDSTATUS),A
+.ib4
 IF IFACE > 1
 	CALL	SendByte
 ELSE
@@ -714,7 +721,10 @@ PrintBuffer
 	JR		Z,.pb0
 
 	CALL	CharOut			; Output character to screen
-	CALL	DoBeep
+	LD		A,(SNDSTATUS)
+	AND		A
+
+	CALL	Z,DoBeep
 	LD		A,(PRSPEED)
 	LD		(TIMER1),A		; Renew TIMER1 with PRSPEED
 	JR		.pb0			; Return to .pb0 to process the rest of the buffer
