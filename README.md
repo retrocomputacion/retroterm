@@ -41,8 +41,9 @@ It implements the *[Turbo56k](docs/turbo56k.md)* protocol for high speed data tr
 Data rate is fixed at the following speeds:
 
 - 57600bps for Retroterm 64 for userport and Turbo232**
-- 57600bps for Retroterm MSX for parallel port (very alpha state)
+- 57600bps for Retroterm MSX for parallel port (very alpha state - candidate for deprecation)
 - 38400bps for Retroterm 64 for Swiftlink**
+- 38400bps for Retroterm MSX for parallel port (alpha state - mostly stable)
 - 19200bps for Retroterm Plus/4** and Retroterm MSX for RS232
 
 *(**)The full data throughput while using the turbo transfer / streaming can only be achieved with the screen disabled.*
@@ -131,6 +132,7 @@ Over time, the protocol has been extended to include 4-bit PCM audio streaming, 
 - **rt-232.prg** Turbo232 version 57600bps
 - **rt-p4.prg** Plus/4 version 19200bps
 - **rt232.com** MSX RS-232 version 19200bps
+- **rt38k.com** MSX parallel port version 38400bps
 - **rt56k.com** MSX parallel port version 57600bps
 
 *Retroterm* lacks classic file transfer functions, when used to communicate with a normal PETSCII/ASCII BBS, file transfers are not available.
