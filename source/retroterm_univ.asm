@@ -646,6 +646,7 @@ ReadByte
 	LDA	FLAGS1		; Ignore reception if the terminal is starting up
 	AND	#%00000010
 	BNE	CancelRX
+readbytef
 rb1h:
 	LDA #>_RBdelay
 	STA $DD05
@@ -2149,7 +2150,7 @@ C82Loop
 	LDA #$00				; 0
 	STA TEMPCNT1		; L
 
--	JSR	ReadByte		; Receive a character from RS232
+-	JSR	readbytef		; Receive a character from RS232
 	BCS ++				; Byte received -> +
 	LDA TEMPCNT1		; Decrement counter
 	BNE +
@@ -4114,6 +4115,7 @@ ReadByte
 	AND	#%00000010
 	BEQ	+
 	JMP	CancelRX
+readbytef
 +	LDA	$DD0D		; 4 Clear the interrupt flags (CIA2: NMI)
 	LDA	#$90		; 2 Enable interrupts (NMI) by FLAG2
 	STA	$DD0D		; 4

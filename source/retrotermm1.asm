@@ -243,13 +243,13 @@ ENDM
 
 
 Start:
-	LD		C,WRITESTR
-	LD		DE,INTRO
-	CALL	BDOS
-.s0
-	CALL	GetKey
-	CP		0
-	JR		Z,.s0
+;	LD		C,WRITESTR
+;	LD		DE,INTRO
+;	CALL	BDOS
+; .s0
+; 	CALL	GetKey
+; 	CP		0
+; 	JR		Z,.s0
 
 	CALL	VDPDR			; Obtiene el puerto de lectura del VDP y lo copia a VPORTR
 	LD		(VPORTR),A
@@ -272,6 +272,10 @@ ENDIF
 	; Init screen
 
 	CALL	ClrScr
+
+	LD		HL,SPLASH
+	CALL	StrOut
+
 	LD		HL,RetroIntro
 	CALL	StrOut
 
@@ -4149,20 +4153,7 @@ bsave
 	; L = Available drives
 	LD		A,L
 	LD		(_drives),A
-
-
-; 	LD		A,0
-; 	LD		(_curdrv),A			; Find first available drive
-; 	LD		B,8
-; .bs11
-; 	SRL 	L
-; 	JR		NC,.bs12
-; 	LD		(_curdrv),A
 	CALL	ddrive
-; 	JR		.bs2
-; .bs12
-; 	INC	A
-; 	DJNZ	.bs11
 
 .bs2
 	CALL	GetKey				; Wait for any key
@@ -4464,7 +4455,7 @@ INTRO:
 	DB	&h0D,&h0A
 	DB	"Press any key$"
 RetroIntro:
-	DB	&h0C,&h01,&h02
+	DB	&h01,&h02
 IF IFACE = 0
 	DB	"Retroterm MSX -ALPHA-  19200,8n1"
 ENDIF
@@ -4686,3 +4677,7 @@ ENDIF
 ; Charset
 CHRSET:
 	incbin "chrset.bin"	;256 caracteres
+;Splash screen
+SPLASH:
+	incbin "retrologo.mseq"
+	DB &h00

@@ -47,11 +47,11 @@ msx38k: $(BUILDFOLDER)/rt38k.com
 $(BUILDFOLDER)/rt_p4_v$(VERSION).prg: $(SRCFOLDER)/retrotermp4.asm
 	acme -f cbm -D_MAKE_=1 -I $(SRCFOLDER) -o $(BUILDFOLDER)/rt_p4_v$(VERSION).prg $(SRCFOLDER)/retrotermp4.asm
 
-$(BUILDFOLDER)/rt232.com: $(SRCFOLDER)/retrotermm1.asm
+$(BUILDFOLDER)/rt232.com: $(SRCFOLDER)/retrotermm1.asm $(SRCFOLDER)/retrologo.mseq
 	pasmo -E IFACE=0 -I $(SRCFOLDER) $(SRCFOLDER)/retrotermm1.asm $(BUILDFOLDER)/rt232.com $(SRCFOLDER)/rtm232.symbol
-$(BUILDFOLDER)/rt56k.com: $(SRCFOLDER)/retrotermm1.asm
+$(BUILDFOLDER)/rt56k.com: $(SRCFOLDER)/retrotermm1.asm $(SRCFOLDER)/retrologo.mseq
 	pasmo -E IFACE=56 -I $(SRCFOLDER) $(SRCFOLDER)/retrotermm1.asm $(BUILDFOLDER)/rt56k.com $(SRCFOLDER)/rtm56k.symbol
-$(BUILDFOLDER)/rt38k.com: $(SRCFOLDER)/retrotermm1.asm
+$(BUILDFOLDER)/rt38k.com: $(SRCFOLDER)/retrotermm1.asm $(SRCFOLDER)/retrologo.mseq
 	pasmo -E IFACE=38 -I $(SRCFOLDER) $(SRCFOLDER)/retrotermm1.asm $(BUILDFOLDER)/rt38k.com $(SRCFOLDER)/rtm38k.symbol
 
 $(SRCFOLDER)/version.asm: $(SRCFOLDER)/version.txt
