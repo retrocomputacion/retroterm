@@ -3562,10 +3562,9 @@ dosetup:
 	; Get current ACIA base address
 	LDA _adata1+2
 	SEC
-	SBC #$D7
+	SBC #$DE
 	LSR
-;	ROR			;.A = $00 for DE, $80 for DF
-	ROR			;.A = $00 for D7, $?? for DE, $?? for DF
+	ROR			;.A = $00 for DE, $80 for DF, $BE for D7
 	JSR udbase	; update base display
 }
 
@@ -3614,23 +3613,23 @@ dosetup:
 	BNE +
 	LDA #$00
 	JSR udbase
-	LDY #$D7
+	LDY #$DE
 	JSR rebase_acia
 	JSR ACIAinit
 	BNE -
 +	CMP #$32			; (2)
 	BNE +
-	LDA #$80  ; ???
+	LDA #$80
 	JSR udbase
-	LDY #$DE
+	LDY #$DF
 	JSR rebase_acia
 	JSR ACIAinit
 	BNE -
 +	CMP #$33			; (3)
 	BNE +
-	LDA #$80  ; ???
+	LDA #$BE
 	JSR udbase
-	LDY #$DF
+	LDY #$D7
 	JSR rebase_acia
 	JSR ACIAinit
 	BNE -
@@ -3732,9 +3731,9 @@ sut1:
 	!text "sWIFTLINK "
 }
 	!text "BASE ADDRESS:",$0D,$0D
-	!text " 1> $d700",$0D
-	!text " 2> $de00",$0D
-	!text " 3> $df00",$0D
+	!text " 1> $de00",$0D
+	!text " 2> $df00",$0D
+	!text " 3> $d700",$0D
 	!text $12,"b",$92,"LOCK TRANSFER SCREEN: disabled"
 	
 }
