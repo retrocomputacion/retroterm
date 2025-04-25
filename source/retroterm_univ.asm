@@ -3687,11 +3687,10 @@ udbase:
 	ORA #$31		;"1"
 	STA $0400+(6*40)+1		;Screen position for 1
 	TXA
-	EOR #$80
 	ORA #$32		;"2"
 	STA $0400+(7*40)+1		;Screen position for 2
 	TXA
-	EOR #$80
+	EOR #$3E
 	ORA #$33		;"3"
 	STA $0400+(8*40)+1		;Screen position for 3
 	RTS
