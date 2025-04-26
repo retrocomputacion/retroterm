@@ -398,6 +398,10 @@ ChkTimer2
 	LD		(EDSTAT),A
 	LD		D,15		; Reset counter
 .recb:	; Receive up to 3 bytes
+	LD		A,(FLAGS1)
+	BIT		1,A				; Check if reception paused
+	JR		NZ,.inbyte
+
 	LD		B,3
 .rb0
 	LD		A,(PRBUFFERCNT)
@@ -1478,22 +1482,12 @@ ENDIF
 Cmd86
 	; DI
 	CALL	MAKECRCTABLE
-	; LD		HL,minIRQ		; Set minimal IRQ
-	; LD		(0x0039),HL
-	; LD		HL,EDSTAT		; Disable reception
-	; SET		7,(HL)
 	; EI
 	LD		HL,&h0000		; Reset counters
 	LD		(rcount),HL
 	LD		(bcount),HL
 
 	CALL 	bsave
-	; DI
-	; LD		HL,newISR
-	; LD		(0x0039),HL
-	; LD		HL,EDSTAT
-	; SET		7,(HL)
-	; EI
 	JP		CmdFE			; Exit command mode
 
 ;///////////////////////////////////////////////////////////////////////////////////
@@ -3898,17 +3892,12 @@ BITLOOP
 	LD		A,&h21		; else add CRC-16 polynomial $1021
 	XOR		E
 	LD		E,A
-	; PHA             ; Save low byte
-	; LDA CRC         ; Do high byte
 	LD		A,&h10
 	XOR 	D
 	LD		D,A
-	; PLA             ; Restore low byte
 NOADD
     DJNZ	BITLOOP	; Do next bit
-	; STA CRCLO,X     ; Save CRC into table, low byte
-	; LDA CRC         ; then high byte
-	; STA CRCHI,X
+	; Save CRC into table
 	LD		(HL),E		;CRCLO
 	INC 	HL
 	LD		(HL),D		;CRCHI
@@ -4090,6 +4079,9 @@ bsave
 	LD		HL,bst1				; Print download screen
 	CALL	StrOut
 
+	LD		HL,FLAGS1
+	SET		1,(HL)				; Pause reception
+
 	LD		C,&h19
 	CALL	BDOS
 	LD		(_prevdrv),A		; Save current default drive
@@ -4104,6 +4096,9 @@ bsave
 	LD		BC,&h0800
 	CALL	CpyVRAM
 	EI
+
+	LD		HL,FLAGS1
+	RES		1,(HL)				; Resume reception
 
 	; LD		A,&h41				; Receive 1 byte
 	; LD		(CMDFlags),A

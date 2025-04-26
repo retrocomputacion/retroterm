@@ -511,10 +511,10 @@ trtable:
 
 MainPrg
 	JSR InitPalette
+	JSR $D88B	; Clear Screen (Makes sure the Screen link table is valid from here on)
+	SEI			; Disable interrupts
 
-	SEI			; Deshabilita las interrupciones
-
-	LDA	#$00		; Fondo y borde negros
+	LDA	#$00		; Black screen and border
 	STA	$FF15
 	STA	$FF19
 	STA $0540		; Repeat Space, INS/DEL and cursor keys only
