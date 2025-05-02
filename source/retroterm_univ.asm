@@ -3564,7 +3564,7 @@ dosetup:
 	SEC
 	SBC #$D7
 	LSR
-	ROR			;.A = $00 for DE, $80 for DF, $BE for D7
+	ROR			;.A = $00 for D7, $80 for DE, $BE for DF
 	JSR udbase	; update base display
 }
 
