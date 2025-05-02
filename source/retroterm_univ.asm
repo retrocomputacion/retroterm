@@ -159,6 +159,19 @@
 }
 }
 
+!if _HARDTYPE_ = 232 {
+	!sl "labels_232.txt"
+}
+!if _HARDTYPE_ = 38 {
+	!sl "labels_sl.txt"
+}
+!if _HARDTYPE_ = 1541 {
+	!sl "labels_ulti.txt"
+}
+!if _HARDTYPE_ = 56 {
+	!sl "labels_u.txt"
+}
+
 * = $0801
 
 ;///// Macros /////
@@ -810,6 +823,7 @@ _aspd1
 ;///////////////////////////////////////////////////////////////////////////////////
 
 MainPrg
+	JSR $E544		; Clear Screen (Makes sure the Screen link table is valid from here on)
 	SEI				; Disable IRQs
 	LDA	#%01111111
 	STA	$DC0D		; "Switch off" interrupts signals from CIA-1
