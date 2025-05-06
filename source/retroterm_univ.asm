@@ -1986,8 +1986,8 @@ ChkKey
 	;Test terminal not in command mode
 	BIT CMDFlags
 	BVS ExitIrq
-	;LDA #$02			;<<<<<< C= + F7
-	;STA $D020
+	LDA #$02			;<<<<<< C= + F7
+	STA $D020
 	LDA #>SETUP			; Modify Stack
 	PHA
 	LDA #<SETUP
@@ -3578,7 +3578,7 @@ dosetup:
 	SEC
 	SBC #$D7
 	LSR
-	ROR			;.A = $00 for D7, $80 for DE, $BE for DF
+	ROR			;.A = $00 for D7, $81 for DE, $BE for DF
 	JSR udbase	; update base display
 }
 
@@ -3697,16 +3697,25 @@ dosetup:
 ; --- Update ACIA base display
 udbase:
 	TAX
-	EOR #$80
+	CMP #$00
+	BEQ +
+	LDA #$80
++	EOR #$80
 	ORA #$31		;"1"
 	STA $0400+(6*40)+1		;Screen position for 1
 	TXA
-	EOR #$01
+	CMP #$81
+	BEQ +
+	LDA #$01
++	EOR #$01
 	ORA #$32		;"2"
 	STA $0400+(7*40)+1		;Screen position for 2
 	TXA
-	EOR #$82
-	ORA #$33		;"3"
+	CMP #$02
+	BEQ +
+	LDA #$82
++	EOR #$80
+	ORA #$31		;"3"
 	STA $0400+(8*40)+1		;Screen position for 3
 	RTS
 
