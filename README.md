@@ -158,7 +158,7 @@ Use the `+` and `-` keys to adjust.
 
 For the ACIA versions there's a couple more settings.
 
-The first one sets the base address for the Swiftlink or Turbo232 cartridge, press `1` for $DE00 or `2` for $DF00. Switching addresses will drop any current connection.
+The first one sets the base address for the Swiftlink or Turbo232 cartridge, press `1` for $D700 or `2` for $DE00 or `3` for $DF00. Switching addresses will drop any current connection.
 
 The second setting available for ACIA versions is the ability to keep the screen visible while transferring at turbo speeds. Turbo transfers are slightly slower with the screen enabled. Press `B` to toggle.
 

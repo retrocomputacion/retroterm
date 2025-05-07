@@ -1986,8 +1986,6 @@ ChkKey
 	;Test terminal not in command mode
 	BIT CMDFlags
 	BVS ExitIrq
-	;LDA #$02			;<<<<<< C= + F7
-	;STA $D020
 	LDA #>SETUP			; Modify Stack
 	PHA
 	LDA #<SETUP
@@ -3576,9 +3574,9 @@ dosetup:
 	; Get current ACIA base address
 	LDA _adata1+2
 	SEC
-	SBC #$DE
+	SBC #$D7
 	LSR
-	ROR			;.A = $00 for DE, $80 for DF
+	ROR			;.A = $00 for D7, $81 for DE, $BE for DF
 	JSR udbase	; update base display
 }
 
@@ -3627,13 +3625,21 @@ dosetup:
 	BNE +
 	LDA #$00
 	JSR udbase
-	LDY #$DE
+	LDY #$D7
 	JSR rebase_acia
 	JSR ACIAinit
 	BNE -
 +	CMP #$32			; (2)
 	BNE +
-	LDA #$80
+	LDA #$81
+	JSR udbase
+	LDY #$DE
+	JSR rebase_acia
+	JSR ACIAinit
+	BNE -
++	CMP #$33			; (3)
+	BNE +
+	LDA #$02
 	JSR udbase
 	LDY #$DF
 	JSR rebase_acia
@@ -3689,12 +3695,26 @@ dosetup:
 ; --- Update ACIA base display
 udbase:
 	TAX
-	EOR #$80
+	CMP #$00
+	BEQ +
+	LDA #$80
++	EOR #$80
 	ORA #$31		;"1"
 	STA $0400+(6*40)+1		;Screen position for 1
 	TXA
+	CMP #$81
+	BEQ +
+	LDA #$01
++	EOR #$01
 	ORA #$32		;"2"
 	STA $0400+(7*40)+1		;Screen position for 2
+	TXA
+	CMP #$02
+	BEQ +
+	LDA #$82
++	EOR #$80
+	ORA #$31		;"3"
+	STA $0400+(8*40)+1		;Screen position for 3
 	RTS
 
 ; --- Change ACIA base address
@@ -3734,8 +3754,9 @@ sut1:
 	!text "sWIFTLINK "
 }
 	!text "BASE ADDRESS:",$0D,$0D
-	!text " 1> $de00",$0D
-	!text " 2> $df00",$0D,$0D
+	!text " 1> $d700",$0D
+	!text " 2> $de00",$0D
+	!text " 3> $df00",$0D
 	!text $12,"b",$92,"LOCK TRANSFER SCREEN: disabled"
 	
 }
