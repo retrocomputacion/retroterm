@@ -1986,8 +1986,6 @@ ChkKey
 	;Test terminal not in command mode
 	BIT CMDFlags
 	BVS ExitIrq
-	LDA #$02			;<<<<<< C= + F7
-	STA $D020
 	LDA #>SETUP			; Modify Stack
 	PHA
 	LDA #<SETUP
