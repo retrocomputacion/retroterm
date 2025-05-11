@@ -151,7 +151,7 @@ On MSX pressing `CTRL-U` will reset the computer, if a ROM file was downloaded t
 
 ## 2.1 Setup screen
 
-A simple setup screen can be accessed by pressing `CBM + F7` (Commodore) or `CTRL-F5` (MSX), pressing `F1` will exit back to the terminal.
+A simple setup screen can be accessed by pressing `F7` or `CTRL-F5` (MSX), pressing `F1` will exit back to the terminal.
 
 The first setting, common to all _Retroterm_ variants sets the **RTS** pulse width. Current values are known to work under VICE, or on real hardware with an userport modem using Zimodem firmware, and with the Ultimate Swiftlink emulation.
 Use the `+` and `-` keys to adjust.
