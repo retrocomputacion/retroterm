@@ -1978,11 +1978,11 @@ ChkKey
 	EOR $07F8
 	STA $07F8
 	BNE ExitIrq
-+	CMP #$8C			; F8?
++	CMP #$88			; F7?
 	BNE +
-	LDX $028D			; Shift Keys flag
-	CPX #$02			; C= pressed?
-	BNE +
+;	LDX $028D			; Shift Keys flag
+;	CPX #$02			; C= pressed?
+;	BNE +
 	;Test terminal not in command mode
 	BIT CMDFlags
 	BVS ExitIrq
