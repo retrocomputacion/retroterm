@@ -142,19 +142,19 @@
 ; Output file names
 !ifndef _MAKE_{
 !if _HARDTYPE_ = 232 {
-	!to "rt_232_v0.20.prg", cbm
+	!to "rt_232_v0.21.prg", cbm
 	!sl "labels_232.txt"
 }
 !if _HARDTYPE_ = 38 {
-    !to "rt_sl_v0.20.prg", cbm
+    !to "rt_sl_v0.21.prg", cbm
 	!sl "labels_sl.txt"
 }
 !if _HARDTYPE_ = 1541 {
-    !to "rt_ulti_v0.20.prg", cbm
+    !to "rt_ulti_v0.21.prg", cbm
 	!sl "labels_ulti.txt"
 }
 !if _HARDTYPE_ = 56 {
-	!to "rt_u_v0.20.prg", cbm
+	!to "rt_u_v0.21.prg", cbm
 	!sl "labels_u.txt"
 }
 }

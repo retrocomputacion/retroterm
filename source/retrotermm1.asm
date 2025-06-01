@@ -26,8 +26,8 @@ LINL40		EQU &hF3AE		; Width For SCREEN 0 (Default = 37)
 LINL32		EQU	&hF3AF		; Width For SCREEN 1 (Default = 29)
 CLIKSW		EQU	&hF3DB		; CLIKSW - Key Press Click Switch (SCREEN n Writes To This Address)
 							; 0 = When Key Press Click Disabled, 1 = When Key Press Click Enabled
-OLDKEY		EQU	&hFBDA		; Captura anterior de las filas del teclado
-NEWKEY		EQU	&hFBE5		; Ultima captura de las filas del teclado
+OLDKEY		EQU	&hFBDA		; Previous keyboard row capture
+NEWKEY		EQU	&hFBE5		; Latest keyboard row capture
 SCNCNT		EQU	&hF3F6		; Key Scan Counter: 0 = Ready To Scan Pressed Keys
 PUTPNT		EQU	&hF3F8		; Keyboard Buffer Address To Write Character
 GETPNT		EQU	&hF3FA		; Keyboard Buffer Address To Read Character
@@ -38,6 +38,13 @@ GRPCGP		EQU &hF3CB		; SCREEN 2 character pattern table
 CSRY		EQU	&hF3DC		; Current row-position of the cursor
 CSRX		EQU &hF3DD		; Current column-position of the cursor
 FNKSTR		EQU &hF87F		; Function key definitions
+DAC			EQU &hF7F6		; Decimal ACcumulator
+ARG			EQU &hF847		; ARGument
+VALTYP		EQU &hF663		; Value type
+							; 2 Integer
+							; 3 String
+							; 4 single precision
+							; 8 double precision
 
 ; BIOS
 BOOT		EQU	&h0000		; Tests RAM and sets RAM slot for the system
@@ -59,6 +66,19 @@ GTSTCK		EQU	&h00D5		; returns the joystick status
 GTTRIG		EQU	&h00D8		; returns the trigger button status
 GTPDL		EQU	&h00DE		; returns the paddle value
 SNSMAT		EQU	&h0141		; reads the value of the specified line from the keyboard matrix
+CALBAS:     EQU &H0159		; calls a BASIC routine
+
+; BASIC MATH
+FLTLIN		EQU	&h46FF		; Convert integer in HL to single-float (in DAC)
+DECDIV		EQU &h289F		; DAC = DAC / ARG double precision
+ICOMP		EQU &h2F4D		; Compare DE with HL (integer)
+							; A = 0 if DE = HL, 1 if DE < HL, -1 if DE > HL
+
+;BASIC statements table offsets
+LINE		EQU &h398A
+PSET		EQU &h39B0
+CIRCLE		EQU	&h39A4
+PAINT		EQU	&h39AA
 
 ;	PPI
 PPI.BR		EQU &hA9
@@ -278,6 +298,21 @@ ENDIF
 
 	LD		HL,RetroIntro
 	CALL	StrOut
+
+	; Init BASIC calls
+
+	LD		IX,LINE_H
+	LD		HL,LINE
+	CALL	BASIC_HOOK
+	LD		IX,PSET_H
+	LD		HL,PSET
+	CALL	BASIC_HOOK
+	LD		IX,CIRCLE_H
+	LD		HL,CIRCLE
+	CALL	BASIC_HOOK
+	LD		IX,PAINT_H
+	LD		HL,PAINT
+	CALL	BASIC_HOOK
 
 	; Main loop
 loop1:
@@ -1533,6 +1568,9 @@ Cmd91
 	LD		E,7
 	CALL	WriteVReg
 
+	LD		HL,FLAGS1
+	RES		3,(HL)				; Disable cursor
+
 	; Copy bitmap to VRAM
 	LD		HL,&h5800
 	LD		DE,(GRPNAM)
@@ -1550,6 +1588,326 @@ Cmd91
 	CALL	CpyVRAM				; Copy ColorTable
 	RET
 
+;///////////////////////////////////////////////////////////////////////////////////
+; 152: Clears the graphic screen
+Cmd98
+	JP		ClrScr
+
+;///////////////////////////////////////////////////////////////////////////////////
+; 153: Set Pen color
+; Parameters: Pen, Color
+Cmd99:
+	CALL	GetFromPrBuffer	; Pen
+	LD		B,A
+	CALL	GetFromPrBuffer	; Color
+	AND		&h0F
+	LD		C,A
+	LD		A,B
+	CP		0
+	JP		NZ,.c99_1
+	LD		A,(SCOLORS)
+	AND 	&hF0
+	OR		C
+	LD		(SCOLORS),A			; Pen 0
+	RET
+.c99_1
+	CP	1
+	RET	NZ
+	LD		A,C
+	CALL	HighCNib
+	LD		(SCOLORS),A			; Pen 1
+	RET
+
+
+;///////////////////////////////////////////////////////////////////////////////////
+; 154: Plot point
+; Parameters: Pen, X(16bit), Y(16bit)
+Cmd9A:
+	CALL	GetFromPrBuffer		; Pen
+	CALL	_setpen
+	LD		(_psetcol),A
+	LD		HL,_psetx
+	CALL	_get16
+	LD		HL,_psety
+	CALL	_get16
+	LD		BC,14
+    LD		HL,PSET_BAS
+	LD		DE,&hC000		; copy parameters line to upper RAM
+	LDIR
+	LD		HL,&hC000
+	LD		IX,(PSET_H)
+	CALL	CALSUB			; Call BASIC PSET
+	EI		; Re-enable IRQs
+	RET
+
+_get16:
+	PUSH	HL
+	CALL	GetFromPrBuffer		; low
+	POP		HL
+	LD		(HL),A
+	INC		HL
+	PUSH	HL
+	CALL	GetFromPrBuffer		; high
+	POP		HL
+	LD		(HL),A
+	RET
+
+_setpen:
+	CP		0
+	JP		NZ,_sp1				; pen0
+	LD		A,(SCOLORS)
+	AND		&h0F
+	RET
+	; JP		_sp2
+_sp1
+	LD		A,(SCOLORS)
+	SRL		A
+	SRL		A
+	SRL		A
+	SRL		A
+_sp2
+	; ADD		A,&h11
+	RET
+
+; PSET CALL Address
+PSET_H	DW	0
+
+; Mock BASIC line
+PSET_BAS
+	DB "(",&h1C
+_psetx
+	DW &hFFFF
+	DB ",",&h1C
+_psety
+	DW &hFFFF
+	DB "),",&h1C
+_psetcol
+	DW	&h000F
+    DB &H00
+
+;///////////////////////////////////////////////////////////////////////////////////
+; 155: Line
+; Parameters: Pen, X1(16bit), Y1(16bit), X2(16bit), Y2(16bit)
+Cmd9B:
+	CALL	GetFromPrBuffer		; Pen
+	CALL	_setpen
+	LD		(_linbcol),A
+	LD		HL,_linbx1
+	CALL	_get16
+	LD		HL,_linby1
+	CALL	_get16
+	LD		HL,_linbx2
+	CALL	_get16
+	LD		HL,_linby2
+	CALL	_get16
+	LD		BC,24
+    LD		HL,LINE_BAS
+	LD		DE,&hC000		; copy parameters line to upper RAM
+	LDIR
+
+	LD		HL,&hC000
+	LD		IX,(LINE_H)
+	CALL	CALSUB			; Call BASIC PSET
+	EI		; Re-enable IRQs
+	RET
+
+; LINE CALL Address
+LINE_H	DW 0
+
+; Mock BASIC line
+LINE_BAS	
+	DB "(",&h1C
+_linbx1
+	DW &hFFFF
+	DB ",",&h1C
+_linby1
+	DW &hFFFF
+	DB ")",&hF2,"(",&h1C
+_linbx2
+	DW &hFFFF
+	DB ",",&h1C
+_linby2
+	DW &hFFFF
+	DB "),",&h1C
+_linbcol
+	DW &h000F
+    DB &H00
+
+;///////////////////////////////////////////////////////////////////////////////////
+; 156: Box
+; Parameters: Pen, X1(16bit), Y1(16bit), X2(16bit), Y2(16bit), Fill
+Cmd9C:
+	CALL	GetFromPrBuffer		; Pen
+	CALL	_setpen
+	LD		(_boxcol),A
+	LD		HL,_boxx1
+	CALL	_get16
+	LD		HL,_boxy1
+	CALL	_get16
+	LD		HL,_boxx2
+	CALL	_get16
+	LD		HL,_boxy2
+	CALL	_get16
+	CALL	GetFromPrBuffer		; Fill?
+	CP		0
+	JP		Z,_c9c1
+	LD		A,'F'
+_c9c1
+	LD		(_boxfill),A
+	LD		BC,27
+    LD		HL,BOX_BAS
+	LD		DE,&hC000		; copy parameters line to upper RAM
+	LDIR
+
+	LD		HL,&hC000
+	LD		IX,(LINE_H)
+	CALL	CALSUB			; Call BASIC PSET
+	EI		; Re-enable IRQs
+	RET
+
+; Mock BASIC line
+BOX_BAS	
+	DB "(",&h1C
+_boxx1
+	DW &hFFFF
+	DB ",",&h1C
+_boxy1
+	DW &hFFFF
+	DB ")",&hF2,"(",&h1C
+_boxx2
+	DW &hFFFF
+	DB ",",&h1C
+_boxy2
+	DW &hFFFF
+	DB "),",&h1C
+_boxcol
+	DW &h000F
+	DB ",B"
+_boxfill
+	DB "F"
+    DB &H00
+
+;///////////////////////////////////////////////////////////////////////////////////
+; 157: Circle
+; Parameters: Pen, center X(16bit), center Y(16bit), radius X(16bit), radius Y(16bit)
+Cmd9D:
+	CALL	GetFromPrBuffer		; Pen
+	CALL	_setpen
+	LD		(_circol),A
+	LD		HL,_cirx
+	CALL	_get16				; x center
+	LD		HL,_ciry
+	CALL	_get16				; y center
+	LD		HL,_cirrx
+	CALL	_get16				; rX radius
+	LD		HL,_cirry
+	CALL	_get16				; rY radius
+
+	LD		HL,(_cirrx)
+	LD		IX,FLTLIN
+    CALL	CALSUB			; Interslot call to CALBAS
+	LD		DE,ARG
+	CALL	_cpydac			; Copy DAC to ARG
+	LD		HL,(_cirry)
+	LD		IX,FLTLIN
+    CALL	CALSUB			; Interslot call to CALBAS
+
+	LD		IX,DECDIV		; rY/rX
+    CALL	CALSUB			; Interslot call to CALBAS
+	LD		DE,_cirasp
+	CALL	_cpydac			; Copy DAC to _cirasp
+
+	LD		HL,(_cirry)
+	LD		A,(_cirasp)		; Get aspect ratio exponent
+	CP		&h41			; >= 1?
+	JR		NC,_c9d1		; yes, use rY
+	LD		HL,(_cirrx)		; no, use rX
+_c9d1
+	LD		(_cirrad),HL
+
+	LD		BC,30
+    LD		HL,CIRCLE_BAS
+	LD		DE,&hC000		; copy parameters line to upper RAM
+	LDIR
+
+	LD		HL,&hC000
+	LD		IX,(CIRCLE_H)
+	CALL	CALSUB			; Call BASIC CIRCLE
+	EI		; Re-enable IRQs
+	RET
+
+_cpydac
+	LD		BC,8
+	LD		HL,DAC
+	LDIR
+	RET
+
+; CIRCLE CALL Address
+CIRCLE_H	DW 0
+
+; Temp radius
+_cirrx	DW 0
+_cirry	DW 0
+
+; Mock BASIC line
+CIRCLE_BAS	
+	DB "(",&h1C
+_cirx
+	DW &hFFFF
+	DB ",",&h1C
+_ciry
+	DW &hFFFF
+	DB "),",&h1C
+_cirrad
+	DW &hFFFF
+	DB ","
+	DB &h1C
+_circol
+	DW &h000F
+	DB ",,,",&h1F
+_cirasp
+	DB &h41,&h10,&h00,&h00,&h00,&h00,&h00,&h00	; Aspect ratio default 1
+    DB &H00
+
+;///////////////////////////////////////////////////////////////////////////////////
+; 158: FILL
+; Parameters: Pen, X(16bit), Y(16bit)
+Cmd9E:
+	CALL	GetFromPrBuffer		; Pen
+	CALL	_setpen
+	LD		(_filcol),A
+	LD		HL,_filx
+	CALL	_get16				; x center
+	LD		HL,_fily
+	CALL	_get16				; y center
+
+	LD		BC,14
+    LD		HL,PAINT_BAS
+	LD		DE,&hC000		; copy parameters line to upper RAM
+	LDIR
+
+	LD		HL,&hC000
+	LD		IX,(PAINT_H)
+	CALL	CALSUB			; Call BASIC CIRCLE
+	EI		; Re-enable IRQs
+	RET
+
+; PAINT CALL Address
+PAINT_H	DW 0
+
+; Mock BASIC line
+PAINT_BAS	
+	DB "(",&h1C
+_filx
+	DW &hFFFF
+	DB ",",&h1C
+_fily
+	DW &hFFFF
+	DB "),"
+	DB &h1C
+_filcol
+	DW &h000F
+    DB &H00
 
 ;///////////////////////////////////////////////////////////////////////////////////
 ; 160: Selects the screen as the output for the received characters
@@ -3932,6 +4290,70 @@ UPDCRC:
 CRC:
 	DW	&h0000
 
+; Get BASIC statement call address
+; In: IX = Destination address
+; 	  HL = BASIC statement table address
+BASIC_HOOK:
+	LD		A,(EXPTBL)
+	CALL	RDSLT
+	LD		(IX),A
+	INC		HL
+	LD		A,(EXPTBL)
+	CALL	RDSLT
+	LD		(IX+1),A
+	EI
+	RET
+
+; CALSUB
+;
+; In: IX = address of routine in MSXBIOS
+;     AF, HL, DE, BC = parameters for the routine
+;
+; Out: AF, HL, DE, BC = depending on the routine
+;
+; Changes: IX, IY, AF', BC', DE', HL'
+;
+; Call MSXBASIC from MSXDOS. Should work with all versions of MSXDOS.
+;
+; Notice: NMI hook will be changed. This should pose no problem as NMI is
+; not supported on the MSX at all.
+;
+NMI:     EQU    &H0066
+EXTROM:  EQU    &H015f
+H_NMI:   EQU    &hfdd6
+;
+CALSUB:
+	EXX
+	EX     AF,AF'       ; store all registers
+	LD     HL,CALBAS
+	PUSH   HL
+	LD     HL,&HC300
+	PUSH   HL           ; PUSH NOP ; JP CALBAS
+	PUSH   IX
+	LD     HL,&H21DD
+	PUSH   HL           ; PUSH LD IX,<ENTRY>
+	LD     HL,&H3333
+	PUSH   HL           ; PUSH INC SP; INC SP
+	LD     HL,0
+	ADD    HL,SP        ; HL = OFFSET OF ROUTINE
+	LD     A,&HC3
+	LD     (H_NMI),A
+	LD     (H_NMI+1),HL ; JP <ROUTINE> IN NMI HOOK
+	EX     AF,AF'
+	EXX                 ; RESTORE ALL REGISTERS
+	LD     IX,NMI
+	LD     IY,(EXPTBL-1)
+	CALL   CALSLT		; CALL NMI-HOOK VIA NMI ENTRY IN ROMBIOS
+						; NMI-HOOK WILL CALL SUBROM
+	EXX
+	EX     AF,AF'       ; STORE ALL RETURNED REGISTERS
+	LD     HL,10
+	ADD    HL,SP
+	LD     SP,HL        ; REMOVE ROUTINE FROM STACK
+	EX     AF,AF'
+	EXX                 ; RESTORE ALL RETURNED REGISTERS
+	RET
+
 ;///////////////////////////////
 ; Init FCB for file transfer
 ; A: Drive number (0: default)
@@ -4540,18 +4962,6 @@ Fkeys:
 	DB	&h13,&h00
 	DB	&h14,&h00
 
-; Color test
-	; DB	&h01,&h01,&h00
-	; DB	&h01,&h02,&h00
-	; DB	&h01,&h04,&h00
-	; DB	&h01,&h08,&h00
-	; DB	&h01,&h0F,&h00
-	; DB	&h01,&h11,&h00
-	; DB	&h01,&h12,&h00
-	; DB	&h01,&h14,&h00
-	; DB	&h01,&h18,&h00
-	; DB	&h01,&h1F,&h00
-
 PSG_BUF:	; PSG streaming register bitmap + register buffer
 PSG_REGS	EQU	PSG_BUF+2
 FAddr:	;Pointers to the F-keys definitions - Should be safe to reuse after init
@@ -4627,19 +5037,19 @@ CmdTable:
     ; DW CmdB0,CmdB1,CmdB2,CmdB3,CmdB4,CmdB5,CmdB6,CmdB7
 IF IFACE < 38
     DW Cmd80,Cmd81,Cmd82,Cmd83,Cmd84,CmdFE,Cmd86,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
-    DW Cmd90,Cmd91,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
+    DW Cmd90,Cmd91,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,Cmd98,Cmd99,Cmd9A,Cmd9B,Cmd9C,Cmd9D,Cmd9E,CmdFE
     DW CmdA0,CmdA1,CmdA2,CmdA3,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     DW CmdB0,CmdB1,CmdB2,CmdB3,CmdB4,CmdB5,CmdB6,CmdB7
 ENDIF
 IF IFACE = 38
     DW Cmd80,Cmd81,Cmd82,Cmd83,CmdFE,CmdFE,Cmd86,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
-    DW Cmd90,Cmd91,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
+    DW Cmd90,Cmd91,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,Cmd98,Cmd99,Cmd9A,Cmd9B,Cmd9C,Cmd9D,Cmd9E,CmdFE
     DW CmdA0,CmdA1,CmdA2,CmdA3,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     DW CmdB0,CmdB1,CmdB2,CmdB3,CmdB4,CmdB5,CmdB6,CmdB7
 ENDIF
 IF IFACE = 56
     DW Cmd80,Cmd81,Cmd82,CmdFE,CmdFE,CmdFE,Cmd86,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
-    DW Cmd90,Cmd91,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
+    DW Cmd90,Cmd91,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,Cmd98,Cmd99,Cmd9A,Cmd9B,Cmd9C,Cmd9D,Cmd9E,CmdFE
     DW CmdA0,CmdA1,CmdA2,CmdA3,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     DW CmdB0,CmdB1,CmdB2,CmdB3,CmdB4,CmdB5,CmdB6,CmdB7
 ENDIF
@@ -4647,25 +5057,21 @@ ENDIF
 ; Command parameter number table.
 ; bit-7 = 1 : Parameter not implemented
 CmdParTable:
-	; DB &h02  ,&h01  ,&h02  ,&h00  ,&h00  ,&h00  ,&h00  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
-	; DB &h03  ,&h02  ,&h03  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
-	; DB &h00  ,&h00  ,&h00  ,&h01  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
-	; DB &h02  ,&h02  ,&h01  ,&h02  ,&h00  ,&h02  ,&h01  ,&h01
 IF IFACE < 38
 	DB &h02  ,&h01  ,&h02  ,&h00  ,&h00  ,&h80  ,&h00  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
-	DB &h03  ,&h02  ,&h83  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
+	DB &h03  ,&h02  ,&h83  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h00  ,&h02  ,&h05  ,&h09  ,&h0A  ,&h09  ,&h05  ,&h80
 	DB &h00  ,&h00  ,&h00  ,&h01  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
 	DB &h02  ,&h02  ,&h01  ,&h02  ,&h00  ,&h02  ,&h01  ,&h01
 ENDIF
 IF IFACE = 38
 	DB &h02  ,&h01  ,&h02  ,&h00  ,&h80  ,&h80  ,&h00  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
-	DB &h03  ,&h02  ,&h83  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
+	DB &h03  ,&h02  ,&h83  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h00  ,&h02  ,&h05  ,&h09  ,&h0A  ,&h09  ,&h05  ,&h80
 	DB &h00  ,&h00  ,&h00  ,&h01  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
 	DB &h02  ,&h02  ,&h01  ,&h02  ,&h00  ,&h02  ,&h01  ,&h01
 ENDIF
 IF IFACE = 56
 	DB &h02  ,&h01  ,&h02  ,&h80  ,&h80  ,&h80  ,&h00  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
-	DB &h03  ,&h02  ,&h83  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
+	DB &h03  ,&h02  ,&h83  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h00  ,&h02  ,&h05  ,&h09  ,&h0A  ,&h09  ,&h05  ,&h80
 	DB &h00  ,&h00  ,&h00  ,&h01  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
 	DB &h02  ,&h02  ,&h01  ,&h02  ,&h00  ,&h02  ,&h01  ,&h01
 ENDIF

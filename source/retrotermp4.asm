@@ -569,6 +569,12 @@ ConfigTED
 	LDA	#%10100010	; Enable raster interrupt signals from TED, and clear MSB in TED's raster register
 	STA	$FF0A
 
+	; Set STREND variable (needed by the PAINT ROM routine)
+	LDA #$00
+	STA $31
+	LDA #$40
+	STA $32
+
 	CLI
 	LDX	#<Version	; Carga en el buffer la cadena Version (RETROTERM...)
 	;STA	AddTLoop + 1
@@ -1276,6 +1282,8 @@ ReadBytes
 	LDA VMODE
 	ORA $FF07
 	STA $FF07
+	LDA #$18			; Attributes at $1800
+	STA $FF14
 	LDA $FF12
 	AND #$FB		; Bitmap in RAM
 	STA $FF12		; Bitmap at $2000
@@ -1692,6 +1700,8 @@ Cmd90
 _txtmode
 	LDA	#%00011011		; Switch to text mode
 	STA	$FF06
+	LDA #$00
+	STA $83
 	LDA	$FF07			; Disable multicolor mode
 	AND #$48
 	STA $FF07
@@ -1715,7 +1725,9 @@ Cmd91
 	JSR	GetFromPrBuffer	; Reads a byte from the print buffer
 	JSR	GetFromPrBuffer	; Reads a byte from the print buffer
 	STA	$FF19
-	LDA #$08			; Attributes at $0800
+	JSR _luchcopy
+	; LDA #$08			; Attributes at $0800
+	LDA #$18			; Attributes at $1800
 	STA $FF14
 	LDA $FF12
 	AND #$03			;$07
@@ -1727,6 +1739,30 @@ Cmd91
 	; Switch to bitmap mode
 	LDA #%00111011
 	STA	$FF06
+	STA $83
+	RTS
+
+; Copy color and luma tables from $800 to $1800 before switching to graphic modes
+_luchcopy
+	LDX #$00
+-	LDA $0800,X	; Lumas
+	STA $1800,X
+	LDA $0900,X
+	STA $1900,X
+	LDA $0A00,X
+	STA $1A00,X
+	LDA $0B00,X
+	STA $1B00,X
+	LDA $0C00,X	; colors
+	STA $1C00,X
+	LDA $0D00,X
+	STA $1D00,X
+	LDA $0E00,X
+	STA $1E00,X
+	LDA $0F00,X
+	STA $1F00,X
+	INX
+	BNE -
 	RTS
 
 ;///////////////////////////////////////////////////////////////////////////////////
@@ -1741,7 +1777,9 @@ Cmd92
 	STA	$FF15
 	JSR	GetFromPrBuffer	; Reads a byte from the print buffer
 	STA	$FF16
-	LDA #$08			; Attributes at $0800
+	JSR _luchcopy
+	; LDA #$08			; Attributes at $0800
+	LDA #$18			; Attributes at $1800
 	STA $FF14
 	LDA $FF12
 	AND #$03
@@ -1753,6 +1791,166 @@ Cmd92
 	; Switch to bitmap mode
 	LDA #%00111011
 	STA	$FF06
+	STA $83
+	RTS
+
+;///////////////////////////////////////////////////////////////////////////////////
+; 152: Clears the graphic screen
+Cmd98
+	JMP $C567	;SCNCLR
+	; RTS
+
+;///////////////////////////////////////////////////////////////////////////////////
+; 153: Set Pen color
+; Parameters: Pen, Color
+Cmd99:
+	JSR GetFromPrBuffer	; Pen
+	TAY	; Save it
+	JSR GetFromPrBuffer	; Color
+	TAX
+	TYA
+	BNE +
+	STX $FF15			; Pen 0
+	RTS
++	CMP #$01
+	BNE +
+	STX $86				; Pen 1
+	RTS
++	CMP #$02
+	BNE +
+	STX $85				; Pen 2
+	RTS
++	CMP #$03
+	BNE +
+	STX $FF16			; Pen 3
++	RTS
+
+;///////////////////////////////////////////////////////////////////////////////////
+; 154: Plot point
+; Parameters: Pen, X(16bit), Y(16bit)
+Cmd9A:
+	JSR GetFromPrBuffer ; Pen
+	STA $84
+	LDY #$00
+-	JSR GetFromPrBuffer ; Get coordinates
+	STA $02AD,Y
+	INY
+	CPY #$04
+	BNE -
+	LDA $FF06
+	AND #$20
+	BEQ +				; Bitmap mode?
+	SEI
+	JSR	$C1A5			; Plot point
+	CLI
++	RTS
+
+;///////////////////////////////////////////////////////////////////////////////////
+; 155: Line
+; Parameters: Pen, X1(16bit), Y1(16bit), X2(16bit), Y2(16bit)
+Cmd9B:
+	JSR GetFromPrBuffer ; Pen
+	STA $84
+	LDY #$00
+-	JSR GetFromPrBuffer ; Get coordinates
+	STA $02AD,Y
+	INY
+	CPY #$08
+	BNE -
+	LDA $FF06
+	AND #$20
+	BEQ +				; Bitmap mode?
+	; SEI
+	JSR	$C0DA			; Draw line
+	; CLI
++	RTS
+
+;///////////////////////////////////////////////////////////////////////////////////
+; 156: Box
+; Parameters: Pen, X1(16bit), Y1(16bit), X2(16bit), Y2(16bit), Fill
+Cmd9C:
+	JSR GetFromPrBuffer	; Pen
+	STA $84
+	LDY #$00
+	STY $02D0			; Rotation lo
+	STY $02D1			; Rotation hi
+-	JSR	GetFromPrBuffer
+	STA	$02CC,Y			; X1, Y1
+	INY
+	CPY #$04
+	BNE	-
+	; LDY #$00
+-	JSR	GetFromPrBuffer
+	STA	$02D4,Y			; X2, Y2
+	INY
+	CPY #$08
+	BNE	-
+	JSR	GetFromPrBuffer	; Fill flag
+	BEQ +
+	LDA #$01
++	TAX
+	JSR $BB02
+	RTS
+
+;///////////////////////////////////////////////////////////////////////////////////
+; 157: Circle
+; Parameters: Pen, center X(16bit), center Y(16bit), radius X(16bit), radius Y(16bit)
+Cmd9D:
+	JSR GetFromPrBuffer	; Pen
+	STA $84
+	LDY #$00
+	STY $02D8			; Start angle lo
+	STY $02D9			; Start angle hi
+-	JSR	GetFromPrBuffer
+	STA	$02CC,Y			; center X, Y. radius X, Y
+	INY
+	CPY #$08
+	BNE	-
+	LDA #$68
+	STA $02DA			; End angle lo
+	LDX #$01
+	STX $02DB			; End angle hi
+	INX
+	STX	$E9				; Segment angle
+
+	; This section adapted from Plus4 ROM
+		LDX   #$2D
+        LDY   #$2B
+        JSR   $C305	; Subtract to coordinates
+        BCC   +
++	    LDX   #$03
+-	    LDA   $02D0,x
+        STA   $02D4,x
+        DEX    
+        BPL   -
+        LDA   #$90
+        JSR   $BCD5	; ???
+        LDX   #$07
+-	    LDA   $02D0,x
+        STA   $02DC,x
+        DEX    
+        BPL   -
+        JSR   $BCEE	; ???
+        JSR   $C37B	; Set graphic cursor
+	CLC
+	JSR	$C0B2	; Circle?
+	RTS
+
+;///////////////////////////////////////////////////////////////////////////////////
+; 158: Fill
+; Parameters: Pen, X(16bit), Y(16bit)
+Cmd9E:
+	JSR GetFromPrBuffer	; Pen
+	STA $84
+	LDY #$00
+-	JSR GetFromPrBuffer ; Get coordinates
+	STA $02AD,Y
+	STA $02B1,Y
+	INY
+	CPY #$04
+	BNE -
+	LDA #$00
+	JSR $B8E7			; PAINT
 	RTS
 
 ;///////////////////////////////////////////////////////////////////////////////////
@@ -1911,6 +2109,7 @@ CmdB3
 ++	STX VMODE
  	AND #$1F			; Remove mode bit
  	STA WTOP			; Set text window
+	STA $88				; Limit for drawing routines
  	ASL
  	ASL
  	ASL					; .A*8
@@ -1950,7 +2149,7 @@ CmdB3
 	AND #$03
 	ORA #$08
 	STA $FF12			; Bitmap at $2000
-
+	JSR _luchcopy		; Copy luma/colors to $1800
 	; LDA #$03
 	; STA ReadBLoop-1		; Limit reception to 3 characters per frame
 	RTS
@@ -1963,6 +2162,8 @@ b3cancel2
 	LDA #$00
 	STA WTOP			; Set text window
 	STA $07E6
+	LDA #$19
+	STA $88				; Max lines for drawing routines
 	; LDA #$03
 	; STA ReadBLoop-1
 	RTS
@@ -1975,13 +2176,15 @@ IrqB3:
 	LDA $FF12
 	ORA #$04
 	
- 	LDX #$0F			;2
+ 	LDX #$0D			;2
 -	DEX					;2
  	BNE -				;3
 	TAX
 
 	; NOP
-	; NOP
+	NOP
+	LDA #$08			; Attributes at $0800
+	STA $FF14
 	LDA #%00011011		;2 Text mode
 	STA $FF06			;4
 	LDA $FF07			;4
@@ -1989,6 +2192,7 @@ IrqB3:
 	STA $FF07			;4 Disable multicolor
 	STX $FF12
 	STY $FF15			;4 Bottom section background color
+
 
 ;	LDA $FF12			; Charset from ROM
 ;	ORA #$04
@@ -2117,19 +2321,15 @@ SendID
 ; Commands routine pointer table, unimplemented commands point to CMDOFF
 CmdTable:
     !word Cmd80,Cmd81,Cmd82,Cmd83,CmdFE,CmdFE,Cmd86,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
-    !word Cmd90,Cmd91,Cmd92,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
+    !word Cmd90,Cmd91,Cmd92,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,Cmd98,Cmd99,Cmd9A,Cmd9B,Cmd9C,Cmd9D,Cmd9E,CmdFE
     !word CmdA0,CmdA1,CmdA2,CmdA3,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     !word CmdB0,CmdB1,CmdB2,CmdB3,CmdB4,CmdB5,CmdB6,CmdB7
 
 ; Command parameter number table.
 ; bit-7 = 1 : Parameter not implemented
 CmdParTable:
-	; !byte $02  ,$01  ,$02  ,$00  ,$00  ,$00  ,$00  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
-	; !byte $03  ,$02  ,$03  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
-	; !byte $00  ,$00  ,$00  ,$01  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
-	; !byte $02  ,$02  ,$01  ,$02  ,$80  ,$02  ,$01
 	!byte $02  ,$01  ,$02  ,$00  ,$80  ,$80  ,$00  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
-	!byte $03  ,$02  ,$04  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
+	!byte $03  ,$02  ,$04  ,$80  ,$80  ,$80  ,$80  ,$80  ,$00  ,$02  ,$05  ,$09  ,$0A  ,$09  ,$05  ,$80
 	!byte $00  ,$00  ,$00  ,$01  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
 	!byte $02  ,$02  ,$01  ,$02  ,$00  ,$02  ,$01  ,$01
 
@@ -2149,10 +2349,10 @@ Version
 	!text "      19200,8n1"
 	!byte $05, $0D , $00
 Msg06
-	!text "(c)2023 RETROCOMPUTACION.COM"
+	!text "(c)2025 RETROCOMPUTACION.COM"
 	!byte $0D
 	!byte $9A
-	!text "turbo56k V0.7"
+	!text "turbo56k V0.8"
 	!byte $0D, $05, $00	
 ExitMsg
 	!byte $93, $8E
@@ -2164,8 +2364,8 @@ ExitMsg
 IDString:
 	!text "RTRETROTERM-P4 "
 	+_Version_
-	!text "   "	; ID String 22 characters long
-	!byte $00,$07	;Turbo56K version, subversion
+	!text "   "		; ID String 22 characters long
+	!byte $00,$08	;Turbo56K version, subversion
 
 Palette
 	!byte $00,$71,$32,$63,$34,$45,$26,$67
