@@ -1287,6 +1287,8 @@ ReadBytes
 	LDA $FF12
 	AND #$FB		; Bitmap in RAM
 	STA $FF12		; Bitmap at $2000
+	LDA UPBGC
+	STA $FF15		; Upper background color
 	LDA #$3B		; Bitmap mode
 	BNE ++
 
@@ -2173,29 +2175,30 @@ b3cancel2
 
 IrqB3:
 	LDY BTBGC
-	LDA $FF12
-	ORA #$04
 	
+
+	LDA #$08			; Attributes at $0800
+	STA $FF14
+
+	LDA $FF12			; Charset from ROM
+	ORA #$04
+
+
  	LDX #$0D			;2
 -	DEX					;2
  	BNE -				;3
 	TAX
 
 	; NOP
-	NOP
-	LDA #$08			; Attributes at $0800
-	STA $FF14
+	; NOP
+	; NOP
+	STY $FF15			;4 Bottom section background color
 	LDA #%00011011		;2 Text mode
 	STA $FF06			;4
 	LDA $FF07			;4
 	AND #%11101111		;2
 	STA $FF07			;4 Disable multicolor
 	STX $FF12
-	STY $FF15			;4 Bottom section background color
-
-
-;	LDA $FF12			; Charset from ROM
-;	ORA #$04
 
 	LDA #204			;2
 	STA $FF0B			;4
