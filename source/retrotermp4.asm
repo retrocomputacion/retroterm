@@ -1813,6 +1813,7 @@ Cmd99:
 	TYA
 	BNE +
 	STX $FF15			; Pen 0
+	STX UPBGC
 	RTS
 +	CMP #$01
 	BNE +
@@ -2100,6 +2101,48 @@ BTBGC:
 VMODE:
 !byte $00				; Video mode for the upper part of the split
 
+;---------------------------------
+; Split screen interrupt routine
+
+IrqB3:
+	LDY BTBGC
+	LDA #$08			; Attributes at $0800
+	STA $FF14
+	LDA $FF12			; Charset from ROM
+	ORA #$04
+
+	; Watch for page boundaries!
+ 	LDX #$0D			;2
+-	DEX					;2
+ 	BNE -				;3
+	TAX
+
+	; NOP
+	; NOP
+	; NOP
+	STY $FF15			;4 Bottom section background color
+	LDA #%00011011		;2 Text mode
+	STA $FF06			;4
+	LDA $FF07			;4
+	AND #%11101111		;2
+	STA $FF07			;4 Disable multicolor
+	STX $FF12
+
+	LDA #204			;2
+	STA $FF0B			;4
+
+	LDA	#%10000010		; Limpia todas las banderas de interrupcion, incluyendo la de interrupcion de barrido
+	STA	$FF09
+	LDA	#%10100010		; Enable raster interrupt signals from TED, and clear MSB in TED's raster register
+	STA	$FF0A
+
+	LDA #<Irq
+	STA $0314
+	LDA #>Irq
+	STA $0315
+
+	JMP $FCBE
+
 CmdB3
 	JSR GetFromPrBuffer
 	BEQ b3cancel
@@ -2169,51 +2212,6 @@ b3cancel2
 	; LDA #$03
 	; STA ReadBLoop-1
 	RTS
-
-;---------------------------------
-; Split screen interrupt routine
-
-IrqB3:
-	LDY BTBGC
-	
-
-	LDA #$08			; Attributes at $0800
-	STA $FF14
-
-	LDA $FF12			; Charset from ROM
-	ORA #$04
-
-
- 	LDX #$0D			;2
--	DEX					;2
- 	BNE -				;3
-	TAX
-
-	; NOP
-	; NOP
-	; NOP
-	STY $FF15			;4 Bottom section background color
-	LDA #%00011011		;2 Text mode
-	STA $FF06			;4
-	LDA $FF07			;4
-	AND #%11101111		;2
-	STA $FF07			;4 Disable multicolor
-	STX $FF12
-
-	LDA #204			;2
-	STA $FF0B			;4
-
-	LDA	#%10000010		; Limpia todas las banderas de interrupcion, incluyendo la de interrupcion de barrido
-	STA	$FF09
-	LDA	#%10100010		; Enable raster interrupt signals from TED, and clear MSB in TED's raster register
-	STA	$FF0A
-
-	LDA #<Irq
-	STA $0314
-	LDA #>Irq
-	STA $0315
-
-	JMP $FCBE
 
 ;///////////////////////////////////////////////////////////////////////////////////
 ; 180: Get cursor position, returns 2 bytes, column and row. Exit CMD mode
