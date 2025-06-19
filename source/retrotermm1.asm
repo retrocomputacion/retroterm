@@ -221,6 +221,7 @@ VPORTR:		DB	&h00	; VDP Read port
 VPORTW:		DB	&h00	; VDP Write port
 ACOLORS:	DB	&hF1	; Current active Attributes (affected by RVS on)
 SCOLORS:	DB	&hF1	; Current set Attributes
+DCOLORS:	DB	&hF1	; Current drawing Attributes
 EDSTAT:		DB  &h00	; Screen editor status flags
 						; bit 0: GRAPH  -> 1 if last character was &h01
 						; bit 1: RVSON  -> 1 if reverse video is on
@@ -1605,17 +1606,17 @@ Cmd99:
 	LD		A,B
 	CP		0
 	JP		NZ,.c99_1
-	LD		A,(SCOLORS)
+	LD		A,(DCOLORS)
 	AND 	&hF0
 	OR		C
-	LD		(SCOLORS),A			; Pen 0
+	LD		(DCOLORS),A			; Pen 0
 	RET
 .c99_1
 	CP	1
 	RET	NZ
 	LD		A,C
 	CALL	HighCNib
-	LD		(SCOLORS),A			; Pen 1
+	LD		(DCOLORS),A			; Pen 1
 	RET
 
 
@@ -1655,12 +1656,12 @@ _get16:
 _setpen:
 	CP		0
 	JP		NZ,_sp1				; pen0
-	LD		A,(SCOLORS)
+	LD		A,(DCOLORS)
 	AND		&h0F
 	RET
 	; JP		_sp2
 _sp1
-	LD		A,(SCOLORS)
+	LD		A,(DCOLORS)
 	SRL		A
 	SRL		A
 	SRL		A
