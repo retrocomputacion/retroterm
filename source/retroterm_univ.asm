@@ -68,6 +68,7 @@
 	FLAGS1		= $C00A	; Status flags
 						; Bit 7 (N): 1 = Command mode; 0 = Normal mode
 						; Bit 6 (V): 1 = Last byte should be redirected to the voice synth; 0 = Last byte is meant for the terminal
+						; Bit 5	   : -----
 						; Bit 4	   : 1 = Split screen enabled
 						; Bit 3    : 1 = Cursor blink enabled; 0 = Cursor blink disabled
 						; Bit 2    : 1 = Microsint enabled; 0 = Microsint disabled / not found 
@@ -135,6 +136,14 @@
 
 ; Buffers
 	SIDREGS = $033C			; SID streaming register buffer 
+
+;---- Drawing Variables
+	XPOS	= $2AD	; Current X coordinate (16)
+	YPOS	= $2AF	; Current Y coordinate (16)
+	XDES	= $2B1	; Destination X coordinate (16)
+	YDES	= $2B3	; Destination Y coordinate (16)
+	BMPTR	= $8C	; Pointer to current bitmap cell
+	CCOL	= $9E	; Current selected color pen
 }
 	MAXCMD = $B7			; Highest command implemented
 
@@ -2457,6 +2466,7 @@ Cmd91
 	ORA	$D018
 	STA	$D018
 	LDA	#$08			; Disable multicolor
+	STA	VMODE
 	STA	$D016
 	; Switch to bitmap mode
 	LDA #%00111011
@@ -2476,12 +2486,175 @@ Cmd92
 	LDA	$D018
 	ORA	#$08
 	STA	$D018
-	LDA	#$10			; Set multicolor multicolor mode
-	ORA	$D016
+	LDA	#$18			; Set multicolor bitmap mode
+	STA VMODE
+	; ORA	$D016
 	STA	$D016
 	; Switch to bitmap mode
 	LDA #%00111011
 	STA	$D011
+	RTS
+
+;///////////////////////////////////////////////////////////////////////////////////
+; 152: Clears the graphic screen
+Cmd98
+	SEI
+	+DisKernal a
+	JSR	BMCLR
+	+EnKernal a
+	CLI
+	RTS
+
+;///////////////////////////////////////////////////////////////////////////////////
+; 153: Set Pen color
+; Parameters: Pen, Color
+Cmd99:
+	JSR GetFromPrBuffer	; Pen
+	TAY	; Save it
+	JSR GetFromPrBuffer	; Color
+	TAX
+	TYA
+	BNE +
+	STX $D021			; Pen 0 (BG)
+	STX UPBGC
+	RTS
++	CMP #$01
+	BNE +
+	TXA
+	ASL
+	ASL
+	ASL
+	ASL					; Color to upper nibble
+	TAX
+	LDA FG_BG			; Pen 1 (FG)
+	AND #$0F
+	STX FG_BG
+	ORA	FG_BG
+	STA FG_BG
+	LDA FG_MC1
+	AND #$0F
+	STX FG_MC1
+	ORA FG_MC1
+	STA FG_MC1
+	RTS
++	CMP #$02
+	BNE +
+	LDA FG_MC1			; Pen 2 (MC1)
+	AND #$F0
+	STX FG_MC1
+	ORA FG_MC1
+	STA FG_MC1
+	RTS
++	CMP #$03
+	BNE +
+	STX MC2			; Pen 3 (MC2)
++	RTS
+
+;Color nibbles
+FG_BG	!byte $10
+FG_MC1	!byte $12
+MC2		!byte $03
+
+;///////////////////////////////////////////////////////////////////////////////////
+; 154: Plot point
+; Parameters: Pen, X(16bit), Y(16bit)
+Cmd9A:
+	LDX #$04
+	JSR GetGfxParms
+	JSR _bmmode			; Bitmap mode or split screen active?
+	BEQ +
+	SEI
+	+DisKernal a
+	JSR	BMPLOT			; Plot point
+	+EnKernal a
+	CLI
++	RTS
+
+_bmmode:
+	LDA $D011
+	AND #$20
+	BNE +				; Bitmap mode? yes -> exit
+	LDA FLAGS1
+	AND #$10			; Split screen enabled?
++	RTS
+
+;///////////////////////////////////////////////////////////////////////////////////
+; 155: Line
+; Parameters: Pen, X1(16bit), Y1(16bit), X2(16bit), Y2(16bit)
+Cmd9B:
+	LDX #$08
+	JSR GetGfxParms
+	JSR _bmmode			; Bitmap mode or split screen active?
+	BEQ +
+	SEI
+	+DisKernal a
+	JSR	BMLINE			; Draw line
+	+EnKernal a
+	CLI
++	RTS
+
+;///////////////////////////////////////////////////////////////////////////////////
+; 156: Box
+; Parameters: Pen, X1(16bit), Y1(16bit), X2(16bit), Y2(16bit), Fill
+Cmd9C:
+	LDX #$08
+	JSR GetGfxParms
+	JSR	GetFromPrBuffer	; Fill flag
+	CLC
+	BEQ +
+	SEC
++	JSR _bmmode			; Bitmap mode or split screen active?
+	BEQ +
+	SEI
+	+DisKernal a
+	JSR BMRECT
+	+EnKernal a
+	CLI
++	RTS
+
+;///////////////////////////////////////////////////////////////////////////////////
+; 157: Circle
+; Parameters: Pen, center X(16bit), center Y(16bit), radius X(16bit), radius Y(16bit)
+Cmd9D:
+	LDX #$08
+	JSR GetGfxParms
+	JSR _bmmode			; Bitmap mode or split screen active?
+	BEQ +
+	SEI
+	+DisKernal a
+	JSR BMELLIPSE
+	+EnKernal a
+	CLI
++	RTS
+
+;///////////////////////////////////////////////////////////////////////////////////
+; 158: Fill
+; Parameters: Pen, X(16bit), Y(16bit)
+Cmd9E:
+	LDX #$04
+	JSR GetGfxParms
++	JSR _bmmode			; Bitmap mode or split screen active?
+	BEQ +
+	SEI
+	+DisKernal a
+	JSR BMPAINT			; PAINT
+	+EnKernal a
+	CLI
++	RTS
+
+; Get graphic command parameters
+; Pen color and coordinates
+; x = number of coordinates
+GetGfxParms:
+	STX .gp+1
+	JSR GetFromPrBuffer	; Pen
+	STA CCOL
+	LDY #$00
+-	JSR GetFromPrBuffer ; Get coordinates
+	STA XPOS,Y
+	INY
+.gp	CPY #$04
+	BNE -
 	RTS
 
 ;///////////////////////////////////////////////////////////////////////////////////
@@ -2652,9 +2825,9 @@ CmdB3
 	JSR GetFromPrBuffer
 	BEQ b3cancel
 	BMI +
-	LDX #%11001000
+	LDX #%00001000
 	BNE ++
-+	LDX #%11011000
++	LDX #%00011000
 ++	STX VMODE
 	AND #$7F			; Remove mode bit
 	STA WTOP			; Set text window
@@ -2662,7 +2835,7 @@ CmdB3
 	ASL
 	ASL					; .A*8
 	CLC
-	ADC #$30			; +50 = Scanline-2
+	ADC #$30			; +48 = Scanline-2
 	STA SPLITRST
 	JSR GetFromPrBuffer
 	STA UPBGC
@@ -2916,7 +3089,7 @@ Msg05
 	!byte $0D, $0D, $00
 Msg06
 	!byte $0D
-	!text "(c)2023 pastbytes/durandal"
+	!text "(c)2025 pastbytes/durandal"
 	!byte $0D		;, $00
 Msg07
 	!byte $9a
@@ -2934,7 +3107,7 @@ Sp01
 ; Commands routine pointer table, unimplemented commands point to CMDOFF
 CmdTable:
     !word Cmd80,Cmd81,Cmd82,Cmd83,Cmd84,Cmd85,Cmd86,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
-    !word Cmd90,Cmd91,Cmd92,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
+    !word Cmd90,Cmd91,Cmd92,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,Cmd98,Cmd99,Cmd9A,Cmd9B,Cmd9C,Cmd9D,Cmd9E,CmdFE
     !word CmdA0,CmdA1,CmdA2,CmdA3,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     !word CmdB0,CmdB1,CmdB2,CmdB3,CmdB4,CmdB5,CmdB6,CmdB7
 
@@ -2942,7 +3115,7 @@ CmdTable:
 ; bit-7 = 1 : Parameter not implemented
 CmdParTable:
 	!byte $02  ,$01  ,$02  ,$00  ,$00  ,$00  ,$00  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
-	!byte $03  ,$02  ,$03  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
+	!byte $03  ,$02  ,$03  ,$80  ,$80  ,$80  ,$80  ,$80  ,$00  ,$02  ,$05  ,$09  ,$0A  ,$09  ,$05  ,$80
 	!byte $00  ,$00  ,$00  ,$01  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
 	!byte $02  ,$02  ,$01  ,$02  ,$00  ,$02  ,$01  ,$01
 
@@ -2974,7 +3147,7 @@ SHADOWCODE:
 
 ; ------------------------------------------
 ; Save to disk routines
-	CRC = 	$0740	;$FD		; CRC result $FD/$FE
+	CRC = 	$0740	; CRC result
 	CRCHI = $0900	; CRC tables
 	CRCLO = $0A00
 	FNAME = $0334	; Null terminated file name
@@ -3059,7 +3232,7 @@ bsave:
 }
 	CLI
 	LDA RXBYTE
-	STA $02
+	STA $02				; Why did I save this?
 	BMI +				; Bit 7 = 1 : PRG, else SEQ
 	LDA #<bst5
 	STA .ft+1			; Set file type OPEN string addr
@@ -3246,7 +3419,7 @@ bsave:
 	ADC #$08
 	TAX
 	LDA #$02    	; file number 2
-	LDY #$02      	; secondary address 2
+	TAY	;LDY #$02      	; secondary address 2
 	JSR $FFBA     	; call SETLFS
  	JSR $FFC0     	; call OPEN
 	BCS .error		; if carry set, file couldnt not be opened
@@ -4642,6 +4815,1276 @@ SPMUTE:
 ; List of detected drives. Filled at first startup
 DRIVES:
 !fill $08,$FF
+
+;---- Clear Bitmap
+BMCLR:
+		LDA #$20
+		LDX #$10
+		STA $FC
+		LDA #$30
+		STA $FE
+		LDA #$00
+		STA $FB
+		STA $FD
+		TAY
+-		STA ($FB),Y
+		STA ($FD),Y
+		INY
+		BNE	-
+		INC $FC
+		INC $FE
+		DEX
+		BNE -
+		;----<<< Clear video matrix and color ram
+		LDA #$04
+		STA $FC
+		STX $FB     ; FB/FC = $0400
+		LDA #$D8
+		STA $FE
+		STX $FD		; FD/FE = $D800
+		LDA	FLAGS1
+		AND #$10	; Split screen enabled?
+		BNE	+		; Yes, use WTOP
+		LDX	#24		; No, full screen
+		BNE ++
++   	LDX WTOP
+++  	CLC
+		LDA VMLO,X
+		ADC #$28	; +40
+		STA .cc1+1	; save it
+		LDA VMHI,X
+		ADC #$00	; +carry
+		STA .cc2+1	; save it
+		CLV
+		LDX VMODE	; Current gfx mode
+		CPX #$18
+		BEQ +		; --> multi
+		LDA FG_BG
+		BVC ++
++		LDA FG_MC1
+++		STA $02
+
+		LDX #$04
+		LDY #$00
+
+.cc1	CPY #$e8
+		BNE +
+.cc2	CPX #$07
+		BEQ .cce
++		LDA $02		; saved colors
+		STA ($FB),Y
+		LDA MC2
+		STA ($FD),Y
+		INY
+		BNE .cc1
+		INC $FC
+		INC $FE
+		INX
+		BNE .cc1
+.cce	RTS
+
+
+;---- Convert xpos and ypos to column and row numbers
+; return carry set if either above limits
+; .X = Y char coordinate
+; .Y = X char coordinate
+DIVPOS:
+	LDA XPOS+1	; Current X hi
+	LSR
+	BNE ++		; --> X coord outside screen
+	LDA XPOS	; Current X lo
+	ROR
+	LSR
+	LDX VMODE	; Current gfx mode
+	CPX #$18
+	BEQ +		; --> multi
+	LSR
++	TAY
+	CPY #$28	; 40?
+	BCS ++		; --> X coord outside screen
+	LDA YPOS+1
+	BNE ++		; --> Y coord outside screen
+	LDA YPOS	; Current Y
+	LSR
+	LSR
+	LSR
+	TAX
+	CLC
+	CMP #25
+	; CMP WTOP	; Max number of rows on screen
+	RTS
+++	SEC
+	RTS
+
+;---- Evaluate dot bitmap pointer
+; Input:
+; .X = Y coordinate
+; .Y = X coordinate
+GETPOS:
+	TYA
+	CLC
+	ADC VMLO,X	; Screen memory line begin (0-24)  lo
+	STA BMPTR	; Pointer: Bitmap color lo
+	LDA VMHI,X	; Screen memory line begin (0-24)  hi
+	AND #$03
+	ADC #$00
+	ASL BMPTR	; Pointer: Bitmap color lo
+	ROL
+	ASL BMPTR	; Pointer: Bitmap color lo
+	ROL
+	ASL BMPTR	; Pointer: Bitmap color lo
+	ROL
+	ORA #$20
+	STA BMPTR+1	; Pointer: Bitmap color hi
+	; RTS
+
+; ;---- Get pointer address for Bitmap
+; BMPTR:
+
+; 	JSR DIVPOS		; Evaluate char coordinates
+; 	BCS ++			; --> exit
+; 	JSR GETPOS		; Evaluate dot bitmap cell pointer
+	LDA YPOS		; Current Y lo
+	AND #$07
+	TAY
+	LDA XPOS		; Current X lo
+
+	LDX VMODE		; Current gfx mode
+	CPX #$18
+	PHP
+	BNE +			; --> hires
+	ASL
++	AND #$07
+	TAX
+	LDA BITMASK,X		; Bitmask
+	PLP
+	BNE ++			; --> exit
+	INX
+	ORA BITMASK,X		;Bitmask
+++	RTS
+
+;---- Set up color for 8x8 character cell
+; .x = row number
+; .y = column number
+DOCOLR:
+	TXA
+	PHA
+	LDA VMLO,X		;put address of video ram into grapnt
+	STA BMPTR
+	LDA VMHI,X		;point to bit mapped color area
+	STA BMPTR+1
+
+	LDA CCOL		;get current color source selected
+	BNE +			;branch if NOT background
+	LDA FG_BG		; Hires colors
+	LDX VMODE		; Current gfx mode
+	CPX #$18
+	BNE	.dchi		; -> hires
+	PLA
+	TAX
+	RTS				;else exit
+
++	CMP #2
+	BNE .dmc		;branch if NOT MC1
+   	LDA FG_MC1		;get correct packed colors for multicolor mode.
+.dchi				; Hires BG or MC1
+	AND #$0F
+	STA $FD			; tmp
+	LDA (BMPTR),Y
+	AND #$F0
+	ORA $FD
+	STA (BMPTR),Y
+	PLA
+	TAX
+	RTS
+
+.dmc
+ 	BCS	.dmc2		;branch if MC2
+	LDA	FG_BG		;here for foreground. get packed colors.
+	AND #$F0
+	STA $FD
+	LDA (BMPTR),Y	;do foreground
+	AND #$0F
+	ORA $FD
+	STA (BMPTR),Y
+	PLA
+	TAX
+	RTS
+
+.dmc2
+	LDA BMPTR+1		;do multicolor 2
+	AND #3
+	ORA #$D8		;point to colorram
+	STA BMPTR+1
+	LDA MC2
+	STA (BMPTR),y
+	PLA
+	TAX
+	RTS
+
+; Draw point on screen
+BMPLOT:
+	JSR DIVPOS		; convert xpos/ypos to column&row
+	BCS ++			; exit if out of bounds
+	JSR DOCOLR		; set colors
+	JSR GETPOS		; get bitmap address
+	STA BMSK
+	LDA (BMPTR),Y	; get bitmap byte
+	ORA BMSK		; set bits
+	LDX VMODE		; Current gfx mode
+	CPX #$18
+	BNE .plhi		; -> hires mode
+	PHA				; save new byte
+	LDX CCOL		; get color selection
+	LDA BMSK		; get mask
+	AND MCPATT,X	; get inverted bits
+	STA BMSK
+	PLA
+--	EOR BMSK		; set correct bits
+-	STA (BMPTR),Y	; Write byte
+++	RTS
+.plhi
+	ldx CCOL		; get color selection
+	bne -			; done if to be set
+	beq --
+
+; Test a point on screen
+BMTST:
+	JSR DIVPOS		; convert xpos/ypos to column&row
+	BCS +			; exit if out of bounds
+	JSR GETPOS		; get bitmap address
+	STA	BMSK
+	LDA (BMPTR),Y	; get bitmap byte
+	AND BMSK		; mask out bits
+    CLC
+-	ROL				; shift pixel to the right
+	DEX
+	BPL -
+	ROL
+	AND #$03
+	CMP CCOL		; compare pixel pen against selected pen
+	CLC
++	RTS
+
+;---- Variables
+	; XPOS	= $2AD	; Current X coordinate
+	; YPOS	= $2AF	; Current Y coordinate
+	; XDES	= $2B1	; Destination X coordinate
+	; YDES	= $2B3	; Destination Y coordinate
+	; BMPTR	= $8C	; Pointer to current bitmap cell
+	; CCOL	= $9E	; Current selected color pen
+	DX		= $6D	; ABS Delta X
+	DY		= $6F	; ABS Delta Y
+	DIFX	= $61	; X difference
+	DIFY	= $62	; Y difference
+	__D		= $63	;
+
+BMLINE:
+	SEC
+	LDA	XDES		; New X LSB
+	SBC XPOS		; - Old X LSB
+	STA	DX			; store LSB difference
+	LDA XDES+1		; New X MSB
+	SBC XPOS+1		; - Old X MSB
+	STA DX+1		; store MSB difference
+	STA DIFX		; save a copy for testing
+	BPL +
+; OFFSET IS NEGATIVE - NEGATE IT
+	LDA #$00
+	SEC
+	SBC DX			; Negate LSB delta
+	STA DX
+	LDA #$00
+	SBC DX+1		; Negate MSB delta
+	STA DX+1
+
++	SEC
+	LDA	YDES		; New Y
+	SBC YPOS		; - Old Y
+	STA	DY			; store LSB difference
+	LDA YDES+1
+	SBC YPOS+1
+	STA DY+1		; store MSB difference
+	STA DIFY		; save a copy for testing
+	BPL +
+; OFFSET IS NEGATIVE - NEGATE IT
+	LDA #$00
+	SEC
+	SBC DY			; Negate LSB delta
+	STA DY
+	LDA #$00
+	SBC DY+1		; Negate MSB delta
+	STA DY+1
++
+	LDA DY			; Get LSB Y change
+	CMP DX			; Clear carry if LSB Y < LSB X
+	LDA DY+1		; Get MSB Y change
+	SBC DX+1		; Subtract  MSB X change
+	BCC .dxgtdy		; ..deal with Y change < X change
+
+; Plot a Line with (X change) <= (Y change)
+; -----------------------------------------
+	LDA #$0
+	SBC DY			; DY LSB
+	STA __D
+	LDA #$0
+	SBC DY+1		; DY MSB
+	SEC
+	ROR
+	STA __D+1
+	ROR __D			; D = -DY/2
+-	JSR BMPLOT
+	; Did we reach the destination?
+	LDA YPOS		; Y low
+	CMP YDES		; Y2 low
+	BNE +
+	LDA YPOS+1		; X hi
+	CMP YDES+1		; X2 hi
+	BNE +
+.lex
+	RTS				;EXIT
+
++	JSR .bml2
+	LDA __D+1
+	BMI -
+	JSR .bml1
+	JMP -
+
+; Plot a Line with (X change) > (Y change)
+; ----------------------------------------
+.dxgtdy
+	LDA DX+1		; DX MSB
+	LSR
+	STA __D+1
+	LDA DX			; DX LSB
+	ROR
+	STA __D			; D = DX/2
+-	JSR BMPLOT
+	; Did we reach the destination
+	LDA XPOS		; X low
+	CMP XDES		; X2 low
+	BNE +
+	LDA XPOS+1		; X hi
+	CMP XDES+1		; X2 hi
+	BEQ .lex		; --> exit
++	JSR .bml1
+	LDA __D+1
+	BPL -
+	JSR .bml2
+	JMP -
+
+.bml1			; X movement
+	LDX	#$00
+	SEC
+	LDA __D
+	SBC DY		; -DY LSB
+	STA __D
+	LDA __D+1
+	SBC DY+1	; -DY MSB
+	STA __D+1	; D = D-DY
+	LDA DIFX
+	BPL .iv
+	; Decrement X/Y coordinate
+.dv
+	LDA XPOS,X
+	BNE +
+	DEC XPOS+1,X
++	DEC XPOS,X
+-	RTS
+	; Increment X/Y coordinate
+.iv
+	INC XPOS,X
+	BNE -
+	INC XPOS+1,X
+	RTS
+
+.bml2			; Y movement
+	LDX #$02
+	CLC
+	LDA __D
+	ADC DX		; +DX LSB
+	STA __D
+	LDA __D+1
+	ADC DX+1	; +DX MSB
+	STA __D+1	; D = D+DX
+	LDA DIFY
+	BPL .iv
+	BMI .dv
+
+BMSK !byte	$00		; BitMask in use
+
+;---- bitmask
+BITMASK:
+	!byte	$80,$40,$20,$10,$08,$04,$02,$01
+;---- Multicolor bit patterns
+MCPATT:
+	!byte	$FF,$AA,$55,$00
+;---- Screen memory line begin (0-24)  lo
+VMLO:
+	!byte	$00,$28,$50,$78,$a0,$c8,$f0,$18
+	!byte	$40,$68,$90,$b8,$e0,$08,$30,$58
+	!byte	$80,$a8,$d0,$f8,$20,$48,$70,$98
+	!byte	$c0
+
+;---- Screen memory line begin (0-24)  hi
+VMHI:
+	!byte	$04,$04,$04,$04,$04,$04,$04,$05
+	!byte	$05,$05,$05,$05,$05,$06,$06,$06
+	!byte	$06,$06,$06,$06,$07,$07,$07,$07
+	!byte	$07
+
+
+;-------------------
+; Rectangle
+; XPOS, YPOS = X1,Y1
+; XDES, YDES = X2,Y2
+; carry flag: Fill
+
+BMRECT:
+		BCC .box		; Draw box
+; Draw filled rectangle
+	; Limit coordinates
+		LDX #$00
+		JSR .xchk		; Check X1
+		JSR .ychk		; Check Y1
+		LDX #$04
+		JSR .xchk		; Check X2
+		JSR .ychk		; Check Y2
+
+
+	; Sort coordinates
+		LDA XDES+1
+		CMP XPOS+1
+		BCC .xswp	; X2 < X1
+		LDA XDES
+		CMP XPOS
+		BCS +		; X2 >= X1
+.xswp	; Swap X1 <-> X2
+		LDA XPOS+1
+		LDX XPOS+1
+		STA XPOS+1
+		STX XDES+1
+		LDA XDES
+		LDX XPOS
+		STA XPOS
+		STX XDES
+
+; +		LDA YDES+1
+; 		CMP YPOS+1
+; 		BCC .yswp	; Y2 < Y1
++		LDA YDES
+		CMP YPOS
+		BCS +		; Y2 >= Y1
+.yswp	; Swap Y1 <-> Y2
+		; LDA YPOS+1		; Not needed, already limited on previous step
+		; LDX YPOS+1
+		; STA YPOS+1
+		; STX YDES+1
+		LDA YDES
+		LDX YPOS
+		STA YPOS
+		STX YDES
+		;....
++		JSR .cpy1
+.rf1	JSR BMLINE
+		LDX YDES
+		INX
+		CPX _BY2
+		BEQ +
+		BCS .bmre	; Y > Y2
++		STX YDES
+		STX YPOS
+		LDX #$01
+-		LDA _BX1,x
+		STA XPOS,x
+		LDA _BX2,x
+		STA XDES,x
+		DEX
+		BPL-
+		BMI .rf1	; loop
+.bmre	RTS ;<<<<
+
+; Draw empty box
+.box
+; 		LDX #$01
+; -		LDA YDES,X
+; 		STA _BY2,X
+; 		LDA YPOS,x
+; 		STA YDES,x
+; 		STA _BY1,x
+; 		LDA XPOS,x
+; 		STA _BX1,x
+; 		LDA XDES,x
+; 		STA _BX2,x
+; 		DEX
+; 		BPL -
+		JSR .cpy1
+		JSR BMLINE	; X1,Y1 -> X2->Y1
+		LDX #$01
+-		LDA _BY2,x
+		STA YDES,X
+		DEX
+		BPL -
+		JSR BMLINE	; X2,Y1 -> X2,Y2
+		LDX #$01
+-		LDA _BX1,x
+		STA XDES,x
+		DEX
+		BPL -
+		JSR BMLINE	; X2,Y2 -> X1,Y2
+		LDX #$01
+-		LDA _BY1,x
+		STA YDES,x
+		DEX
+		BPL -
+		JMP BMLINE	; X1,Y2 -> X1,Y1
+
+; Check X coordinates
+.xchk:
+		LDA XPOS+1,X
+		BMI .xmin		; Negative -> set to 0
+		CMP #$01
+		BEQ +
+		BCS .xmax		; Too large, set to 319
+		BCC ++
++		LDA XPOS,X
+		CMP #$40
+		BCC ++			; less than 320 ->
+.xmax	LDA #$01
+		STA XPOS+1,X
+		LDA #$3F
+		STA XPOS,X
+++		RTS
+
+.xmin	LDA #$00
+		STA XPOS,X
+		STA XPOS+1,X
+		RTS
+
+; Check X coordinates
+.ychk:
+		LDA YPOS+1,X
+		BMI .ymin		; Negative -> set to 0
+		BNE .ymax		; Too large, set to 199
++		LDA YPOS,X
+		CMP #$C8
+		BCC +			; less than 200 ->
+.ymax	LDA #$00
+		STA YPOS+1,X
+		LDA #$C7
+		STA YPOS,X
++		RTS
+
+.ymin	LDA #$00
+		STA YPOS,X
+		STA YPOS+1,X
+		RTS
+
+.cpy1
+		; Copy parameters to temporals and setup first line
+		LDX #$01
+-		LDA YDES,X
+		STA _BY2,X
+		LDA YPOS,x
+		STA YDES,x
+		STA _BY1,x
+		LDA XPOS,x
+		STA _BX1,x
+		LDA XDES,x
+		STA _BX2,x
+		DEX
+		BPL -
+		RTS
+
+;	Temporals
+_BX1 = _DX
+_BY1 = _DX+2
+_BX2 = _DY
+_BY2 = _DY+2
+
+;-------------------
+; Mid-point Ellipse
+;
+; XDES = X radius
+; YDES = Y radius
+	_Xo = $61	; X offset from center
+	_Yo = $63	; Y offset from center
+	_Xc = $69	; X center
+	_Yc	= $6B	; Y center
+
+; Algorithm conditions taken from Doodle
+
+BMELLIPSE:
+	LDX #$03
+-	LDA XPOS,X	; Copy center to temporal workplace
+	STA _Xc,X
+	DEX
+	BPL -
+
+	; Test
+	LDX #$03
+-	LDA XDES,X	; Copy radius to temporal workplace
+	STA _Xo,X
+	DEX
+	BPL -
+
+	; Precalcs
+	ASL	_Xo
+	ROL	_Xo+1	; RX*2
+
+	LDX #$01
+-	LDA _Xo,x
+	STA _ACC1,X
+	STA _ACC2,X
+	DEX
+	BPL -
+	JSR Mul161624	; (2*RX)^2 (24)
+	LDX #$02
+-	LDA _RESULT,X
+	STA _RX2,X
+	DEX
+	BPL -
+
+	ASL _Yo
+	ROL _Yo+1	; RY*2
+
+	LDX #$01
+-	LDA _Yo,x
+	STA _ACC1,X
+	STA _ACC2,X
+	DEX
+	BPL -
+	JSR Mul161616	; RY*RY (16)
+	LDX #$01
+-	LDA _RESULT,X
+	STA _RY2,X
+	DEX
+	BPL -
+
+	JSR _ellip1
+	JSR _ellip2
+
+	RTS
+
+
+; Ellipse, first region (X)
+_ellip1:
+	LDA YDES
+	STA _Yo
+	LDA YDES+1
+	STA _Yo+1
+	LDA #$00
+	STA _Xo
+	STA _Xo+1	; Start at 0,RY
+	JSR _getDY	; DY = Y * (2RX)^2
+	LDX #$03
+-	LDA _RESULT,X
+	STA _D1,x	; D1 = DY
+	DEX
+	BPL -
+	LSR _D1+3
+	ROR _D1+2
+	ROR _D1+1
+	ROR _D1		; D1 = D1/2
+	JSR _Plot4	; Draw 4 quadrants
+.el0	; Loop start
+	INC _Xo
+	BNE +
+	INC _Xo+1	; X++
++	JSR _getDX	; DX = X * (2RY)^2
+	LDX #$02
+-	LDA _RESULT,X
+	STA _DX,x	; Store DX
+	DEX
+	BPL -
+	CLC
+	LDY #$00
+	LDX #$03
+-	LDA _D1,Y
+	ADC _RESULT,Y
+	STA _D1,Y		; D1 += DX
+	INY
+	DEX
+	BNE -
+	BCC +
+	INC _D1+3
++	JSR _getDY	; DY = Y * (2RX)^2
+	LDX #$03
+-	LDA _RESULT,X
+	STA _DY,x	; Store DY
+	DEX
+	BPL -
+	LDX #$03
+-	LDA _D1,X
+	CMP _DY,X	; D1 > DY ?
+	BCC ++		; No ->
+	BNE +		; D1 = DY
+	DEX
+	BPL -
+	BMI ++
++	LDX #$04
+	LDY #$00
+	SEC
+-	LDA _D1,Y
+	SBC _DY,Y	; D1 = D1 - DY
+	STA _D1,Y
+	INY
+	DEX
+	BNE -
+	LDA _Yo
+	BNE +
+	DEC _Yo+1
++	DEC _Yo		; Y--
+++	JSR _Plot4	; Draw quadrants
+	LDA _DY+3
+	BNE .el0	; If DY+3 != then DY(32) > DX(24) -> Loop
+	LDX #$02
+-	LDA _DX,X
+	CMP _DY,x	; DX > DY?
+	BCS +		; >=
+	BCC .el0	; No -> Loop
++	BNE +		; Yes -> exit
+	DEX
+	BPL -
++	LDA _Yo		; Save Y offset
+	STA _OldY
+	LDA _Yo+1
+	STA _OldY+1
+	RTS
+
+; Ellipse, second region (X)
+_ellip2:
+	LDA XDES
+	STA _Xo
+	LDA XDES+1
+	STA _Xo+1
+	LDA #$00
+	STA _Yo
+	STA _Yo+1	; Start at 0,RY
+	STA _D2+3	; Clear _D2 MSB
+	JSR _getDX	; DX = X * (2RY)^2
+	LDX #$02
+-	LDA _RESULT,X
+	STA _D2,x	; D2 = DX
+	DEX
+	BPL -
+	LSR _D2+2
+	ROR _D2+1
+	ROR _D2		; D2 = D2/2
+	JSR _Plot4	; Draw 4 quadrants
+.el1	; Loop start
+	INC _Yo
+	BNE +
+	INC _Yo+1	; Y++
++	JSR _getDY	; DY = Y * (2RX)^2
+	LDX #$02
+-	LDA _RESULT,X
+	STA _DY,x	; Store DX
+	DEX
+	BPL -
+	CLC
+	LDY #$00
+	LDX #$04
+-	LDA _D2,Y
+	ADC _RESULT,Y
+	STA _D2,Y		; D2 += DY
+	INY
+	DEX
+	BNE -
+	JSR _getDX	; DX= X * (2RY)^2
+	LDX #$02
+-	LDA _RESULT,X
+	STA _DX,X	; Store DX
+	DEX
+	BPL -
+	LDX #$03
+-	LDA _D2,X
+	CMP _DX,X	; D2 > DY ?
+	BCC ++		; No ->
+	BNE +		; D2 = DY
+	DEX
+	BPL -
+	BMI ++
++	LDX #$04
+	LDY #$00
+	SEC
+-	LDA _D2,Y
+	SBC _DX,Y	; D2 = D2 - DX
+	STA _D2,Y
+	INY
+	DEX
+	BNE -
+	LDA _Xo
+	BNE +
+	DEC _Xo+1
++	DEC _Xo		; X--
+++	JSR _Plot4	; Draw quadrants
+	LDA _OldY+1
+	CMP _Yo+1	; Y offset reached the last rendered in the first region?
+	BNE .el1	; No -> loop
+	LDA _OldY
+	CMP _Yo
+	BNE .el1	; No -> loop
+	RTS			; Yes, exit
+
+; Calc DX
+; DX = X*(2RY)^2
+_getDX:
+	LDX #$01
+-	LDA _Xo,X
+	STA _ACC1,X
+	LDA _RY2,X
+	STA _ACC2,X
+	DEX
+	BPL -
+	JMP Mul161624	; (16)*(16)=>(24)
+
+; Calc DY
+; DY = Y*(2RX)^2
+_getDY:
+	LDX #$01
+-	LDA _Yo,X
+	STA _ACC1,X
+	DEX
+	BPL -
+	LDX #$02
+-	LDA _RX2,X
+	STA _ACC2,X
+	DEX
+	BPL -
+	JMP Mul162432	; (16)*(24)=>(32)
+
+
+; Region 1 algorithm
+; X = 0 Y = RY
+; D1 = (Y*((2*RX)*(2*RX)))/2
+
+; Ellipse variables
+_RX2	!24	$000000		; (2*X radius)^2
+_RY2	!24 $000000		; (2*Y radius)^2
+_DX		!32 $00000000	; dx (only 24 bits used)
+_DY		!32	$00000000	; dy
+
+_D1
+_D2		!32 $00000000	; d1 and d2
+_OldY	!16 $0000		; Y offset at the end of first region
+
+
+; Plot 4 cuadrants
+_Plot4:
+	;Xc + Xo 
+	CLC
+	LDA _Xo
+	ADC _Xc
+	STA XPOS
+	LDA _Xo+1
+	ADC _Xc+1
+	STA XPOS+1
+	;Yc + Yo
+	CLC
+	LDA _Yo
+	ADC _Yc
+	STA YPOS
+	LDA _Yo+1
+	ADC _Yc+1
+	STA YPOS+1
+	JSR BMPLOT	; Bottom right
+	;Yc - Yo
+	SEC
+	LDA _Yc
+	SBC _Yo
+	STA YPOS
+	LDA _Yc+1
+	SBC _Yo+1
+	STA YPOS+1
+	JSR BMPLOT	; Top Right
+	;Xc - Xo
+	SEC
+	LDA _Xc
+	SBC _Xo
+	STA XPOS
+	LDA _Xc+1
+	SBC _Xo+1
+	STA XPOS+1
+	JSR BMPLOT	; Top Left
+	;Yc + Yo
+	CLC
+	LDA _Yo
+	ADC _Yc
+	STA YPOS
+	LDA _Yo+1
+	ADC _Yc+1
+	STA YPOS+1
+	JMP BMPLOT	; Bottom right
+;--- end
+
+;-------------
+; Multiply _ACC1 by _ACC2, result in _RESULT
+; .a = _ACC2 length
+; .x = _RESULT length
+; .y = _ACC1 length -1
+; Adapted from Doodle
+
+Mul161616:	; (16)*(16) => (16) entry point
+		LDA #$02
+		TAX
+		BNE +
+Mul161624:	; (16)*(16) => (24) entry point
+		LDA #$02
+		LDX #$03
+		BNE +
+Mul161632:	; (16)*(16) => (32) entry point
+		LDA #$02
+		LDX #$04
+		BNE +
+Mul162424:	; (16)*(24) => (24) entry point
+		LDA #$03
+		TAX
+		BNE +
+Mul162432:	; (16)*(24) => (32) entry point
+		LDA #$03
+		LDX #$04
+
++		LDY #$01
+MULTIPLY:
+		STX _X
+		STA _A
+		LDA #$00
+		DEX
+-   	STA _RESULT,X
+		DEX
+		BPL -
+		STY _Y
+		LDA #$80
+		STA _TMP
+-		AND _ACC1,Y
+		BNE ++
+		LSR _TMP
+		LDA _TMP
+		BCC -
+		ROR _TMP
+		LDA _TMP
+		DEC _Y
+		DEY
+		BPL -
+		RTS
+_m1		LSR _TMP
+		BCC +
+		ROR _TMP
+		DEC _Y
+		BPL +
+		RTS
++		LDX #$00
+		LDY _X
+		CLC
+-		ROL _RESULT,X
+		INX
+		DEY
+		BNE -
+		LDY _Y
+		LDA _ACC1,Y
+		AND _TMP
+		BEQ _m1
+++		LDX #$00
+		LDY _A
+		CLC
+-		LDA _RESULT,X
+		ADC _ACC2,X
+		STA _RESULT,X
+		INX
+		DEY
+		BNE -
+		BCC _m1
+		DEX
+-		INX
+		CPX _X
+		BCS _m1
+		INC _RESULT,X
+		BEQ -
+		BNE _m1
+
+_A		!byte	$00	;.A
+_X		!byte	$00	;.X
+_Y		!byte	$00	;.Y
+_TMP	!byte	$00
+_ACC1	!16		$0000			; Accumulator 1
+_ACC2	!24		$000000			; Accumulator 2
+_RESULT	!32		$00000000		; Result
+
+;-------------------------------------------------------
+; Flood Fill
+;  * A Seed Fill Algorithm
+;  * by Paul Heckbert
+;  * from "Graphics Gems", Academic Press, 1990
+;-------------------------------------------------------
+
+work_buffer	=	$1000
+buffer_end 	=	work_buffer + $1000 - $05
+
+stack_ptr	= $61	; stack pointer
+l0			= $63
+y1			= $69
+y2			= $6A
+dx			= $6B
+y0			= $FE
+
+; Reuse ellipse variable space
+_Y1	= _RX2		; 8 bits
+_Y2 = _RX2+1	; 8 bits
+_X1	= _RX2+2	; 16 bits
+_FDX= _RY2+1	; 8 bits
+
+; X coord limits
+_vhl	!byte $40
+_vml	!byte $A0
+_vhh	!byte $01
+_vmh	!byte $00
+
+BMPAINT:
+	JSR BMTST   ; Test if 1st point matches CCOL
+	BCS +       ; out of bounds?
+	BNE ++      ; point != CCOL
++   RTS
+
+++	lda	#<work_buffer
+	sta	stack_ptr
+	lda	#>work_buffer
+	sta	stack_ptr+1
+
+	LDA VMODE
+	LSR
+	LSR
+	LSR
+	LSR
+	TAX
+	LDA _vhl,X	; Set X coordinate limits
+	STA .xol+1
+	LDA _vhh,x
+	STA .xoh+1
+
+	LDA YPOS
+	STA _Y1
+    STA _Y2
+	LDA XPOS
+	STA _X1
+	LDA XPOS+1
+	STA _X1+1
+	LDA #$00
+	STA _FDX
+	JSR AddCoord	; push (y,y,x,1)	Needed in some cases
+; 	LDA _X1
+; 	BNE +
+; 	DEC _X1+1
+; +	DEC _X1
+	INC _X1
+	BNE +
+	INC _X1+1
++	LDA #$FF
+	STA _FDX
+	JSR AddCoord	; push (y,y,x+1,-1)	seed segment (popped  1st) 
+; LOOP
+.ploop
+	JSR GetCoord	; pull an (y1,y2,x,dy)
+    LDA _Y1
+    STA y1
+    STA y0          ; y = y1
+    STA YPOS
+    LDA _Y2
+    STA y2
+    LDA _X1
+    STA XPOS
+    LDA _X1+1
+    STA XPOS+1
+	LDA _FDX
+	STA dx
+;---
+.pf1	JSR BMTST		; inside(x,y-1)
+	BCS .p2			; invalid coords ->
+	BEQ .p2			; not inside
+	JSR BMPLOT		; set(x,y-1)
+	DEC YPOS
+    LDA YPOS
+    STA y0          ; y = y - 1
+	CMP #$FF
+	BNE .pf1
+	BEQ .p21
+;	JMP .pf1
+.p2
+
+	;INC YPOS		; reverse the decrement for BMTST
+	LDA y0
+	CMP y1
+	BCS .p6			; Skip if y >= y1
+.p21
+	LDX y0
+	INX
+	STX l0			; l = y+1
+	CPX y1
+	BCS +			; Skip if l >= y1
+	BEQ +
+;---
+	STX _Y1			; Y1 = l
+    LDX y1
+    DEX
+    STX _Y2			; Y2 = y1-1
+
+	LDA #$FF
+	EOR dx
+	STA _FDX		; -dx
+	JSR AddCoord	; push(l,y1-1,x,-dx)
+
++	LDX y1
+	INX
+	STX y0			; y = y1+1
+.ploop2
+;----
+.p3	LDA y0
+	CMP #200		; inside bounds?
+	BEQ .p4
+	STA YPOS
+	JSR	BMTST		; inside(x,y1)
+	BCS .p4			; invalid coords ->
+	BEQ .p4			; not inside ->
+	JSR BMPLOT		; set(x,y1)
+	INC y0
+	; LDA #200
+	; CMP y0
+	BNE .p3			; loop
+.p4	LDA l0
+	STA _Y1
+	LDX y0
+	DEX
+	STX _Y2
+	LDA dx
+	STA _FDX
+	JSR AddCoord		; push(l,y1-1,x,dx)
+.p5
+	LDA y2
+	STA _Y1
+	INC _Y1
+	; DEC _Y2
+	; LDA _Y2
+	LDA y0
+	CMP _Y1
+	BCC .p6				; y0 <= y2+1 -> skip
+	BEQ .p6
+	LDX y0
+    DEX
+	STX _Y2
+	LDA #$FF
+	EOR dx				; -dx
+	STA _FDX
+	JSR AddCoord		; push(y2+1,y-1,x,-dx)
+; "skip" label
+.p6	INC y0
+	LDA y0
+	STA YPOS
+	CMP y2
+	BEQ +
+	BCS .p7				; y0 >= y2 -> skip
++	JSR BMTST			; inside(x,y)
+	BCS .p6				; invalid coords ->
+	BEQ .p6				; not inside ->
+.p7 LDA y0
+	STA l0				; y = y1
+	CMP y2
+	BEQ +
+	BCS .ploopend
++	JMP .ploop2			; loop
+.ploopend
+	LDA stack_ptr+1		; stack empty?
+	CMP #>work_buffer
+	BNE +
+	LDA stack_ptr
+	CMP #<work_buffer
+	BEQ ++
++	JMP .ploop
+++	RTS
+
+plusdx:
+	; LDA XPOS
+	; STA _X1
+	; LDA XPOS+1
+	; STA _X1+1
+	BIT _FDX
+	BMI ++
+	INC _X1     ; dx == -1
+	BNE +       ; x + 1
+	INC _X1+1
++	RTS
+++	LDA _X1     ; dx == 1
+	BNE +       ; x + (-1)
+	DEC _X1+1
++	DEC _X1
+	RTS
+
+; minusdx:
+;     LDA XPOS
+;     STA _X1
+;     LDA XPOS+1
+;     STA _X1+1
+;     BIT dx
+;     BPL ++
+;     INC _X1     ; dx == -1
+;     BNE +       ; x - (-1)
+;     INC _X1+1
+; +   RTS
+; ++  LDA _X1     ; dx == 1
+;     BNE +       ; x - 1
+;     DEC _X1+1
+; +   DEC _X1
+;     RTS
+
+AddCoord:
+	LDA stack_ptr+1
+	CMP #>buffer_end
+	BCC .stok
+	BNE	.stfull
+	LDA stack_ptr
+	CMP #<buffer_end
+	BCC .stok
+.stfull					; Stack is full, just return
+	RTS
+.stok
+	LDA _X1+1
+	BMI .stfull			; X negative, dont add to stack
+.xoh
+	CMP #$00			; X hi >= Xlimit hi
+	BEQ +				; check X low
+	BCS .stfull			; X out of bounds, dont add to stack
+	BCC ++				; X < Xlimit ->
++	LDA _X1
+.xol
+	CMP #$A0			; X lo >= Xlimit lo?
+	BCS .stfull			; X out of bounds, dont add to stack
+
+++	LDY #$00
+	LDX #$00
+-	LDA _Y1,X
+	STA (stack_ptr),Y
+	INC stack_ptr
+	BNE +
+	INC stack_ptr+1
++	INX
+	CPX #$05
+	BNE -
+	RTS
+
+GetCoord:
+; Attention: this routine doesn't check if the stack is empty
+; it shouldn't matter because this is checked on the main fill loop
+	LDY #$00
+	LDX #$04
+-	LDA stack_ptr
+	BNE +
+	DEC stack_ptr+1
++	DEC stack_ptr
+	LDA (stack_ptr),Y
+	STA _Y1,X
+	DEX
+	BPL -
+	JSR plusdx	; X += DX
+	RTS
 
 EXTRAEND
 }

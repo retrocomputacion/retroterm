@@ -14,7 +14,7 @@
 
 	CURRLINEPTR = $C8		; Current text line pointer (zero page)
 	CURRLINE = $CD
-	CURRCOLUMN = $CA		; Current column (pagina cero)
+	CURRCOLUMN = $CA		; Current column (zero page)
 	CURRCOLLINE = $EA		; Current text line color porinter (zero page)
 	ACIABASE = $FD00		; ACIA 6551 base address
 	ACIADATA = ACIABASE+0	; Registro de datos del ACIA 6551
@@ -63,7 +63,7 @@
 	*= $1001
 
 ;///////////////////////////////////////////////////////////////////////////////////
-; PROGRAMA BASIC
+; BASIC Header
 ;///////////////////////////////////////////////////////////////////////////////////
 
 	!byte $0C, $10, $E4, $07, $9E, $20, $34, $31, $31, $32, $00	; 10 SYS 4112
@@ -72,7 +72,7 @@
 	*= $1010
 
 ;////////////////////////////////////////////////////////////////////////////////////////////
-; Inicio (4110)
+; Start (4110)
 ;////////////////////////////////////////////////////////////////////////////////////////////
 
 _Start:
@@ -96,15 +96,15 @@ _Start:
 		TAX
 		BPL .c0
 	
-	LDA	#113		; Fondo y borde blancos
+	LDA	#113			; White screen and border
 	STA	$FF15
 	STA	$FF19
 
-	LDA	#<InitScr	; Tinta negra, borra pantalla, bloquea C= + SHIFT, cambia a minusculas/mayusculas
+	LDA	#<InitScr	; Black ink, clear screen, block C= + SHIFT, switch to lowercase
 	LDY	#>InitScr
 	JSR	STROUT		;PrintTxt
 
-; Copia LogoScr a 3352 ($0D18)
+; Copy LogoScr to 3352 ($0D18)
 	LDX	#200
 -	LDA	LogoScr-1,X
 	STA	$0D18-1,X
@@ -112,7 +112,7 @@ _Start:
 	STA	$0D18+200-1,X
 	DEX
 	BNE	-
-; Copia LogoClr a 2328 ($0918)
+; Copy LogoClr to 2328 ($0918)
 	LDX	#200
 -	LDA	LogoClr-1,X
 	STA	$0918-1,X
@@ -121,13 +121,13 @@ _Start:
 	DEX
 	BNE	-
 
-; Imprime la url de retrocomputacion
+; Print retrocomputacion URL
 
-	CLC			; Coloca el cursor en la fila 20, columna 4
+	CLC					; Set the cursor to row 20, column 4
 	LDX	#20
 	LDY	#4
 	JSR	PLOT
-	LDA	#<RetroIntro	; Imprime: www.retrocomputacion.com
+	LDA	#<RetroIntro	; Print: www.retrocomputacion.com
 	LDY	#>RetroIntro
 	JSR	STROUT		;PrintTxt
 	LDA #$81
@@ -1952,7 +1952,7 @@ Cmd9E:
 	INY
 	CPY #$04
 	BNE -
-	LDA #$00
+	LDA #$00			; fill area enclosed by the pen number
 	JSR $B8E7			; PAINT
 	RTS
 

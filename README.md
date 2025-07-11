@@ -1,7 +1,7 @@
 <div align = center>
 
 # Retroterm
-### VERSION 0.21 Beta
+### VERSION 0.30 Beta
 
 Jorge Castillo & Pablo Roldán
 
@@ -113,6 +113,7 @@ Over time, the protocol has been extended to include 4-bit PCM audio streaming, 
 - Text Line Fill
 - Bidirectional scrolling
 - Download files to disk
+- Graphic primitives, draw onto Hi-res/Multicolor screens
 
 ## 1.4 Requirements
 
