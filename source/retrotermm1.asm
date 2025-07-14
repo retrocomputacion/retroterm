@@ -264,14 +264,6 @@ ENDM
 
 
 Start:
-;	LD		C,WRITESTR
-;	LD		DE,INTRO
-;	CALL	BDOS
-; .s0
-; 	CALL	GetKey
-; 	CP		0
-; 	JR		Z,.s0
-
 	CALL	VDPDR			; Obtiene el puerto de lectura del VDP y lo copia a VPORTR
 	LD		(VPORTR),A
 	CALL	VDPDW			; Obtiene el puerto de escritura del VDP y lo copia a VPORTW
@@ -4866,12 +4858,6 @@ URetry:
 rcount	DW &h0000
 
 ; Strings
-INTRO:
-	DB	"Retroterm MSX v0.10 ALPHA"
-	DB	&h0D,&h0A
-	DB	"(c)2025 by Retrocomputacion.com"
-	DB	&h0D,&h0A
-	DB	"Press any key$"
 RetroIntro:
 	DB	&h01,&h02
 IF IFACE = 0

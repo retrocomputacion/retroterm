@@ -62,7 +62,7 @@
 						; Bit 6 (V): 1 = Receive N bytes as parameters and wait for the command to complete; 0 = Normal operation
 						; Bits 3-0: Parameter counter for bit-6
 	TEMPCNT1	= $C006	; Temporal counter 1
-	BYTECNT		= $C007	; 16-bit block transfer remaining bytes to receive counter
+	BYTECNT		= $61	;$C007	; 16-bit block transfer remaining bytes to receive counter
 						; --$C008
 	BORDERCLR	= $C009	; Current screen border color backup
 	FLAGS1		= $C00A	; Status flags
@@ -876,17 +876,6 @@ MainPrg
 	DEX
 	BPL -
 
-	; STA	SPINDEXOUT
-	; STA	SPINDEXIN
-	; STA	SPBUFFERCNT
-	; STA	PRINDEXOUT
-	; STA	PRINDEXIN
-	; STA	PRBUFFERCNT
-	; STA	RXINDEXOUT
-	; STA	RXINDEXIN
-	; STA STREAMFLAG
-	; STA WTOP
-	; STA SNDSTATUS
 	LDA	#%00001010	; Initializing the terminal, DTR disable, cursor enabled
 	STA	FLAGS1
 	LDA	#32			; Writes an space as initial character under the cursor
@@ -2190,18 +2179,26 @@ C82Addr
 	BNE	C82Next			; 2 
 	INC	C82Addr + 2		; 6 
 C82Next					; 1 if coming from the BNE
-	LDY BYTECNT
-	DEY
-	CPY #$FF
-	BNE C82Cont
-	LDX BYTECNT+1
-	DEX
-	CPX #$FF
-	BEQ	C82End			; 2 
-	STX BYTECNT+1 
-C82Cont					; 1 if coming from the BNE
-	STY BYTECNT
-	JMP	C82Loop
+	LDA BYTECNT			; 4
+	BNE +				; 2+1
+	LDA BYTECNT+1		; 4
+	BEQ C82End			; 2+1
+	DEC BYTECNT+1		; 6
++	DEC BYTECNT			; 6
+	JMP C82Loop			; 3
+
+; 	LDY BYTECNT			; 4
+; 	DEY					; 2
+; 	CPY #$FF			; 2
+; 	BNE C82Cont			; 2+1
+; 	LDX BYTECNT+1		; 4
+; 	DEX					; 2
+; 	CPX #$FF			; 2
+; 	BEQ	C82End			; 2 
+; 	STX BYTECNT+1 		; 4
+; C82Cont					; 1 if coming from the BNE
+; 	STY BYTECNT			; 4
+; 	JMP	C82Loop			; 3
 C82End
 	LDA	BORDERCLR
 	STA	$D020
@@ -4941,9 +4938,6 @@ GETPOS:
 ; ;---- Get pointer address for Bitmap
 ; BMPTR:
 
-; 	JSR DIVPOS		; Evaluate char coordinates
-; 	BCS ++			; --> exit
-; 	JSR GETPOS		; Evaluate dot bitmap cell pointer
 	LDA YPOS		; Current Y lo
 	AND #$07
 	TAY
@@ -5269,9 +5263,6 @@ BMRECT:
 		STA XPOS
 		STX XDES
 
-; +		LDA YDES+1
-; 		CMP YPOS+1
-; 		BCC .yswp	; Y2 < Y1
 +		LDA YDES
 		CMP YPOS
 		BCS +		; Y2 >= Y1
@@ -5306,18 +5297,6 @@ BMRECT:
 
 ; Draw empty box
 .box
-; 		LDX #$01
-; -		LDA YDES,X
-; 		STA _BY2,X
-; 		LDA YPOS,x
-; 		STA YDES,x
-; 		STA _BY1,x
-; 		LDA XPOS,x
-; 		STA _BX1,x
-; 		LDA XDES,x
-; 		STA _BX2,x
-; 		DEX
-; 		BPL -
 		JSR .cpy1
 		JSR BMLINE	; X1,Y1 -> X2->Y1
 		LDX #$01
