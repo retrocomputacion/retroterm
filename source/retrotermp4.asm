@@ -344,7 +344,7 @@ CMDFlags		!byte $00		; Command flags
 								; Bit 6 (V): 1 = Receive N bytes as parameters and wait for the command to complete; 0 = Normal operation
 								; Bits 3-0: Parameter counter for bit-6
 TEMPCNT1		!byte $00		; Temporal counter 1
-BYTECNT			!word $0000		; 16-bit block transfer remaining bytes to receive counter
+BYTECNT			= $61			;!word $0000		; 16-bit block transfer remaining bytes to receive counter
 BLOCKPTR		!word $0000		; Memory pointer for the block transfer command
 
 BORDERCLR		!byte $00		; Current screen border color backup
@@ -1615,17 +1615,23 @@ C82FX
 	BNE	C82Next			; 2 
 	INC	C82Addr + 2		; 6 
 C82Next					; 1 if coming from the BNE
-	LDY BYTECNT
-	DEY
-	CPY #$FF
-	BNE C82Cont
-	LDX BYTECNT+1
-	DEX
-	CPX #$FF
-	BEQ	C82End			; 2 
-	STX BYTECNT+1 
+	LDA BYTECNT			; 4
+	BNE +				; 2+1
+	LDA BYTECNT+1		; 4
+	BEQ C82End			; 2+1
+	DEC BYTECNT+1		; 6
++	DEC BYTECNT			; 6
+	; LDY BYTECNT
+	; DEY
+	; CPY #$FF
+	; BNE C82Cont
+	; LDX BYTECNT+1
+	; DEX
+	; CPX #$FF
+	; BEQ	C82End			; 2 
+	; STX BYTECNT+1 
 C82Cont					; 1 if coming from the BNE
-	STY BYTECNT
+;	STY BYTECNT
 	LDA C82FX
 	EOR #$20			; Toggle INC <-> DEC
 	STA C82FX
@@ -2471,14 +2477,18 @@ bsave:
 	CLI
 	; Print message
 	+StringOut bst1
-	SEI
--	LDA $FF1D
-	CMP #251
-	BNE -				; Waits for raster line 251
-	JSR	ReadByte		; Get file type
-	BCC-
-	CLI
-	LDA RXBYTE
+; 	SEI
+; -	LDA $FF1D
+; 	CMP #251
+; 	BNE -				; Waits for raster line 251
+; 	JSR	ReadByte		; Get file type
+; 	BCC-
+; 	CLI
+; 	LDA RXBYTE
+	LDA #$46
+	STA CMDFlags		; Enable reception
+	JSR GetFromPrBuffer	; Get file type
+
 	STA $02
 	BMI +				; Bit 7 = 1 : PRG, else SEQ
 	LDA #<bst5
@@ -2742,7 +2752,7 @@ ReadString:
 	LDA #$00
 	STA FNAME,Y		; Make sure the string is NULL terminated
 	STY	FNL			; String length
-	LDA #$40
+	LDA #$40		; stop reception
 	STA CMDFlags
 	RTS
 

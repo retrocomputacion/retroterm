@@ -4483,54 +4483,14 @@ UINTB:		; uint converter buffer
 ; Save binary to disk
 ;/////////////////////////
 bsave
-	LD		A,0					; Disable Splitscreen/Text window
-	CALL	setwtop
-	LD		A,23
-	CALL	.b5_1
-	LD		A,(EDSTAT)
-	AND		&hCB				; Cursor off
-	LD		(EDSTAT),A			; Return to text mode
-
-	LD		HL,bst1				; Print download screen
-	CALL	StrOut
-
-	LD		HL,FLAGS1
-	SET		1,(HL)				; Pause reception
-
-	LD		C,&h19
-	CALL	BDOS
-	LD		(_prevdrv),A		; Save current default drive
-	LD		(_curdrv),A
-
-	DI
-	LD		DE,(GRPCGP)	; Copy full charset
-	LD		A,&h10
-	ADD		A,D
-	LD		D,A
-	LD		HL,CHRSET			; To the 3rd Pattern table
-	LD		BC,&h0800
-	CALL	CpyVRAM
-	EI
-
-	LD		HL,FLAGS1
-	RES		1,(HL)				; Resume reception
-
-	; LD		A,&h41				; Receive 1 byte
-	; LD		(CMDFlags),A
 	CALL	GetFromPrBuffer		; Get and discard file type
 	;-- Get filename
-	; LD		HL,CMDFlags
-	; LD		A,&h46
-	; LD		(HL),A
 	LD		DE,FNAME
 	LD		B,0
 .bs0
-	; INC		(HL)				; +1 Parameter to read
-	; PUSH	HL
 	PUSH	DE
 	CALL	GetFromPrBuffer
 	POP		DE
-	; POP		HL
 	LD		(DE),A
 	INC		DE
 	INC		B
@@ -4544,19 +4504,40 @@ bsave
 	LD		(DE),A
 
 	LD		A,&h40
-	; LD		(HL),A
 	LD		(CMDFlags),A
-	;--
-	; LD		A,1
-	; LD		(CSRY),A
-	; LD		A,10
-	; LD		(CSRX),A
-	; CALL	.cup
+
+	LD		A,0					; Disable Splitscreen/Text window
+	CALL	setwtop
+	LD		A,23
+	CALL	.b5_1
+	LD		A,(EDSTAT)
+	AND		&hCB				; Cursor off
+	LD		(EDSTAT),A			; Return to text mode
+
+	LD		C,&h19
+	CALL	BDOS
+	LD		(_prevdrv),A		; Save current default drive
+	LD		(_curdrv),A
+
+	LD		HL,bst1				; Print download screen
+	CALL	StrOut
+
 	SetCursor 10,1
 	LD		HL,FNAME
 	CALL	StrOut				; Print FileName
-	CALL 	UBlock
-	CALL	URetry
+	CALL 	UBlock				; Init block counter
+	CALL	URetry				; Init retry counter
+
+	; Init screen 'buffer'
+	DI
+	LD		DE,(GRPCGP)	; Copy full charset
+	LD		A,&h10
+	ADD		A,D
+	LD		D,A
+	LD		HL,CHRSET			; To the 3rd Pattern table
+	LD		BC,&h0800
+	CALL	CpyVRAM
+	EI
 
     LD      C,&h18              ; GetLoginVector
     CALL    BDOS

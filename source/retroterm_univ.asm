@@ -2103,9 +2103,9 @@ Cmd82
 	LDA	#$10			; Triangle wave on channel 1 / gate off
 	STA	SIDREG+4
 	JSR	GetFromPrBuffer	; Reads a byte from the print buffer
-	TAY;STA	BYTECNT
+	TAY
 	JSR	GetFromPrBuffer	; Reads a byte from the print buffer
-	TAX;STA	BYTECNT + 1
+	TAX
 
 ; Check if transferring to the BASIC area
 	LDA BLOCKPTR
@@ -3215,20 +3215,24 @@ bsave:
 	CLI
 	; Print message
 	+StringOut bst1
-	SEI
-!if _HARDTYPE_ = 56{
-	+DisKernal x
-}
--	LDA $D012
-	CMP #251
-	BNE -				; Waits for raster line 251
-	JSR	ReadByte		; Get file type
-	BCC-
-!if _HARDTYPE_ = 56{
-	+EnKernal a
-}
-	CLI
-	LDA RXBYTE
+; 	SEI
+; !if _HARDTYPE_ = 56{
+; 	+DisKernal x
+; }
+; -	LDA $D012
+; 	CMP #251
+; 	BNE -				; Waits for raster line 251
+; 	JSR	ReadByte		; Get file type
+; 	BCC-
+; !if _HARDTYPE_ = 56{
+; 	+EnKernal a
+; }
+; 	CLI
+	LDA #$46
+	STA CMDFlags		; Enable reception
+	JSR GetFromPrBuffer	; Get file type
+
+	; LDA RXBYTE
 	STA $02				; Why did I save this?
 	BMI +				; Bit 7 = 1 : PRG, else SEQ
 	LDA #<bst5
@@ -3548,7 +3552,7 @@ ReadString:
 	LDA #$00
 	STA FNAME,Y		; Make sure the string is NULL terminated
 	STY	FNL			; String length
-	LDA #$40
+	LDA #$40		; stop reception
 	STA CMDFlags
 ;	CLI
 	RTS
