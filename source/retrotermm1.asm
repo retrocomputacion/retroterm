@@ -4860,7 +4860,7 @@ IF IFACE != 38
 ELSE
 	DB "RTRETROTERM-M138 0.10 "
 ENDIF
-	DB &h00,&h07	;Turbo56K version, subversion
+	DB &h00,&h08	;Turbo56K version, subversion
 
 
 ; File save text

@@ -44,7 +44,7 @@ Data rate is fixed at the following speeds:
 - 57600bps for Retroterm MSX for parallel port (very alpha state - candidate for deprecation)
 - 38400bps for Retroterm 64 for Swiftlink**
 - 38400bps for Retroterm MSX for parallel port (alpha state - mostly stable)
-- 19200bps for Retroterm Plus/4** and Retroterm MSX for RS232
+- 19200bps for Retroterm Plus/4** and Retroterm MSX for RS232**
 
 *(**)The full data throughput while using the turbo transfer / streaming can only be achieved with the screen disabled.*
 
@@ -52,7 +52,7 @@ The effective throughput for text is *1500 / 1800bps* depending on *PAL/NTSC* ti
 
 *Retroterm* is optimized for use with **Wi-Fi** modems using the *Zimodem* firmware.
 
-*It also runs on the latest **VICE**/**Z64K** emulators.*
+*It also runs on the latest **VICE**/**Z64K** and **openMSX** emulators.*
 
 Separate *Commodore 64* versions of the executable are provided for cartridges featuring an ACIA 6551 such as *SwiftLink* (limited to **38400bps**) and *Turbo232*.</br>
 The *Commodore Plus/4* version is limited to the maximum speed for the built in ACIA: **19200bps**
@@ -61,7 +61,13 @@ The *MSX 1 RS-232* version (rt232.com) is also at this moment limited to **19200
 
 ## 1.1 Release history
 
-### v0.21 (??/??/????):
+### v0.30 (??/??/2024):
+- Turbo56K v0.8 partial implementation
+- Drawing primitives: clear screen, plot, line, box, ellipse, fill
+- Bugfix, all ports: No more missing filename characters when downloading to disk
+- Bugfix, c64 ports: Fixed glitched sprites after downloading to disk
+
+### v0.21 (Intermediate Github version, no oficial release):
 - New shortcut key for the Plus/4 port: `CBM+,` disables/enables the FLASH-ON control code. Improves compatibility with BBSs running Centipede 128 software.
 - Bugfix for the Commodore 64 ports: No more extraneous beep after streaming PCM audio.
 
@@ -105,8 +111,8 @@ Over time, the protocol has been extended to include 4-bit PCM audio streaming, 
 - Split Screen | Hi-res or Multicolor+Text
 - Up to 11520Hz 4-bit PCM audio streaming
 - Bitmap display | Hi-res + Multicolor (Commodore) | Screen 2 (MSX)
-- Consumes less than 5KB of memory (For the Commodore versions)
-- 1x speed SID music streaming (C64 versions only)
+- Uses 16K of RAM above $C000 (For the Commodore versions), the rest of the RAM is free to use as a buffer, load programs, graphics, etc.
+- 1x speed SID music streaming (C64 versions)
 - PSG music streaming (MSX versions)
 - Scrolling Text Windows
 - Set Cursor Position

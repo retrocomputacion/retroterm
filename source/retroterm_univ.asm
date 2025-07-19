@@ -3016,7 +3016,7 @@ IDString:
 	+_Version_
 	!text "      "
 }
-	!byte $00,$07	;Turbo56K version, subversion
+	!byte $00,$08	;Turbo56K version, subversion
 
 !if _HARDTYPE_ != 56 {
 SendID

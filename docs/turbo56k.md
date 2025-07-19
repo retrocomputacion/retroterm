@@ -5,7 +5,7 @@
 
 </div>
 
-# Turbo56K v0.7
+# Turbo56K v0.8
 
 
 **Turbo56K** was created by **Jorge Castillo** as a simple protocol to provide high speed file transfer functionality to his bit-banging `57600bps` **RS232** routine for the **Commodore 64**.
