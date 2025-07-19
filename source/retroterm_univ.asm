@@ -135,7 +135,7 @@
 	T232ENSPEED = T232BASE+7; Turbo232 high speed register
 
 ; Buffers
-	SIDREGS = $033C			; SID streaming register buffer 
+	SIDREGS = $02A7			; SID streaming register buffer 
 
 ;---- Drawing Variables
 	XPOS	= $2AD	; Current X coordinate (16)
@@ -1084,14 +1084,14 @@ Wait3
 
 NoSpeech
 
-	+DisKernal x
 	SEI
+	+DisKernal x
 	JSR SpriteSetup
-	LDA $07F8
-	EOR #$03
-	STA $07F8
-	CLI
+	; LDA $07F8
+	; EOR #$03
+	; STA $07F8
 	+EnKernal a
+	CLI
 
 	LDX	#<Msg06		; Pointer to the Msg06 string (credits/Turbo56K version)
 	;STA	AddTLoop + 1
@@ -3147,8 +3147,8 @@ SHADOWCODE:
 	CRC = 	$0740	; CRC result
 	CRCHI = $0900	; CRC tables
 	CRCLO = $0A00
-	FNAME = $0334	; Null terminated file name
-	FNL = 	$03FB	; Filename length
+	FNAME = $02A7	; Null terminated file name
+	FNL = 	$03FF	; Filename length
 
 ; Copy Memory
 ; Source at SOURCEPTR($FB/$FC)
@@ -3215,19 +3215,6 @@ bsave:
 	CLI
 	; Print message
 	+StringOut bst1
-; 	SEI
-; !if _HARDTYPE_ = 56{
-; 	+DisKernal x
-; }
-; -	LDA $D012
-; 	CMP #251
-; 	BNE -				; Waits for raster line 251
-; 	JSR	ReadByte		; Get file type
-; 	BCC-
-; !if _HARDTYPE_ = 56{
-; 	+EnKernal a
-; }
-; 	CLI
 	LDA #$46
 	STA CMDFlags		; Enable reception
 	JSR GetFromPrBuffer	; Get file type
@@ -3304,9 +3291,7 @@ bsave:
 	TXA
 	CLC
 	ADC FNL
-	;STA FNL
 	JSR .bo				; Open file. Input .A = filename length. Returns flag on .Y
-	;LDY	#$80		; OK Flag
 
 ; Read block
 	LDA #$00
@@ -3330,12 +3315,6 @@ bsave:
 }
 
 	LDY #$03
-; -	LDA $D012
-; 	CMP #251
-; 	BNE -				; Waits for raster line 251
-; 	LDA #$00
-; 	LDA	$D011		; Disable VIC II screen
-
 	LDA CMDFlags
 	ORA #$44
 	STA CMDFlags	; Get 4 parameter bytes
@@ -3448,6 +3427,7 @@ bsave:
 	+EnKernal a
 }
 	JSR	.bc			; Close file
+	JSR $E544		; Clear Screen and make sure Screen link table is correct
 	SEI
 	+DisKernal x
 	RTS
@@ -4790,6 +4770,10 @@ SpriteSetup:
 	STX $07F9	; Background
 	LDX #$0C
 	STX $D028	; Sprite 1 Grey2
+
+	LDA $07F8
+	EOR #$03
+	STA $07F8
 	RTS
 
 
