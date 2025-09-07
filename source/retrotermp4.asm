@@ -227,8 +227,8 @@ chdrive:
         LDA #$0F
         JSR $FFC3		; call CLOSE
 
-        JSR $FFCC		; call CLRCHN
-        RTS
+        JMP $FFCC		; call CLRCHN
+;        RTS
 ++
         ;... error handling for open errors ...
         LDY #$00
@@ -739,8 +739,8 @@ PrintEnd
 ;-	CMP TEMPCNT2
 ;	BEQ -
 ;	JSR NoChar
-	JSR StartCRSR
-	RTS
+	JMP StartCRSR
+;	RTS
 ; // Enter command mode
 .pb1
 	INC PRINDEXOUT
@@ -1069,8 +1069,8 @@ ddCtrl ;Control chars
 	;LDA #$15			; And turn it on again
 	;STA SIDREG+18
 	RTS	
-+   JSR $DCE6       	; Check colors (Kernal)
-    RTS
++   JMP $DCE6       	; Check colors (Kernal)
+;    RTS
 
 ;///////////////////////////////////////////////////////////////////////////////////
 ; Print beep
@@ -1898,8 +1898,8 @@ Cmd9C:
 	BEQ +
 	LDA #$01
 +	TAX
-	JSR $BB02
-	RTS
+	JMP $BB02
+;	RTS
 
 ;///////////////////////////////////////////////////////////////////////////////////
 ; 157: Circle
@@ -1942,8 +1942,8 @@ Cmd9D:
         JSR   $BCEE	; ???
         JSR   $C37B	; Set graphic cursor
 	CLC
-	JSR	$C0B2	; Circle?
-	RTS
+	JMP	$C0B2	; Circle
+;	RTS
 
 ;///////////////////////////////////////////////////////////////////////////////////
 ; 158: Fill
@@ -1959,8 +1959,8 @@ Cmd9E:
 	CPY #$04
 	BNE -
 	LDA #$00			; fill area enclosed by the pen number
-	JSR $B8E7			; PAINT
-	RTS
+	JMP $B8E7			; PAINT
+;	RTS
 
 ;///////////////////////////////////////////////////////////////////////////////////
 ; 160: Selects the screen as the output for the received characters
@@ -2076,9 +2076,9 @@ CmdB1
 	DEX
 	BPL .cb11
 
-	JSR StartCRSR
+	JMP StartCRSR
 	
-	RTS
+;	RTS
 
 ;///////////////////////////////////////////////////////////////////////////////////
 ; 178: Set the cursor enable status, requires a single parameter byte
@@ -2664,8 +2664,8 @@ bsave:
 .bc		; Close file
 	LDA #$02
 	JSR $FFC3		; CLOSE
-	JSR $FFCC		; CLRCHN
-	RTS
+	JMP $FFCC		; CLRCHN
+;	RTS
 
 .be		; Transfer complete
 	JSR	.bc			; Close file
@@ -2765,8 +2765,8 @@ ndrive:
 	LDA _drives,X
 	BMI -
 	STX _curdrv
-+	JSR ddrive
-	RTS
++	JMP ddrive
+;	RTS
 
 ;Find previous available drive
 pdrive:
@@ -2776,8 +2776,8 @@ pdrive:
 	LDA _drives,X
 	BMI -
 	STX _curdrv
-+	JSR ddrive
-	RTS
++	JMP ddrive
+;	RTS
 
 ;Print drive number
 ddrive:

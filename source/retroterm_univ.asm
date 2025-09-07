@@ -350,6 +350,7 @@ DlyNext2
 		LDA #$00
 		STA $0801
 		STA $0802
+		JSR earlysetup
 		JMP CODESTART
 
 !if _HARDTYPE_ = 56{
@@ -536,8 +537,8 @@ chdrive:
         LDA #$0F
         JSR $FFC3		; call CLOSE
 
-        JSR $FFCC		; call CLRCHN
-        RTS
+        JMP $FFCC		; call CLRCHN
+;        RTS
 ++
         ;... error handling for open errors ...
         LDY #$00
@@ -833,10 +834,10 @@ _aspd1
 
 MainPrg
 	JSR $E544		; Clear Screen (Makes sure the Screen link table is valid from here on)
-	SEI				; Disable IRQs
 	LDA	#%01111111
 	STA	$DC0D		; "Switch off" interrupts signals from CIA-1
 	STA	$DD0D		; "Switch off" interrupts signals from CIA-2
+	SEI				; Disable IRQs
 	LDA	#$00
 	STA	CMDFlags	; Reset Command flags
 	LDA	$DC0D		; Clear interrupt register (CIA1: IRQ)
@@ -1268,8 +1269,8 @@ PrintEnd
 ;-	CMP TEMPCNT2
 ;	BEQ -
 ;	JSR NoChar
-	JSR StartCRSR
-	RTS
+	JMP StartCRSR
+;	RTS
 ; // Enter command mode
 .pb1
 	INC PRINDEXOUT
@@ -1552,8 +1553,8 @@ ddCtrl ;Control chars
 	LDA #$15			; And turn it on again
 	STA SIDREG+18
 	RTS	
-+   JSR $E8CB       	; Check colors (Kernal)
-    RTS
++   JMP $E8CB       	; Check colors (Kernal)
+;    RTS
 
 ; --- Patch for old Kernal ---
 ; Update color RAM
@@ -2785,9 +2786,9 @@ CmdB1
 	DEX
 	BPL .cb11
 
-	JSR StartCRSR
+	JMP StartCRSR
 	
-	RTS
+;	RTS
 
 
 
@@ -2847,8 +2848,8 @@ CmdB3
 	LDY #$00
 	LDX WTOP
 	CLC
-	JSR $E50A			; Set cursor position
-	RTS
+	JMP $E50A			; Set cursor position
+;	RTS
 b3cancel				; Cancel split screen
 	JSR GetFromPrBuffer	; We had an orphan parameter before?
 b3cancel2
@@ -2957,8 +2958,8 @@ CmdB5
 	LDY #$00
 	LDX WTOP
 	CLC
-	JSR $E50A		; Set cursor position
-	RTS
+	JMP $E50A		; Set cursor position
+	;RTS
 
 ;///////////////////////////////////////////////////////////////////////////////////
 ; 182: Scroll text window, requires 1 parameter: rows to scroll, signed byte
@@ -3019,6 +3020,8 @@ IDString:
 	!byte $00,$08	;Turbo56K version, subversion
 
 !if _HARDTYPE_ != 56 {
+	; NOTE: THIS WILL FAIL WITH A WDC 6551!!!!
+	; Tx empty flag is stuck
 SendID
 _adata5
 	STA	T232DATA	; Store the character in the transmit register
@@ -3226,8 +3229,8 @@ bsave:
 	STA .ft+1			; Set file type OPEN string addr
 	LDA #>bst5
 	STA .ft+2
-	LDY #>bst3
 	LDA #<bst3
+	LDY #>bst3
 	BNE ++
 +	LDA #<bst4
 	STA .ft+1			; Set file type OPEN string addr
@@ -3380,9 +3383,6 @@ bsave:
 !if _HARDTYPE_ = 56{
 	+EnKernal a
 }
-	; LDA	#<bst3		; Print BAD block
-	; LDY	#>bst3
-	; JSR	STROUT
 	JSR URetry
 	LDY #$AA		; ERROR
 	JMP .bb			; Retry
@@ -3419,8 +3419,8 @@ bsave:
 .bc		; Close file
 	LDA #$02
 	JSR $FFC3		; CLOSE
-	JSR $FFCC		; CLRCHN
-	RTS
+	JMP $FFCC		; CLRCHN
+	;RTS
 
 .be		; Transfer complete
 !if _HARDTYPE_ = 56{
@@ -3546,8 +3546,8 @@ ndrive:
 	LDA _drives,X
 	BMI -
 	STX _curdrv
-+	JSR ddrive
-	RTS
++	JMP ddrive
+;	RTS
 
 ;Find previous available drive
 pdrive:
@@ -3557,8 +3557,8 @@ pdrive:
 	LDA _drives,X
 	BMI -
 	STX _curdrv
-+	JSR ddrive
-	RTS
++	JMP ddrive
+;	RTS
 
 ;Print drive number
 ddrive:
@@ -3620,9 +3620,10 @@ bst9:
 bst10:
 	!text "  ",$9D,$9D,$00
 
-; Detected drives copy
+; Selected drive
 _curdrv:
 	!byte $00
+; Detected drives copy
 _drives:
 bsend
 }
@@ -3676,6 +3677,8 @@ _SETUP
 	BPL -
 
 	JSR _MemCpy		;Do mem copy
+	LDA load_drive
+	STA _load_drive
 	JSR dosetup		;Call setup routine
 
 	LDA #<Irq		;Restore main IRQ routine
@@ -3692,18 +3695,9 @@ _sustart:
 !pseudopc $0B00{
 dosetup:
 	+EnKernal a
-	LDA $D020		;Save screen colors
-	PHA
-	LDA $D021
-	PHA
-	LDA $0286
-	PHA
 	; LDA #%00011011		;2 Text mode
 	; STA $D011			;4
 
-	LDA #$02
-	STA $D020
-	STA $D021
 	LDA	#%00000001		; Enable raster interrupt signals from VIC
 	STA	$D01A
 	LDA	$D011			; Enable VIC II screen in text mode
@@ -3712,16 +3706,37 @@ dosetup:
 	STA	$D011
 	LDA #%11001000		;
 	STA $D016			; Disable multicolor
+_dosetup	; alternative entry point
+	LDA $D020		;Save screen colors
+	PHA
+	LDA $D021
+	PHA
+	LDA $0286
+	PHA
+	LDA #$02
+	STA $D020
+	STA $D021
 	LDA #22
 	STA $D018			; Upper/Lowercase text
 
-	CLI
+	LDA #<rate_offs
+	STA $FD
+	LDA #>rate_offs
+	STA $FE
+
+	JSR set_prefs
+	JSR bck_data		; copy prefs to tmp
+
+	; CLI
 ;...
 	; Print message
 	+StringOut sut1
-	+SetCursor $07,$18
+	+SetCursor $00,$18
 	+StringOut sut3
-	LDA #$80
+	LDA _load_drive
+	BMI +
+	+StringOut sut3_
++	LDA #$80
 	STA $028A			; Repeat all keys
 !if _HARDTYPE_ != 56{
 	
@@ -3732,8 +3747,21 @@ dosetup:
 	LSR
 	ROR			;.A = $00 for D7, $81 for DE, $BE for DF
 	JSR udbase	; update base display
+	+SetCursor $17,$09
+	LDA #<sut4			; Disabled
+	LDY #>sut4
+	LDX C82enable+1
+	BPL +
+	LDA #<sut5			; Enabled
+	LDY #>sut5
++	JSR STROUT
 }
-
+!if _HARDTYPE_ = 56{
+	+EnKernal a
+	CLI
+}
+	JSR refresh_init	; Show modem init string
+	JSR show_rate		; Show modem init baud rate
 --
 !if _HARDTYPE_ = 56{
 	+EnKernal a
@@ -3752,7 +3780,7 @@ dosetup:
 	+EnKernal y
 	CLI
 }
-	JSR $BDCD			;Print number
+	JSR $BDCD			; Print RTS delay
 
 -	JSR $F142			; Read keyboard buffer
 	BEQ -
@@ -3819,21 +3847,48 @@ dosetup:
 
 ++
 }
-	CMP #$85			; (F1)
+	CMP #$49			; (I)
+	BNE +
+	JSR edit_init
+	JMP --
+
++	CMP #$52			; (R)
+	BNE +
+	JSR cycle_rates
+	JMP --
+
++	CMP #$87			; (F5)
+	BNE ++
+	LDA _load_drive
+	BMI +
+	JSR psave
++	JMP --
+
+++	CMP #$85			; (F1)
 	BEQ +
 	JMP --
 +
+
 !if _HARDTYPE_ = 56{
 	+EnKernal a
 	CLI
 }
 
 ;....
+	SEI
+	+DisRoms a
+	LDX #40
+-	LDA _sudtmp+4,X
+	STA setupdata+4,X
+	DEX
+	BPL -
+	JSR _resp	; copy new prefs to setupdata
+
 	LDA #$00
 	STA $028A		; Default key repeat
-	SEI
 	LDA #$00		; Disable raster interrupts
 	STA $D01A
+	SEI
 
 	PLA
 	STA $0286
@@ -3841,6 +3896,7 @@ dosetup:
 	STA $D021		;Restore screen colors
 	PLA
 	STA $D020
+
 	JSR $E544		;Clear screen
 	+DisRoms a
 	RTS
@@ -3895,6 +3951,372 @@ suIRQ:
 	STA	$D019
 	JMP $EA31			; Jump to Kernal IRQ routine
 
+; --- Refresh modem init string
+refresh_init:
+!if _HARDTYPE_ = 56{
+	+SetCursor $00,$06
+} else {
+	+SetCursor $00,$0D
+}
+	;Delete whole line
+	LDY #40
+-	LDA #$14
+	JSR $FFD2
+	DEY
+	BNE -
+	+StringOut _sudtmp+5
+	RTS
+
+; --- Edit modem init string
+edit_init:
+!if _HARDTYPE_ = 56{
+	+EnKernal x
+}
+	LDA #$00
+	STA _sudtmp+5		; Remove the previous string
+	JSR refresh_init	; Clear previous string on screen
+	LDA #>_filter
+	LDX #<_filter
+	LDY #38
+	JSR FILTERED_INPUT
+	LDY #$00			; Copy new init string
+-	LDA fibuffer,Y
+	STA _sudtmp+5,Y
+	BEQ +
+	INY
+	CPY #38
+	BNE -
+	DEY
+	LDA #$00			; safeguard for long/unterminated string
+	STA _sudtmp+5,Y
++	JSR refresh_init	; Refresh init string on screen
+!if _HARDTYPE_ = 56{
+	SEI
+	+DisKernal x
+}
+	RTS
+
+; --- cycle modem init baudrates
+cycle_rates:
+!if _HARDTYPE_ = 56{
+	+EnKernal x
+	+SetCursor $19,$07
+} else {
+	+SetCursor $19,$0E
+}
+	LDX _sudtmp+4
+	INX
+	TXA
+	AND #$03
+	STA _sudtmp+4
+	TAY
+_cr1:
+	LDA ($FD),Y
+	CLC
+	ADC #<rates
+	TAX
+	LDA #$00
+	ADC #>rates
+	TAY
+	TXA
+	JSR STROUT
+!if _HARDTYPE_ = 56{
+	SEI
+	+DisKernal x
+}
+	RTS
+
+; --- display modem init baudrate
+show_rate:
+!if _HARDTYPE_ = 56{
+	+SetCursor $19,$07
+} else {
+	+SetCursor $19,$0E
+}
+	LDY _sudtmp+4
+	BPL _cr1
+
+; --- Copy setupdata to _sudtmp
+bck_data:
+	SEI
+	+DisRoms a
+	LDX #44
+-	LDA setupdata,X
+	STA _sudtmp,X
+	DEX
+	BPL -
+	+EnKernal a
+	CLI
+	RTS
+
+delfname:	!text "S0:"
+pfname:		!text "RT.PREF"
+pfname_n:	!text ",S,W"
+pfname_e:
+_load_drive: !byte $FF
+
+; Set/Reset setupdata from in-code values
+res_prefs:
+	SEI
+	+DisRoms a
+_resp:
+	LDA rb1l+1		; RTS Delay
+	STA setupdata
+	LDA rb1h+1
+	STA setupdata+1
+!if _HARDTYPE_ = 56{
+	LDA #$00
+	STA setupdata+2	; ACIA base
+	STA setupdata+3	; Screen enable
+} else {
+	LDA _adata1+2	; ACIA base
+	STA setupdata+2
+	LDX #$00
+	LDA C82enable+1
+	BPL +
+	INX
++	STX setupdata+3	; Screen enable
+}
+	+EnKernal a
+	CLI
+	RTS
+
+; Set pref values from setupdata
+set_prefs:
+	SEI
+	+DisRoms a
+	LDA setupdata		; RTS delay
+	STA rb1l+1
+	LDA setupdata+1
+	STA rb1h+1
+!if _HARDTYPE_ != 56{
+	LDY setupdata+2		; ACIA Base
+	JSR rebase_acia
+	LDX #$FF
+	LDA setupdata+3		; Flags
+	BNE +
+	LDX #%01101111
++	STX C82enable+1
+}
+	+EnKernal a
+	CLI
+	RTS
+
+;======================================================================
+; Adapted from codebase64, original by Schema
+; Input a string and store it in fibuffer, terminated with a null byte.
+; x:a is a pointer to the allowed list of characters, null-terminated.
+; max # of chars in y
+; returns num of chars entered in y.
+;======================================================================
+
+GETIN = $FFE4
+
+; Example usage
+; FILTERED_TEXT
+;   lda #>_filter
+;   ldx #<_filter
+;   ldy #38
+  ;Drop through
+
+; Main entry
+FILTERED_INPUT:
+	STY _fimax
+	STX .ficheck+1
+	STA .ficheck+2
+
+  ;Zero characters received.
+	LDA #$00
+	STA _ficount
+	+StringOut _cursor+1	; Print cursor
+
+;Wait for a character.
+.figet
+	JSR GETIN
+	BEQ .figet
+
+	STA _filast
+
+	CMP #$14               ;Delete
+	BEQ .fidel
+
+	CMP #$0D               ;Return
+	BEQ .fidone
+
+	;Check the allowed list of characters.
+	LDX #$00
+.ficheck
+	LDA $FFFF,x           ;Overwritten
+	BEQ .figet         ;Reached end of list (0)
+	
+	CMP _filast
+	BEQ .fiok           ;Match found
+	
+	;Not end or match, keep checking
+	INX
+	BNE .ficheck
+	
+.fiok
+	LDA _filast          ;Get the char back
+	LDY _ficount
+	STA fibuffer,y        ;Add it to string
+	STA _cursor
+	+StringOut _cursor
+	;JSR $FFD2             ;Print it
+
+	INC _ficount           ;Next character
+
+	;End reached?
+	LDA _ficount
+	CMP _fimax
+	BEQ .fidone
+	;Not yet.
+	BNE .figet
+
+.fidone
+   LDY _ficount
+   LDA #$00
+   STA fibuffer,y   ;Zero-terminate
+   RTS
+
+; Delete last character.
+.fidel
+	;First, check if we're at the beginning.  If so, just exit.
+	LDA _ficount
+	BNE +
+	JMP .figet
+
+	;At least one character entered.
+	;Move pointer back.
++	DEC _ficount
+
+	;Store a zero over top of last character, just in case no other characters are entered.
+	LDY _ficount
+	LDA #$00
+	STA fibuffer,y
+
+	;Print the delete char
+	LDA #$14
+	STA _cursor
+	+StringOut _cursor
+	; JSR $FFD2
+
+	;Wait for next char
+	JMP .figet
+
+_cursor
+	!byte $A6,$A6,$9D,$00	; Hash, hash, crsr left, null
+_filter
+	!text "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890.,-+!?%&'()*",$00
+_fimax
+	!byte $00
+
+_filast
+	!byte $00
+
+_ficount
+	!byte $00
+
+; --- Open file
+channel:	!byte $00
+fdrive: 	!byte $08
+
+; A: Name length
+; X/Y: Name pointer
+; channel: Secodary address
+; fdrive: drive
+; File number same as channel, only one file open at a time anyways
+fopen:
+	JSR	$FFBD	; SETNAM
+	LDX fdrive
+	LDY channel
+	TYA			; file number
+	JSR $FFBA	; SETLFS
+	JMP $FFC0	; Open (Carry clear if ok)
+	;RTS
+
+; --- File close
+fclose:
+	LDA channel	; file number
+	JSR $FFC3	; CLOSE
+	JMP $FFCC	; CLRCHN
+
+; --- Read error channel
+; - CLOSE OTHER FILES BEFORE CALLING -
+rechan:
+	LDA #<errbuf
+	STA $AE
+	LDA #>errbuf
+	STA $AF
+	LDA #$0F
+	STA channel
+	LDA #$00
+	TAX
+	TAY
+_rc1:
+	JSR fopen
+	BCS +		; error ->
+	LDX channel
+	JSR $FFC6	; CHKIN
+	LDA #$00
+-	JSR $FFB7	; READST
+	BNE +		; EOF or read error ->
+	JSR $FFCF	; CHRIN
+	STA ($AE),Y
+	INC $AE
+	BNE -
+	INC $AF
+	BNE -
++
+	JMP fclose
+
+; --- Save pref file
+psave:
+	; First update preferences data
+	JSR res_prefs
+	JSR set_prefs
+	; then, try to delete existing file
+	LDA #<errbuf
+	STA $AE
+	LDA #>errbuf
+	STA $AF
+	LDA #$0F
+	STA channel
+	LDA _load_drive
+	STA fdrive
+	LDA #pfname_n-delfname
+	LDX #<delfname
+	LDY #>delfname
+	JSR _rc1				; Send command
+	; Save data
+	LDA #$02
+	STA channel
+	LDA _load_drive
+	STA fdrive
+	LDA #pfname_e-pfname
+	LDX #<pfname
+	LDY #>pfname
+	JSR fopen
+	BCS .ser				; if carry set, an open error has happened
+	LDX channel
+	JSR $FFC9				; CHKOUT
+	LDA #<_sudtmp
+	STA $AE
+	LDA #>_sudtmp
+	STA $AF
+	LDY #$00
+-	JSR $FFB7				; READST
+	BNE .ser				; error ->
+	LDA ($AE),Y
+	JSR $FFD2				; CHROUT
+	INY
+	CPY #45
+	BNE -
+.ser
+	JSR fclose
+	RTS
+
+
 ; --- Setup Texts
 sut1:
 	;Clear, Lower/upper, yellow
@@ -3912,8 +4334,9 @@ sut1:
 	!text " 2> $de00",$0D
 	!text " 3> $df00",$0D
 	!text $12,"b",$92,"LOCK TRANSFER SCREEN: disabled"
-	
 }
+	!text $0D,$0D,"mODEM ",$12,"i",$92,"NIT STRING:",$0D,$0D,$0D
+	!text "iNITIAL MODEM BAUD ",$12,"r",$92,"ATE:"
 	!byte $00
 sut2:
 	!text "     "
@@ -3921,11 +4344,21 @@ sut2:
 	!byte $00
 sut3:
 	!byte $12
-	!text $12," f1 ",$92," TO RETURN TO rETROTERM",$00
+	!text $12," f1 ",$92," tERMINAL        ",$00
+sut3_:
+	!text $12," f5 ",$92," sAVE SETTINGS",$00
 sut4:
 	!text "dis",$00
 sut5:
 	!text " en",$00
+
+rates:
+	!text "skip",$00
+	!text " 300",$00
+	!text "1200",$00
+	!text "2400",$00
+rate_offs:
+	!byte 0,5,10,15
 
 !if _HARDTYPE_ != 56{
 ; addresses where ACIA registers are accessed
@@ -3938,9 +4371,36 @@ _ACIA_ADDR:
 !word	_aspd1+2
 }
 }
+; temporal setup data
+_sudtmp:
+
+
+fibuffer = _sudtmp+45	; String input buffer
+errbuf = fibuffer
 suend
 }
 _suend
+
+load_drive:	!byte $FF	; Drive to use for preferences file
+
+; Setup data here
+; $00: RTS timing low
+; $01: RTS timing high
+; $02: ACIA base address high (even if not used)
+; $03: Flags:
+;		bit 0: Screen enable during turbo transfers
+; $04: Early startup command baudrate:
+;		  0: No early startup command
+;		  1:  300 bauds
+;		  2: 1200 bauds
+;		  3: 2400 bauds
+; $05-$45: Null terminated startup command (38 chars max). Pad with 0s
+
+setupdata:
+!byte $56,$00,$DE,$00,$02
+!text "ATF0B57600",$00
+_sudf
+!fill 45-(_sudf-setupdata),$00
 ENDSHADOW
 }
 _ENDSHADOW_
@@ -4313,7 +4773,7 @@ rb1h
 	LDA	#$00		; 2 Set timer A to 64 ($0040) microseconds
 	STA	$DC05		; 4
 rb1l
-	LDA	#$40		; 2
+	LDA	#$45		; 2
 	STA	$DC04		; 4
 	LDA	#$19		; 2 Force load and start timer A
 	STA	$DC0E		; 4
@@ -5429,9 +5889,9 @@ BMELLIPSE:
 	BPL -
 
 	JSR _ellip1
-	JSR _ellip2
+	JMP _ellip2
 
-	RTS
+;	RTS
 
 
 ; Ellipse, first region (X)
@@ -6050,8 +6510,8 @@ GetCoord:
 	STA _Y1,X
 	DEX
 	BPL -
-	JSR plusdx	; X += DX
-	RTS
+	JMP plusdx	; X += DX
+;	RTS
 
 EXTRAEND
 }
@@ -6174,3 +6634,326 @@ PALEND
 }
 }
 _PALEND_
+
+;/////////////////////////
+;  Early setup code
+;/////////////////////////
+; Executed before starting up retroterm
+; Try to load setup file, if none if found, show setup screen
+; if setup file is found, setup and start retroterm
+earlysetup:
+	SEI
+	+DisRoms a
+	; Copy routines to lower RAM ($0B00)
+	LDX #$01
+-	LDA _sudata,X
+	STA SOURCEPTR,X
+	LDA _sudata+2,X
+	STA DESTPTR,X
+	LDA _sudata+4,X
+	STA CSIZE,X
+	DEX
+	BPL -
+	JSR _MemCpy		;Do mem copy
+	LDA $BA			; Check last used device
+	CMP #$08
+	BCS ++
+	; retroterm was not loaded from disk
+	; use first detected IEC device
+	LDX #$00
+-	CPX #$08
+	BNE +
+	; +EnKernal a
+	JSR res_prefs	; Reset preferences	
+	BNE .esq		; No available drive found > show setup
++	LDA DRIVES,X
+	BPL +			; Available drive
+	INX
+	BNE -
++	TXA
+++	STA load_drive
+	STA _load_drive
+	+EnKernal a
+	; CLI
+	JSR res_prefs	; Reset preferences	
+	JSR loadsetup	; Get preferences from disk, if any
+	BCC +			; prefs ok run retroterm
+.esq
+	; LDA #$00
+	JSR _dosetup	; prefs error, run setup, alternative entry point
++	+EnKernal a
+	LDA _sudtmp+4
+	BEQ +			; Skip init string
+	JSR _init_modem
++	RTS
+
+; --- Load setup file
+loadsetup:
+	LDA #$02
+	STA channel
+	LDA _load_drive
+	STA fdrive
+	LDA #pfname_n-pfname
+	LDX #<pfname
+	LDY #>pfname
+	JSR fopen
+ 	BCS .oerr		; if carry set, an open error has happened
+	LDX channel		; filenumber 2
+	JSR $FFC6		; call CHKIN (file 2 now used as input)
+
+	LDA #<_sudtmp
+	STA $AE
+	LDA #>_sudtmp
+	STA $AF
+
+	LDY #$00
+
+-	JSR $FFB7		; call READST (read status byte)
+	BNE .eof		; either EOF or read error
+	JSR $FFCF		; call CHRIN (get a byte from file)
+	STA ($AE),Y		; write byte to memory
+	INC $AE
+	BNE -
+	INC $AF
+	JMP -			; next byte
+
+.eof
+	CMP #$40		; end of file?
+	BNE .oerr
+	JSR fclose		; close file
+	; Copy setup preferences
+	SEI
+	+DisRoms a
+	LDX #44
+-	LDA _sudtmp,X
+	STA setupdata,X
+	DEX
+	BPL -
+	+EnKernal a
+	CLI
+	CLC				; Prefs loaded ok
+	RTS
+
+; handle open or read errors
+.oerr
+	JSR fclose
+	JSR rechan
+++	SEC				; Prefs load error
+	RTS
+
+; Send init string
+_init_modem:
+!if _HARDTYPE_ !=56{
+	; rebase ACIA from preferences
+	LDA _sudtmp+2
+	STA _im00+2
+	STA _im01+2
+	TAY
+	JSR rebase_acia
+	LDA	#%00001011	; no parity, no echo, no tx irq (rts=0, receive enable), no rx irq, rx enabled (dtr=0)
+_im00
+	STA T232COMMAND
+	LDX _sudtmp+4	; get baud rate
+	DEX
+	LDA _bauds,x
+_im01
+	STA T232CONTROL
+} else {
+	JSR setup
+	;
+}
+	LDX #$00
+-	LDA _sudtmp+5,x
+	BEQ +
+!if _HARDTYPE_ !=56{
+	JSR SendID
+} else {
+	JSR putbyte
+}
+	INX
+	CPX #38
+	BNE -
++	LDA #$0D
+!if _HARDTYPE_ !=56{
+	JSR SendID
+} else {
+	JSR putbyte
+	LDA $A2			; TI LSB
+-	CMP $A2			; Delay until next frame <- doesn't work sending at full speed
+	BEQ -
+	JSR uninstall
+}
+	RTS
+
+!if _HARDTYPE_ !=56{
+_bauds:
+	!byte %00010101, %00010111, %00011000
+} else{
+; 300/1200/2400 bauds routine adapted from Commlib2
+; Original by İlker Fıçıcılar (http://cbm.ficicilar.name.tr/program/7/rs232-communication-library)
+; Source at: https://github.com/barryw/commlib2
+
+setup:
+	SEI
+	LDA #<usr_irq
+	STA $0318	; NMI vector
+	LDA #>usr_irq
+	STA $0319
+
+	LDX _sudtmp+4	; Baud rate
+	DEX
+	TXA
+	ASL
+
+	LDX Ras			; PAL/NTSC?
+	CPX #$0B
+	BNE +			; NTSC or DREAN ->
+	CLC
+	ADC #$06
++	TAY
+
+	LDA _bauds,Y
+	STA $DD04
+	INY
+	LDA _bauds,Y
+	STA $DD05
+	LDA #$7F
+	STA $DD0D			; Clear CIA 2 interrupts
+	; LDA #$90
+	; STA $DD0D			; Enable FLAG NMI
+	LDY #$00
+	STY busy
+	LDA $DD00
+	AND #$FB
+	STA loc02
+	ORA #$04
+	STA loc10
+	STA $DD00
+	LDA $DD03
+	AND #$be
+	ORA #$06			; Both RTS and DTR as outputs
+	STA $DD03
+	LDA #$04
+	STA $DD01			; DTR = 1
+	CLI
+	RTS
+
+uninstall:
+	SEI
+	LDA #$7F
+	STA $DD0D
+	LDA #$47
+	STA $0318	; Restore NMI
+	LDA #>$FE
+	STA $0319
+	LDA $DD00
+	ORA #$04
+	STA $DD00
+	CLI
+	CLC
+	RTS
+
+; Send the byte in the A register
+putbyte:
+	PHP
+	PHA
+_pb2:
+	LDA busy
+	BMI _pb2
+	LDA $A2			; TI LSB
+-	CMP $A2			; Delay until next frame <- doesn't work sending at full speed
+	BEQ -
+	SEI
+	LDA #$81
+	STA $DD0D		; Enable Timer A NMI
+	LDA #$11
+	STA $DD0E		; Start Timer A
+	LDA #$08
+	STA outidx
+	LDA #$80
+	STA busy
+	PLA
+	STA tempout
+	LDA loc02		; Start bit
+	STA $DD00
+	LSR tempout
+	BCC +
+	LDA loc10
++	STA loc01
+	PLP
+	RTS
+
+	SEI
+usr_irq:
+	PHA
+	LDA $DD0D
+	BPL _ir4		; -> RESTORE key
+	; AND #$03
+	; BEQ _ir5		; -> FLAG
+	; AND #$02
+	; BNE _ir6		; -> Timer B
+	; Timer A
+	; Send bit
+	LDA loc01
+	STA $DD00
+	LDA loc10
+	LSR tempout
+	BCS +
+	LDA loc02
+
++	STA loc01
+	DEC outidx
+	BMI ++
+	BEQ +
+	PLA
+	RTI
+
+	; stop bit
++	LDA loc10
+	STA loc01
+	PLA
+	RTI
+
+	; end tx
+++	LDA #$10
+	STA $DD0E
+	LDA #$01
+	STA $DD0D
+	STA busy
+	PLA
+	RTI
+
+; RESTORE
+_ir4
+	TXA
+	PHA
+	TYA
+	PHA
+	LDY #$00
+	JMP $fe43 + $13
+
+loc01:
+	!byte $c3
+loc02:
+	!byte $c3
+loc10:
+	!byte $c7
+busy:
+	!byte $00
+outidx:
+	!byte $ff
+tempout:
+	!byte $00
+
+_bauds
+; NTSC
+	!word $0d00	;300
+	!word $0334 ;1200
+	!word $0197 ;2400
+_bauds_p
+; PAL
+	!word $0c86	;300
+	!word $0315 ;1200
+	!word $0188	;2400
+
+}

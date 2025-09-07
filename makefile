@@ -20,6 +20,7 @@ VERSION:=$(file < $(SRCFOLDER)/version.txt)
 define make_target_acme =
 $$(BUILDFOLDER)/rt-$(1).prg: $(SRCFOLDER)/retroterm_univ.asm $(SRCFOLDER)/version.asm
 	acme $$(DEFINES_FOR_$(1)) -D_MAKE_=1 -I $(SRCFOLDER) -f cbm -o $$@ $$<
+	exomizer sfx sys -o $(BUILDFOLDER)/packed/$$(@F) $$@
 
 endef
 
@@ -46,6 +47,7 @@ msx38k: $(BUILDFOLDER)/rt38k.com
 
 $(BUILDFOLDER)/rt-p4.prg: $(SRCFOLDER)/retrotermp4.asm
 	acme -f cbm -D_MAKE_=1 -I $(SRCFOLDER) -o $(BUILDFOLDER)/rt-p4.prg $(SRCFOLDER)/retrotermp4.asm
+	exomizer sfx sys -t4 -o $(BUILDFOLDER)/packed/rt-p4.prg $(BUILDFOLDER)/rt-p4.prg
 
 $(BUILDFOLDER)/rt232.com: $(SRCFOLDER)/retrotermm1.asm $(SRCFOLDER)/retrologo.mseq
 	pasmo -E IFACE=0 -I $(SRCFOLDER) $(SRCFOLDER)/retrotermm1.asm $(BUILDFOLDER)/rt232.com $(SRCFOLDER)/rtm232.symbol
