@@ -64,8 +64,10 @@ The *MSX 1 RS-232* version (rt232.com) is also at this moment limited to **19200
 ### v0.30 (??/??/2024):
 - Turbo56K v0.8 partial implementation
 - Drawing primitives: clear screen, plot, line, box, ellipse, fill
+- C64 ports: Ability to save a configuration file to disk.
+Optional modem init string with selectable 300,1200 or 2400 baud speed.
 - Bugfix, all ports: No more missing filename characters when downloading to disk
-- Bugfix, c64 ports: Fixed glitched sprites after downloading to disk
+- Bugfix, C64 ports: Fixed glitched sprites after downloading to disk
 
 ### v0.21 (Intermediate Github version, no oficial release):
 - New shortcut key for the Plus/4 port: `CBM+,` disables/enables the FLASH-ON control code. Improves compatibility with BBSs running Centipede 128 software.
@@ -146,6 +148,8 @@ Over time, the protocol has been extended to include 4-bit PCM audio streaming, 
 
 After LOADing and RUNning *Retroterm*, you can dial to your favorite BBS using your Modem commands as usual.
 
+**On C64 ports, _Retroterm_ will search for a configuration file on the last used drive, if found, and a modem initialization string is set, it will be sent at this moment. If no configuration file is found then the setup screen will be shown**
+
 **The modem should be setup to the correct baud rate before running _Retroterm_.**
 
 To exit *Retroterm*, just press `RUN/STOP` (Commodore) or `CTRL-C` (MSX), it will remain in memory, and you can recall it with `SYS49152` (Commodore 64), or `SYS28672` (Commodore Plus/4).
@@ -169,10 +173,18 @@ The first one sets the base address for the Swiftlink or Turbo232 cartridge, pre
 
 The second setting available for ACIA versions is the ability to keep the screen visible while transferring at turbo speeds. Turbo transfers are slightly slower with the screen enabled. Press `B` to toggle.
 
+For C64 ports, an optional modem initialization string can be edited by pressing `I`. The baud rate used to transmit this string can be set by pressing `R`, with current options being `SKIP`, `300`, `1200` and `2400`.
+This string is only transmitted when running _Retroterm_ with `RUN`, automatically if a configuration file is found, or, if no file is found by selecting the appropriate options in the setup screen before exiting to the terminal.
+Use `F5` to save the current settings to disk.
+
+
 **Important**: Upon exiting the setup screen, _Retroterm_ will default to full screen text mode. Only previous background and border colors will be restored.
 
 ## 3 Building Retroterm
-The Commodore versions of *Retroterm* is written for the *ACME* cross-assembler, while *PASMO* is used for the MSX port, to compile use:
+The Commodore versions of *Retroterm* is written for the *ACME* cross-assembler, while *PASMO* is used for the MSX port
+Exomizer is used to pack all the Commodore ports. Find these packed versions inside the /build/packed/ subdirectory
+
+To compile use:
 
 ```
 make
