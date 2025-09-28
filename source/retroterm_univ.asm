@@ -693,15 +693,15 @@ DisRTS
 _acomm2
 	STA	T232COMMAND
 !if _HARDTYPE_ = 232{
-	LDY #$0E		; 2
+	LDY #$64		; 2
 }
 !if _HARDTYPE_ = 1541{
 	LDY #$13
 }
 !if _HARDTYPE_ = 38{
-	LDY #$14		; 2
+	LDY #$64		; 2
 }
-WaitRX2				; wait for at least the duraction of a whole character
+WaitRX2				; wait for at least 1mS
 _astat1
 	LDA	T232STATUS	; 4 Byte received?
 	AND	#%00001000	; 2
