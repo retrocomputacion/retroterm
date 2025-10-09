@@ -6736,6 +6736,8 @@ loadsetup:
 
 ; handle open or read errors
 .oerr
+	LDA $90			; STatus
+	BMI ++			; Device not present?
 	JSR fclose
 	JSR rechan
 ++	SEC				; Prefs load error
