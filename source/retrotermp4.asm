@@ -2922,6 +2922,7 @@ _SETUP
 	BPL -
 
 	JSR _MemCpy		;Do mem copy
+	+DisROMs
 	LDA load_drive
 	STA _load_drive
 	JSR dosetup		;Call setup routine
@@ -3709,16 +3710,20 @@ earlysetup:
 	DEX
 	BPL -
 	JSR _MemCpy		;Do mem copy
+	JSR res_prefs	; Reset preferences
+	JSR bck_data	; And init _sudtmp
+	+DisROMs
 	LDA load_drive	; Check last used device
 	CMP #$08
 	BCS ++
 	; retroterm was not loaded from disk
-	; use first detected IEC device
+	; use first detected device
 	LDX #$00
 -	CPX #$08
 	BNE +
 	; +EnKernal a
-	JSR res_prefs	; Reset preferences	
+	; JSR res_prefs	; Reset preferences
+	; JSR bck_data
 	BEQ .esq		; No available drive found > show setup
 +	LDA DRIVES,X
 	BPL +			; Available drive
@@ -3729,7 +3734,8 @@ earlysetup:
 	STA _load_drive
 	+EnROMs
 	; CLI
-	JSR res_prefs	; Reset preferences	
+	; JSR res_prefs	; Reset preferences	
+	; JSR bck_data	; And init _sudtmp
 	JSR loadsetup	; Get preferences from disk, if any
 	BCC +			; prefs ok run retroterm
 .esq

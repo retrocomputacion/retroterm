@@ -6886,6 +6886,8 @@ earlysetup:
 	DEX
 	BPL -
 	JSR _MemCpy		;Do mem copy
+	JSR res_prefs	; Reset preferences
+	JSR bck_data	; And init _sudtmp
 	LDA $BA			; Check last used device
 	CMP #$08
 	BCS ++
@@ -6894,9 +6896,10 @@ earlysetup:
 	LDX #$00
 -	CPX #$08
 	BNE +
-	; +EnKernal a
-	JSR res_prefs	; Reset preferences	
-	BNE .esq		; No available drive found > show setup
+	+EnKernal a
+	; JSR res_prefs	; Reset preferences
+	; JSR bck_data	; And init _sudtmp
+	BEQ .esq		; No available drive found > show setup
 +	LDA DRIVES,X
 	BPL +			; Available drive
 	INX
@@ -6906,7 +6909,8 @@ earlysetup:
 	STA _load_drive
 	+EnKernal a
 	; CLI
-	JSR res_prefs	; Reset preferences	
+	; JSR res_prefs	; Reset preferences
+	; JSR bck_data	; And init _sudtmp
 	JSR loadsetup	; Get preferences from disk, if any
 	BCC +			; prefs ok run retroterm
 .esq
