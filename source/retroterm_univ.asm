@@ -6899,13 +6899,14 @@ earlysetup:
 	+EnKernal a
 	; JSR res_prefs	; Reset preferences
 	; JSR bck_data	; And init _sudtmp
-	BEQ .esq		; No available drive found > show setup
+	JMP .esq		; No available drive found > show setup
 +	LDA DRIVES,X
 	BPL +			; Available drive
 	INX
 	BNE -
 +	TXA
-++	STA load_drive
+++	+DisRoms x
+	STA load_drive
 	STA _load_drive
 	+EnKernal a
 	; CLI
