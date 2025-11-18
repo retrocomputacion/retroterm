@@ -6,7 +6,7 @@
 Jorge Castillo & Pablo Roldán
 
 
-![Badge commodore](https://img.shields.io/badge/Commodore-64%2f128%20%26%20Plus%2f4-1E2A4E?logo=commodore&logoColor=1E2A4E&labelColor=ccc) ![Badge MSX1](https://img.shields.io/badge/MSX1-darkred) ![GitHub all releases](https://img.shields.io/github/downloads/retrocomputacion/retroterm/total?labelColor=ccc) ![Badge license](https://img.shields.io/github/license/retrocomputacion/retroterm?labelColor=ccc) [![Discord](https://img.shields.io/discord/625776626356977674?logo=discord&logoColor=white&label=Discord&color=blue)](https://retrocomputacion.com/thumb.php?src=e_MEDIA_IMAGE%2F2024-09%2Fdiscord.png&w=384&h=0)
+![Badge commodore](https://img.shields.io/badge/Commodore-64%2f128%20%26%20Plus%2f4-1E2A4E?logo=commodore&logoColor=1E2A4E&labelColor=ccc) ![Badge MSX1](https://img.shields.io/badge/MSX1-darkred) ![GitHub all releases](https://img.shields.io/github/downloads/retrocomputacion/retroterm/total?labelColor=ccc) ![Badge license](https://img.shields.io/github/license/retrocomputacion/retroterm?labelColor=ccc) [![Discord](https://img.shields.io/discord/625776626356977674?logo=discord&logoColor=white&label=Discord&color=blue)](https://discord.gg/F2jmuUCBAG)
 
 ---
 </div>
