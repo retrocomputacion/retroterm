@@ -187,16 +187,26 @@ Finally pressing `P` switches to the phone book screen, here you can select one 
 ## 3 Building Retroterm
 The Commodore versions of *Retroterm* is written for the *ACME* cross-assembler, while *PASMO* is used for the MSX port.
 
-Exomizer is used to pack all the Commodore ports. Find these packed versions inside the /build/packed/ subdirectory
+Exomizer is used to pack all the Commodore ports. Find these packed versions inside the `/build/packed/` subdirectory
 
 To compile use:
 
 ```
-make
+make all
 ```
 to compile all versions.
 
-Or you can specify which version you want to compile, either `userport`, `swiflink`, `turbo232`, `plus4`, `msx232` or `msx56k`.
+For all Commodore versions use
+```
+make cbm
+```
+
+For all MSX versions use
+```
+make msx
+```
+
+Or you can specify which version you want to compile, either `userport`, `swiflink`, `turbo232`, `plus4`, `msx232`, `msx56k` or `msx38k`.
 
 ie:
 ```
@@ -304,3 +314,5 @@ In any case the *[Turbo56k](docs/turbo56k.md)* version bytes that follow the ID 
 - **Willy Manilly** for adding support to the *Z64K emulator*
 
 - [**ElectronicsArchiver**](https://github.com/ElectronicsArchiver) for initial documentation rework
+
+- [**idolpx**](https://github.com/idolpx) for improved Makefile
