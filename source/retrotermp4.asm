@@ -2910,7 +2910,7 @@ _SETUP
 	LDA #>suIRQ
 	STA $0315
 
-	; Copy routine to lower RAM ($0B00)
+	; Copy routine to lower RAM ($1B00)
 	LDX #$01
 -	LDA _sudata,X
 	STA SOURCEPTR,X
@@ -2922,6 +2922,7 @@ _SETUP
 	BPL -
 
 	JSR _MemCpy		;Do mem copy
+	+DisROMs
 	LDA load_drive
 	STA _load_drive
 	JSR dosetup		;Call setup routine
@@ -2947,6 +2948,7 @@ dosetup:
 	LDA $053B
 	PHA
 
+_dosetup				; alternative entry point
 	LDA #$32
 	STA $FF15
 	STA $FF19
@@ -2969,7 +2971,7 @@ dosetup:
 ;...
 	; Print message
 	+StringOut sut1
-	+SetCursor $00,$18
+	+SetCursor $00,$16
 	+StringOut sut3
 	LDA _load_drive
 	BMI +
@@ -3014,6 +3016,10 @@ dosetup:
 	JSR cycle_rates
 	JMP --
 
++	CMP #$50			; (P)
+	BNE +
+	JMP phone_book
+
 +	CMP #$87			; (F5)
 	BNE ++
 	LDA _load_drive
@@ -3026,16 +3032,18 @@ dosetup:
 	BEQ +
 	BNE --
 +
+dsexit:
 
 ;....
 	LDA #$00
 	STA $0540		; Default key repeat
 	SEI
-	LDX #40
+	LDX #$EA
 -	LDA _sudtmp+4,X
 	STA setupdata+4,X
 	DEX
 	BPL -
+	JSR data_bck
 	JSR _resp	; copy new prefs to setupdata
 
 	LDA	#%10100000		; Disable raster interrupt signals from TED
@@ -3094,7 +3102,10 @@ refresh_init:
 	JSR CHROUT
 	DEY
 	BNE -
-	+StringOut _sudtmp+5
+	LDA #<(_sudtmp+5)
+	LDY #>(_sudtmp+5)
+	JSR printstring
+;	+StringOut _sudtmp+5
 	RTS
 
 ; --- Edit modem init string
@@ -3152,15 +3163,147 @@ show_rate:
 	LDY _sudtmp+4
 	BPL _cr1
 
+; --- Display phone book
+phone_book:
+; !if _HARDTYPE_ = 56{
+; 	+EnKernal x
+; }
+	+StringOut pbook0
+	+SetCursor $02,$02
+	LDA #<(_sudtmp+$2B)
+	LDY #>(_sudtmp+$2B)
+	JSR printstring
+	+SetCursor $02,$04
+	LDA #<(_sudtmp+$52)
+	LDY #>(_sudtmp+$52)
+	JSR printstring
+	+SetCursor $02,$06
+	LDA #<(_sudtmp+$79)
+	LDY #>(_sudtmp+$79)
+	JSR printstring
+	+SetCursor $02,$08
+	LDA #<(_sudtmp+$A0)
+	LDY #>(_sudtmp+$A0)
+	JSR printstring
+	+SetCursor $02,$0A
+	LDA #<(_sudtmp+$C7)
+	LDY #>(_sudtmp+$C7)
+	JSR printstring
+
+	CLI
+-	JSR $EBDD			; Read keyboard buffer
+	BEQ -
+
+	CMP #$5f			; <- back key
+	BNE +
+	JMP +++
++	CMP #$31			; 1
+	BCC -				; less ->
+	CMP #$36			; 6
+	BCS -				; more or equal ->
+	PHA
+	+SetCursor $0D,$0D
+	PLA
+	PHA
+	JSR CHROUT
+	+StringOut pbook1
+	;JMP -
+
+	PLA
+	SEC
+	SBC #$31			; .A = preset-1
+	ASL
+	TAX
+	LDA pstable,X
+	STA .ph0+1
+	STA .ph1+1
+	LDA pstable+1,X
+	STA .ph0+2
+	STA .ph1+2
+
+--	JSR $EBDD			; Read keyboard buffer
+	BEQ --
+
+	CMP #$5f			; <- back key
+	BNE +
+	JMP phone_book
++	CMP #$45			; Edit
+	BNE ++
+	LDA #>_filter
+	LDX #<_filter
+	LDY #38
+	JSR FILTERED_INPUT
+
+	LDY #$00
+-	LDA fibuffer,Y
+.ph0
+	STA _sudtmp+$2B,Y
+	BEQ +
+	INY
+	CPY #38
+	BNE -
+	DEY
+	LDA #$00			; safeguard for long/unterminated string
+	BEQ .ph0
++	JMP phone_book
+
+++	CMP #$44			; "Dial"
+	BNE --
+	LDA FLAGS1
+	AND #$02
+	BNE --				; Only dial if terminal already started up
+
+; !if _HARDTYPE_ =56{
+; 	SEI
+; 	+DisKernal a
+; }
+
+	LDY #$00
+.ph1
+	LDA _sudtmp+$2B,Y
+	BEQ +
+	JSR SendID
+	INY
+	CPY #38
+	BNE .ph1
++	LDA #$0D
+	JSR SendID
+	JMP dsexit
+
+; !if _HARDTYPE_ = 56{
+; 	+DisKernal x
+; }
+
++++
+	JSR data_bck
+	JMP _dosetup
+
+pstable:
+!word _sudtmp+$2B,_sudtmp+$52,_sudtmp+$79,_sudtmp+$A0,_sudtmp+$C7
+
+
 ; --- Copy setupdata to _sudtmp
 bck_data:
 	SEI
 	+DisROMs
-	LDX #44
--	LDA setupdata,X
-	STA _sudtmp,X
+	LDX #_sudend-setupdata+1;$EE
+-	LDA setupdata-1,X
+	STA _sudtmp-1,X
 	DEX
-	BPL -
+	BNE -
+	+EnROMs
+	CLI
+	RTS
+
+; --- Copy _sudtmp to setupdata
+data_bck:
+	SEI
+	+DisROMs
+	LDX #_sudend-setupdata+1
+-	LDA _sudtmp-1,X
+	STA setupdata-1,X
+	DEX
+	BNE -
 	+EnROMs
 	CLI
 	RTS
@@ -3256,7 +3399,9 @@ FILTERED_INPUT:
 	LDY _ficount
 	STA fibuffer,y        ;Add it to string
 	STA _cursor
-	+StringOut _cursor
+	LDA #<_cursor
+	LDY #>_cursor
+	JSR printstring
 	;JSR CHROUT             ;Print it
 
 	INC _ficount           ;Next character
@@ -3299,10 +3444,29 @@ FILTERED_INPUT:
 	;Wait for next char
 	JMP .figet
 
+; Needed because BASIC Stringout doesn't play nice with quotes
+printstring:
+	STA $6F
+	STY $70
+	LDY #$00
+-	LDA ($6F),Y
+	BEQ +
+	TAX
+	TYA
+	PHA
+	TXA
+	JSR CharOut
+	PLA
+	TAY
+	INY
+	BNE -
++	RTS
+
+
 _cursor
 	!byte $A6,$A6,$9D,$00	; Hash, hash, crsr left, null
 _filter
-	!text "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890.,-+!?%&'()*",$00
+	!text " ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890.,-+!?%&'()*:",$22,$00
 _fimax
 	!byte $00
 
@@ -3405,7 +3569,7 @@ psave:
 	LDA ($9B),Y
 	JSR CHROUT				; CHROUT
 	INY
-	CPY #45
+	CPY #_sudend-setupdata	;45
 	BNE -
 .ser
 	JSR fclose
@@ -3425,11 +3589,36 @@ sut2:
 	!fill $05,$9D
 	!byte $00
 sut3:
-	!byte $12
+	!text $12," p ",$92," pHONE BOOK",$0D,$0D
 	!text $12," f1 ",$92," tERMINAL        ",$00
 sut3_:
 	!text $12," f5 ",$92," sAVE SETTINGS",$00
 
+; Phonebook screen
+pbook0:
+	!text $93,$0E,$9E,$12,"               pHONE BOOK               ",$92
+	!byte $60,$B2
+	!fill $26,$60
+	!text $12,"1",$92,$7D,$0D
+	!byte $1D,$7D,$0D
+	!text $12,"2",$92,$7D,$0D
+	!byte $1D,$7D,$0D
+	!text $12,"3",$92,$7D,$0D
+	!byte $1D,$7D,$0D
+	!text $12,"4",$92,$7D,$0D
+	!byte $1D,$7D,$0D
+	!text $12,"5",$92,$7D,$0D
+	!byte $1D,$7D,$0D
+	!byte $60,$B1
+	!fill $26,$60
+	!text $0D,"sELECT ENTRY:"
+	!fill $09,$11
+	!text $12," ",$5F," ",$92," back",$00
+
+pbook1:
+	!text $0D,$12,"e",$92,"DIT/",$12,"d",$92,"IAL",$0D,$00
+
+; Baud rates
 rates:
 	!text "skip",$00
 	!text " 300",$00
@@ -3442,11 +3631,12 @@ rate_offs:
 _sudtmp:
 
 
-fibuffer = _sudtmp+45	; String input buffer
+fibuffer = _sudtmp+$EE	; String input buffer
 errbuf = fibuffer
 
 suend
 }
+_suend
 
 load_drive:	!byte $FF	; Drive to use for preferences file
 
@@ -3461,16 +3651,39 @@ load_drive:	!byte $FF	; Drive to use for preferences file
 ;		  1:  300 bauds
 ;		  2: 1200 bauds
 ;		  3: 2400 bauds
-; $05-$45: Null terminated startup command (38 chars max). Pad with 0s
-
+; $05-$2A: Null terminated startup command (38 chars max). Pad with 0s
+; $2B-$51: Preset 1, null terminated, 0 padded
+; $52-$78: Preset 2...
+; $79-$9F: Preset 3...
+; $A0-$C6: Preset 4...
+; $C7-$ED: Preset 5...
 setupdata:
 !byte $1C,$00,$DE,$00,$02
 !text "ATF0B19200",$00
 _sudf
-!fill 45-(_sudf-setupdata),$00
+!fill 43-(_sudf-setupdata),$00
+_preset1
+!text "ATD LU4FBU.DDNS.NET:6400",00
+_p1f
+!fill 39-(_p1f-_preset1),$00
+_preset2
+!text "ATDSOTANOMSXBBS.ORG:6400",00
+_p2f
+!fill 39-(_p2f-_preset2),$00
+_preset3
+!text "",00
+_p3f
+!fill 39-(_p3f-_preset3),$00
+_preset4
+!text "",00
+_p4f
+!fill 39-(_p4f-_preset4),$00
+_preset5
+!text "",00
+_p5f
+!fill 39-(_p5f-_preset5),$00
+_sudend
 
-
-_suend
 ENDSHADOW
 }
 _ENDSHADOW_
@@ -3484,6 +3697,8 @@ _ENDSHADOW_
 earlysetup:
 	SEI
 	+DisROMs
+	LDA #$02	; Set startup flag bit
+	STA FLAGS1
 	; Copy routines to lower RAM ($0B00)
 	LDX #$01
 -	LDA _sudata,X
@@ -3495,16 +3710,20 @@ earlysetup:
 	DEX
 	BPL -
 	JSR _MemCpy		;Do mem copy
+	JSR res_prefs	; Reset preferences
+	JSR bck_data	; And init _sudtmp
+	+DisROMs
 	LDA load_drive	; Check last used device
 	CMP #$08
 	BCS ++
 	; retroterm was not loaded from disk
-	; use first detected IEC device
+	; use first detected device
 	LDX #$00
 -	CPX #$08
 	BNE +
 	; +EnKernal a
-	JSR res_prefs	; Reset preferences	
+	; JSR res_prefs	; Reset preferences
+	; JSR bck_data
 	BEQ .esq		; No available drive found > show setup
 +	LDA DRIVES,X
 	BPL +			; Available drive
@@ -3515,7 +3734,8 @@ earlysetup:
 	STA _load_drive
 	+EnROMs
 	; CLI
-	JSR res_prefs	; Reset preferences	
+	; JSR res_prefs	; Reset preferences	
+	; JSR bck_data	; And init _sudtmp
 	JSR loadsetup	; Get preferences from disk, if any
 	BCC +			; prefs ok run retroterm
 .esq
@@ -3564,11 +3784,11 @@ loadsetup:
 	; Copy setup preferences
 	SEI
 	+DisROMs
-	LDX #44
--	LDA _sudtmp,X
-	STA setupdata,X
+	LDX #$EF
+-	LDA _sudtmp-1,X
+	STA setupdata-1,X
 	DEX
-	BPL -
+	BNE -
 	+EnROMs
 	CLI
 	CLC				; Prefs loaded ok
@@ -3576,6 +3796,8 @@ loadsetup:
 
 ; handle open or read errors
 .oerr
+	LDA $90			; STatus
+	BMI ++			; Device not present?
 	JSR fclose
 	JSR rechan
 ++	SEC				; Prefs load error

@@ -6,7 +6,7 @@
 Jorge Castillo & Pablo Roldán
 
 
-![Badge commodore](https://img.shields.io/badge/Commodore-64%2f128%20%26%20Plus%2f4-1E2A4E?logo=commodore&logoColor=1E2A4E&labelColor=ccc) ![Badge MSX1](https://img.shields.io/badge/MSX1-darkred) ![GitHub all releases](https://img.shields.io/github/downloads/retrocomputacion/retroterm/total?labelColor=ccc) ![Badge license](https://img.shields.io/github/license/retrocomputacion/retroterm?labelColor=ccc) ![Discord](https://img.shields.io/discord/625776626356977674?logo=discord&logoColor=white&label=Discord&color=blue)
+![Badge commodore](https://img.shields.io/badge/Commodore-64%2f128%20%26%20Plus%2f4-1E2A4E?logo=commodore&logoColor=1E2A4E&labelColor=ccc) ![Badge MSX1](https://img.shields.io/badge/MSX1-darkred) ![GitHub all releases](https://img.shields.io/github/downloads/retrocomputacion/retroterm/total?labelColor=ccc) ![Badge license](https://img.shields.io/github/license/retrocomputacion/retroterm?labelColor=ccc) [![Discord](https://img.shields.io/discord/625776626356977674?logo=discord&logoColor=white&label=Discord&color=blue)](https://discord.gg/F2jmuUCBAG)
 
 ---
 </div>
@@ -61,11 +61,12 @@ The *MSX 1 RS-232* version (rt232.com) is also at this moment limited to **19200
 
 ## 1.1 Release history
 
-### v0.30 (??/??/2024):
+### v0.30 (??/??/2025):
 - Turbo56K v0.8 partial implementation
 - Drawing primitives: clear screen, plot, line, box, ellipse, fill
-- C64 ports: Ability to save a configuration file to disk.
+- Commodore ports: Ability to save a configuration file to disk.
 Optional modem init string with selectable 300,1200 or 2400 baud speed.
+- Commodore ports: Phone book with up to 5 preset dial strings, also saved to the configuration file.
 - Bugfix, all ports: No more missing filename characters when downloading to disk
 - Bugfix, C64 ports: Fixed glitched sprites after downloading to disk
 
@@ -148,7 +149,7 @@ Over time, the protocol has been extended to include 4-bit PCM audio streaming, 
 
 After LOADing and RUNning *Retroterm*, you can dial to your favorite BBS using your Modem commands as usual.
 
-**On C64 ports, _Retroterm_ will search for a configuration file on the last used drive, if found, and a modem initialization string is set, it will be sent at this moment. If no configuration file is found then the setup screen will be shown**
+**On C64 and Plus/4 ports, _Retroterm_ will search for a configuration file on the last used drive, if found, and a modem initialization string is set, it will be sent at this moment. If no configuration file is found then the setup screen will be shown**
 
 **The modem should be setup to the correct baud rate before running _Retroterm_.**
 
@@ -173,25 +174,39 @@ The first one sets the base address for the Swiftlink or Turbo232 cartridge, pre
 
 The second setting available for ACIA versions is the ability to keep the screen visible while transferring at turbo speeds. Turbo transfers are slightly slower with the screen enabled. Press `B` to toggle.
 
-For C64 ports, an optional modem initialization string can be edited by pressing `I`. The baud rate used to transmit this string can be set by pressing `R`, with current options being `SKIP`, `300`, `1200` and `2400`.
+For C64 and Plus/4 ports, an optional modem initialization string can be edited by pressing `I`. The baud rate used to transmit this string can be set by pressing `R`, with current options being `SKIP`, `300`, `1200` and `2400`.
 This string is only transmitted when running _Retroterm_ with `RUN`, automatically if a configuration file is found, or, if no file is found by selecting the appropriate options in the setup screen before exiting to the terminal.
 Use `F5` to save the current settings to disk.
+
+Finally pressing `P` switches to the phone book screen, here you can select one of 5 preset dial strings and either `E`dit or `D`ial it.
+(Dialing only works once _Retroterm_ has been initialized properly, meaning only when accessing the setup screen from within the terminal mode)
 
 
 **Important**: Upon exiting the setup screen, _Retroterm_ will default to full screen text mode. Only previous background and border colors will be restored.
 
 ## 3 Building Retroterm
-The Commodore versions of *Retroterm* is written for the *ACME* cross-assembler, while *PASMO* is used for the MSX port
-Exomizer is used to pack all the Commodore ports. Find these packed versions inside the /build/packed/ subdirectory
+The Commodore versions of *Retroterm* is written for the *ACME* cross-assembler, while *PASMO* is used for the MSX port.
+
+Exomizer is used to pack all the Commodore ports. Find these packed versions inside the `/build/packed/` subdirectory
 
 To compile use:
 
 ```
-make
+make all
 ```
 to compile all versions.
 
-Or you can specify which version you want to compile, either `userport`, `swiflink`, `turbo232`, `plus4`, `msx232` or `msx56k`.
+For all Commodore versions use
+```
+make cbm
+```
+
+For all MSX versions use
+```
+make msx
+```
+
+Or you can specify which version you want to compile, either `userport`, `swiflink`, `turbo232`, `plus4`, `msx232`, `msx56k` or `msx38k`.
 
 ie:
 ```
@@ -299,3 +314,5 @@ In any case the *[Turbo56k](docs/turbo56k.md)* version bytes that follow the ID 
 - **Willy Manilly** for adding support to the *Z64K emulator*
 
 - [**ElectronicsArchiver**](https://github.com/ElectronicsArchiver) for initial documentation rework
+
+- [**idolpx**](https://github.com/idolpx) for improved Makefile
