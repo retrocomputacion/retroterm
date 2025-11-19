@@ -17,7 +17,7 @@ $(BUILDFOLDER) $(BUILDFOLDER)/packed:
 	mkdir -p $@
 
 # Read build version from source/version.txt
-VERSION:=$(file < $(SRCFOLDER)/version.txt)
+VERSION := $(shell cat $(SRCFOLDER)/version.txt)
 
 define make_target_acme
 $(BUILDFOLDER)/rt-$(1).prg: $(SRCFOLDER)/retroterm_univ.asm $(SRCFOLDER)/version.asm | $(BUILDFOLDER) $(BUILDFOLDER)/packed
@@ -55,6 +55,9 @@ msx232: $(BUILDFOLDER)/rt-msx-232.com
 msx56k: $(BUILDFOLDER)/rt-msx-56k.com
 
 msx38k: $(BUILDFOLDER)/rt-msx-38k.com
+
+.PHONY: $(SRCFOLDER)/version.asm
+version: $(SRCFOLDER)/version.asm
 
 # Special case for p4 (uses different source file)
 $(BUILDFOLDER)/rt-cbm-p4.prg: $(SRCFOLDER)/retrotermp4.asm | $(BUILDFOLDER) $(BUILDFOLDER)/packed
