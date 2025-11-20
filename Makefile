@@ -22,7 +22,7 @@ VERSION:=$(file < $(SRCFOLDER)/version.txt)
 define make_target_acme
 $(BUILDFOLDER)/rt-$(1).prg: $(SRCFOLDER)/retroterm_univ.asm $(SRCFOLDER)/version.asm | $(BUILDFOLDER) $(BUILDFOLDER)/packed
 	acme $$(DEFINES_FOR_$(1)) -D_MAKE_=1 -I $(SRCFOLDER) -f cbm -l $(BUILDFOLDER)/rt-$(1).lst -o $$@ $$<
-	exomizer sfx sys -o $(BUILDFOLDER)/packed/$$(@F) $$@
+	exomizer sfx basic -o $(BUILDFOLDER)/packed/$$(@F) $$@
 
 endef
 
@@ -59,7 +59,7 @@ msx38k: $(BUILDFOLDER)/rt-msx-38k.com
 # Special case for p4 (uses different source file)
 $(BUILDFOLDER)/rt-cbm-p4.prg: $(SRCFOLDER)/retrotermp4.asm | $(BUILDFOLDER) $(BUILDFOLDER)/packed
 	acme -f cbm -D_MAKE_=1 -I $(SRCFOLDER) -l $(BUILDFOLDER)/rt-cbm-p4.lst -o $(BUILDFOLDER)/rt-cbm-p4.prg $(SRCFOLDER)/retrotermp4.asm
-	exomizer sfx sys -t4 -o $(BUILDFOLDER)/packed/rt-cbm-p4.prg $(BUILDFOLDER)/rt-cbm-p4.prg
+	exomizer sfx basic -t4 -o $(BUILDFOLDER)/packed/rt-cbm-p4.prg $(BUILDFOLDER)/rt-cbm-p4.prg
 
 # Generate version include
 $(SRCFOLDER)/version.asm: $(SRCFOLDER)/version.txt | $(SRCFOLDER)

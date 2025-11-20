@@ -1224,7 +1224,8 @@ ExitPrg
 	LDA	#0		; Vacia el buffer del teclado
 	STA	$EF
 	CLI			; Vuelve a habilitar las interrupciones
-	RTS			; Retorna al BASIC
+	JMP $867E
+	; RTS			; Retorna al BASIC
 
 ;///////////////////////////////////////////////////////////////////////////////////
 ; Rutina de interrupcion
