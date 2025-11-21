@@ -57,7 +57,7 @@ The effective throughput for text is *1500 / 1800bps* depending on *PAL/NTSC* ti
 Separate *Commodore 64* versions of the executable are provided for cartridges featuring an ACIA 6551 such as *SwiftLink* (limited to **38400bps**) and *Turbo232*.</br>
 The *Commodore Plus/4* version is limited to the maximum speed for the built in ACIA: **19200bps**
 <br>
-The *MSX 1 RS-232* version (rt232.com) is also at this moment limited to **19200bps**, and only supports RS-232 interfaces that adhere to the MSX standard (ie: SVI-738 and HX-22 built-in ports, SVI-737 and Sony HB-232, or any other interface implemented with the i8251 + i8253 USART and Timer combo)<br>
+The *MSX 1 RS-232* version (rt-msx-232.com) is also at this moment limited to **19200bps**, and only supports RS-232 interfaces that adhere to the MSX standard (ie: SVI-738 and HX-22 built-in ports, SVI-737 and Sony HB-232, or any other interface implemented with the i8251 + i8253 USART and Timer combo)<br>
 
 ## 1.1 Release history
 
@@ -137,13 +137,13 @@ Over time, the protocol has been extended to include 4-bit PCM audio streaming, 
 
 *Retroterm* comes in five variants:
 
-- **rt-u.prg** Userport version 57600bps
-- **rt-sl.prg** SwiftLink version 38400bps
-- **rt-232.prg** Turbo232 version 57600bps
-- **rt-p4.prg** Plus/4 version 19200bps
-- **rt232.com** MSX RS-232 version 19200bps
-- **rt38k.com** MSX parallel port version 38400bps
-- **rt56k.com** MSX parallel port version 57600bps
+- **rt-cbm-u.prg** Userport version 57600bps
+- **rt-cbm-sl.prg** SwiftLink version 38400bps
+- **rt-cbm-232.prg** Turbo232 version 57600bps
+- **rt-cbm-p4.prg** Plus/4 version 19200bps
+- **rt-msx-232.com** MSX RS-232 version 19200bps
+- **rt-msx-38k.com** MSX parallel port version 38400bps
+- **rt-msx-56k.com** MSX parallel port version 57600bps
 
 *Retroterm* lacks classic file transfer functions, when used to communicate with a normal PETSCII/ASCII BBS, file transfers are not available.
 
@@ -221,8 +221,8 @@ acme retroterm_univ.asm
 
 or:
 ```
-pasmo -E IFACE=0 retrotermm1.asm rt232.com
-pasmo -E IFACE=56 retrotermmm1.asm rt56k.com
+pasmo -E IFACE=0 retrotermm1.asm rt-msx-232.com
+pasmo -E IFACE=56 retrotermmm1.asm rt-msx-56k.com
 ```
 
 from the `source` directory.</br>
