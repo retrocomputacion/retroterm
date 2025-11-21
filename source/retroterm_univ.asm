@@ -117,9 +117,6 @@
 
 	SIDREG = $D400			; SID Base
 	VICREG = $D000			; VIC II Base
-	PLOT   = $FFF0			; PLOT Kernal routine
-	CHROUT = $FFD2			; CHROUT Kernal routine
-	STROUT = $AB1E			; STROUT BASIC ROM routine
 	COLORMEM = $D800		; Color RAM
 	BUFFER = $0801			; Dummy constant for self-modifying code
 	CURRLINEPTR = $D1		; Current screen line pointer (zero page)
@@ -133,6 +130,38 @@
 	T232COMMAND = T232BASE+2; Turbo232 command register
 	T232CONTROL = T232BASE+3; Turbo232 control register
 	T232ENSPEED = T232BASE+7; Turbo232 high speed register
+
+; BASIC/Kernal
+	MEMOPEN = $A3BF			; Open space in memory
+	PRNINT	= $BDCD			; Output Positive Integer in A/X
+	STROUT = $AB1E			; STROUT BASIC ROM routine
+
+	BASWRM	= $E386			; BASIC warm start
+	KRNPLOT = $E50A			; Set/Get cursor position
+	CLRSCRN	= $E544			; Clear screen
+	CHKCOL	= $E8CB			; Set color code
+	MOVLINE = $E9C8			; Move A Screen Line
+	LINSTRT = $E9F0			; Set start of line (.X = line)
+	CLRLINE = $E9FF			; Clear screen line
+	SYNCCOL = $EA24			; Synchronize color RAM pointer
+	KRNIRQ	= $EA31			; Kernal IRQ service routine
+	IRQEXIT	= $EA81			; IRQ exit
+	READKB	= $F142			; Read keyboard buffer
+	NMITRAN = $FE43			; NMI Transfer entry
+	SECLSN	= $FF93
+	UNLSN	= $FFAE
+	LISTEN	= $FFB1
+	READST	= $FFB7
+	SETLFS	= $FFBA
+	SETNAM 	= $FFBD
+	OPEN	= $FFC0
+	CLOSE	= $FFC3
+	CHKIN	= $FFC6
+	CHKOUT	= $FFC9
+	CLRCHN	= $FFCC
+	CHRIN	= $FFCF
+	CHROUT	= $FFD2
+	PLOT	= $FFF0			; PLOT Kernal routine
 
 ; Buffers
 	SIDREGS = $02A7			; SID streaming register buffer 
@@ -284,7 +313,7 @@ _START
 		INX
 		BNE -
 !ifdef _SPACE_{
--		JSR $F142
+-		JSR READKB
 		BEQ -
 } else {
 Delay16
@@ -312,8 +341,8 @@ DlyNext2
 
 ; Copy ROM mem move to RAM below
 		LDX #$3B
--		LDA $A3BF,X
-		STA $A3BF,X
+-		LDA MEMOPEN,X
+		STA MEMOPEN,X
 		DEX
 		BPL -
 
@@ -336,7 +365,7 @@ DlyNext2
 		PHA
 		TYA
 		PHA
-		JSR $A3BF		; >>Open space in memory
+		JSR MEMOPEN		; >>Open space in memory
 		PLA
 		TAY
 		PLA
@@ -400,7 +429,7 @@ udetect:
 	BPL -
 	;TXA
 	;PHA
-	JSR $A3BF		; >>Open space in memory
+	JSR MEMOPEN		; >>Open space in memory
 	;PLA
 	;TAX
 	;BPL --
@@ -437,7 +466,7 @@ MIRQ
 	LDA $D012
 	STA Ras
 	;INC V_BORDER
-.p1	JMP $ea81
+.p1	JMP IRQEXIT
 
 TIRQ	!byte 00,00
 Flg	!byte 00
@@ -497,38 +526,38 @@ chdrive:
         STA $90			; clear STATUS flags
 
         LDA device		; device number
-        JSR $FFB1		; call LISTEN
+        JSR LISTEN		; call LISTEN
         LDA #$6F		; secondary address 15 (command channel)
-        JSR $FF93		; call SECLSN (SECOND)
-        JSR $FFAE		; call UNLSN
+        JSR SECLSN		; call SECLSN (SECOND)
+        JSR UNLSN		; call UNLSN
         LDA $90		; get STATUS flags
         BNE .devnp		; device not present
 
         LDA #cmd_end-cmd
         LDX #<cmd
         LDY #>cmd
-        JSR $FFBD		; call SETNAM
+        JSR SETNAM		; call SETNAM
 
         LDA #$0F		; file number 15
         LDX device       ; last used device number
         BNE +
         LDX #$08		; default to device 8
 +  		LDY #$0F		; secondary address 15
-        JSR $FFBA		; call SETLFS
+        JSR SETLFS		; call SETLFS
 
-        JSR $FFC0		; call OPEN
+        JSR OPEN		; call OPEN
         BCS ++			; if carry set, the file could not be opened
         LDX #$0F		; filenumber 15
-        JSR $FFC6		; CHKIN file now used as input
+        JSR CHKIN		; CHKIN file now used as input
         LDY #$03
--		JSR $FFB7		; call READST (read status byte)
+-		JSR READST		; call READST (read status byte)
         BNE +			; either EOF or read error
-        JSR $FFCF		; call CHRIN (get a byte from file)
+        JSR CHRIN		; call CHRIN (get a byte from file)
         DEY				; skip first 3 chars
         BNE -
--	    JSR $FFB7		; call READST
+-	    JSR READST		; call READST
         BNE +
-        JSR $FFCF		; call CHRIN
+        JSR CHRIN		; call CHRIN
         STA result,Y
         INY
         JMP -			; next byte
@@ -536,9 +565,9 @@ chdrive:
 -       LDA #$00
         STA result,Y	; Null terminate result string
         LDA #$0F
-        JSR $FFC3		; call CLOSE
+        JSR CLOSE		; call CLOSE
 
-        JMP $FFCC		; call CLRCHN
+        JMP CLRCHN		; call CLRCHN
 ;        RTS
 ++
         ;... error handling for open errors ...
@@ -834,7 +863,7 @@ _aspd1
 ;///////////////////////////////////////////////////////////////////////////////////
 
 MainPrg
-	JSR $E544		; Clear Screen (Makes sure the Screen link table is valid from here on)
+	JSR CLRSCRN		; Clear Screen (Makes sure the Screen link table is valid from here on)
 	LDA	#%01111111
 	STA	$DC0D		; "Switch off" interrupts signals from CIA-1
 	STA	$DD0D		; "Switch off" interrupts signals from CIA-2
@@ -932,21 +961,21 @@ ChkUSint
 	STA	VERSION+2
 ;	TAX
 ;	LDA	#$00
-;	JSR	$BDCD
+;	JSR	PRNINT
 	LDA	#0			; Sends NUL
 	JSR	USintDet
 	LDA	RXBYTE		; Stores the reply in VERSION+3 (version 1)
 	STA	VERSION+3
 ;	TAX
 ;	LDA	#$00
-;	JSR	$BDCD
+;	JSR	PRNINT
 	LDA	#0			; Sends NUL
 	JSR	USintDet
 	LDA	RXBYTE		; Stores the reply in VERSION+4 (version 2)
 	STA	VERSION+4
 ;	TAX
 ;	LDA	#$00
-;	JSR	$BDCD
+;	JSR	PRNINT
 	LDA	#0			; Sends NUL
 	JSR	USintDet
 	LDA	RXBYTE		; Stores the reply in VERSION+5 (version 3)
@@ -1374,8 +1403,8 @@ ddEnd
 
 cu1 STY CURRCOLUMN
     STX CURRLINE
-    JSR $E9F0           ; Set start of line (.X = line)
-    JSR $EA24           ; Synchronize color RAM pointer
+    JSR LINSTRT           ; Set start of line (.X = line)
+    JSR SYNCCOL           ; Synchronize color RAM pointer
 ce0 RTS
 ddCtrl ;Control chars
    	CMP #$13			; Check for HOME
@@ -1387,7 +1416,7 @@ ddCtrl ;Control chars
 	BNE +				; No, next
     LDX WBOTTOM
 -   DEX
-    JSR $E9FF			; Clear Line
+    JSR CLRLINE			; Clear Line
     CPX WTOP
     BNE -
     LDX WTOP
@@ -1484,8 +1513,8 @@ ddCtrl ;Control chars
     STY CURRCOLUMN
     DEX
     STX CURRLINE
-    JSR $E9F0       	; Update pointers
-    JSR $EA24
+    JSR LINSTRT       	; Update pointers
+    JSR SYNCCOL
     LDA #$20        	; Space
     STA (CURRLINEPTR),Y
     LDA $0286
@@ -1554,7 +1583,7 @@ ddCtrl ;Control chars
 	LDA #$15			; And turn it on again
 	STA SIDREG+18
 	RTS	
-+   JMP $E8CB       	; Check colors (Kernal)
++   JMP CHKCOL       	; Check colors (Kernal)
 ;    RTS
 
 ; --- Patch for old Kernal ---
@@ -1581,16 +1610,16 @@ WinScroll
     DEX
 
 -   INX
-    JSR $E9F0       ; Set start of line
+    JSR LINSTRT       ; Set start of line
 .ws CPX #$18        ; Self modifying - Text window's bottom
     BCS +
     LDA $ECF1,X
     STA $AC
     LDA $DA,X
-    JSR $E9C8       ; Move screen row
+    JSR MOVLINE       ; Move screen row
     BMI -           ; Continue until reaching WBOTTOM
 
-+   JSR $E9FF       ; Clear screen row
++   JSR CLRLINE       ; Clear screen row
 
     PLA
     TAY
@@ -1610,15 +1639,15 @@ WinScrollU
  	STX .wu+1
  	LDX WBOTTOM
 	DEX
--	JSR $E9F0		; Set start of row
+-	JSR LINSTRT		; Set start of row
  	DEX
  	LDA $ECF0,x
  	STA $AC
  	LDA $D9,x
- 	JSR $E9C8		; Move a screen row
+ 	JSR MOVLINE		; Move a screen row
 .wu	CPX #$00		; Self modifying - Text window's top
  	BNE -
- 	JSR $E9FF		; Clear screen row
+ 	JSR CLRLINE		; Clear screen row
  	PLA
  	TAY
 ; 	PLA
@@ -1784,7 +1813,7 @@ _acomm6
 	STA	$D016
 	LDA #%00011011	; Text mode
 	STA $D011
-	JMP $E386		; Restart BASIC
+	JMP BASWRM		; Restart BASIC
 	;RTS				; Exit to BASIC
 
 ;///////////////////////////////////////////////////////////////////////////////////
@@ -1953,7 +1982,7 @@ ChkKey
 !if _HARDTYPE_ = 56{
 	+EnKernal a
 }
-	JSR	$F142			; Read the keyboard buffer
+	JSR	READKB			; Read the keyboard buffer
 	BEQ	ExitIrq			; If there's no key pressed, continue on ExitIrq
 	CMP	#$03			; Check for RUN STOP
 	BNE	+
@@ -2037,7 +2066,7 @@ ExitIrq
 	;PLA			;<<<<<<<<<<<<<
 	;STA $D020	;<<<<<<<<<<<<
 
-	JMP $EA31			; Jump into KERNAL's standard interrupt service routine.
+	JMP KRNIRQ			; Jump into KERNAL's standard interrupt service routine.
 
 ;///////////////////////////////////////////////////////////////////////////////////
 ; SETUP SCREEN
@@ -2349,7 +2378,7 @@ Cmd84
 	;BNE -
 	BEQ +
 ;!if _HARDTYPE_ != 56 {
-	;JSR $F142		; Read the keyboard buffer
+	;JSR READKB		; Read the keyboard buffer
 	LDA $DC01
 	CMP #$FF
 	BEQ -			; No key pressed, recheck STREAMFLAG
@@ -2746,7 +2775,7 @@ CmdB0
 +	PLA
 	TAY					;LDY TEMP1
 	CLC
-	JSR $E50A			; Set cursor position
+	JSR KRNPLOT			; Set cursor position
 	JSR StartCRSR
 	JMP	CmdFE			; Exit command mode
 
@@ -2849,7 +2878,7 @@ CmdB3
 	LDY #$00
 	LDX WTOP
 	CLC
-	JMP $E50A			; Set cursor position
+	JMP KRNPLOT			; Set cursor position
 ;	RTS
 b3cancel				; Cancel split screen
 	JSR GetFromPrBuffer	; We had an orphan parameter before?
@@ -2901,7 +2930,7 @@ IrqB3:
 	LDA #>Irq
 	STA $0315
 
-	JMP $EA81
+	JMP IRQEXIT
 
 
 ;///////////////////////////////////////////////////////////////////////////////////
@@ -2910,7 +2939,7 @@ IrqB3:
 CmdB4
 	SEI
 	SEC
-	JSR $E50A			; Get cursor position
+	JSR KRNPLOT			; Get cursor position
 	TXA
 	SEC
 	SBC WTOP
@@ -2959,7 +2988,7 @@ CmdB5
 	LDY #$00
 	LDX WTOP
 	CLC
-	JMP $E50A		; Set cursor position
+	JMP KRNPLOT		; Set cursor position
 	;RTS
 
 ;///////////////////////////////////////////////////////////////////////////////////
@@ -3002,21 +3031,24 @@ CmdFE
 ;///////////////////////////////////////////////////////////////////////////////////
 
 
-IDString:
+IDString: ; ID String 22 characters long
 !if _HARDTYPE_ = 38 {
 	!text "RTRETROTERM-SL "
 	+_Version_
-	!text "   "
+	!fill 22-(*-IDString),$20		; Auto space fill
+;	!text "   "
 }
 !if _HARDTYPE_ = 1541 {
 	!text "RTRETROTERM-SLU "
 	+_Version_
-	!text "  "
+	!fill 22-(*-IDString),$20		; Auto space fill
+	; !text "  "
 }
 !if (_HARDTYPE_ = 232) OR (_HARDTYPE_ = 56) {
 	!text "RTRETROTERM "
 	+_Version_
-	!text "      "
+	!fill 22-(*-IDString),$20		; Auto space fill
+	; !text "      "
 }
 	!byte $00,$08	;Turbo56K version, subversion
 
@@ -3050,22 +3082,26 @@ Version
 !if _HARDTYPE_ = 232 {
 	!text "retroterm turbo232 VER "
 	+_Version_
-	!text"    57600,8n1"
+	!fill 34-(*-Version),$20		; Auto space fill
+	!text"57600,8n1"
 }
 !if _HARDTYPE_ = 38 {
 	!text "retroterm swiftlink VER "
 	+_Version_
-	!text "   38400,8n1"
+	!fill 34-(*-Version),$20		; Auto space fill
+	!text "38400,8n1"
 }
 !if _HARDTYPE_ = 1541 {
 	!text "retroterm ultimate VER "
 	+_Version_
-	!text "    38400,8n1"
+	!fill 34-(*-Version),$20		; Auto space fill
+	!text "38400,8n1"
 }
 !if _HARDTYPE_ = 56 {
 	!text "retroterm VERSION "
 	+_Version_
-	!text "         57600,8n1"
+	!fill 34-(*-Version),$20		; Auto space fill
+	!text "57600,8n1"
 }
 	!byte $05, $00
 
@@ -3393,7 +3429,7 @@ bsave:
  	;LDA FNL	; Name length
  	LDX #<FNAME
  	LDY #>FNAME
- 	JSR $FFBD	  	; call SETNAM
+ 	JSR SETNAM	  	; call SETNAM
 
 	LDA _curdrv		; current selected drive
 	CLC
@@ -3401,14 +3437,14 @@ bsave:
 	TAX
 	LDA #$02    	; file number 2
 	TAY	;LDY #$02      	; secondary address 2
-	JSR $FFBA     	; call SETLFS
- 	JSR $FFC0     	; call OPEN
+	JSR SETLFS     	; call SETLFS
+ 	JSR OPEN    	; call OPEN
 	BCS .error		; if carry set, file couldnt not be opened
 	LDX #$02		; filenumber 2
-	JSR $FFC9		; call CHKOUT (file 2 now used as output)
+	JSR CHKOUT		; call CHKOUT (file 2 now used as output)
 	BEQ +
 	BNE .error
-+	JSR $FFCC		; CLRCHN
++	JSR CLRCHN		; CLRCHN
 	LDY #$81		; OK
 	RTS
 
@@ -3419,8 +3455,8 @@ bsave:
 
 .bc		; Close file
 	LDA #$02
-	JSR $FFC3		; CLOSE
-	JMP $FFCC		; CLRCHN
+	JSR CLOSE		; CLOSE
+	JMP CLRCHN		; CLRCHN
 	;RTS
 
 .be		; Transfer complete
@@ -3428,7 +3464,7 @@ bsave:
 	+EnKernal a
 }
 	JSR	.bc			; Close file
-	JSR $E544		; Clear Screen and make sure Screen link table is correct
+	JSR CLRSCRN		; Clear Screen and make sure Screen link table is correct
 	SEI
 	+DisKernal x
 	RTS
@@ -3440,17 +3476,17 @@ bwrite 	; Write data
 	LDY $FD			; Get counter limit
 	STY .b1+1
 	LDX #$02		; filenumber 2
-	JSR $FFC9		; call CHKOUT (file 2 now used as output)
+	JSR CHKOUT		; call CHKOUT (file 2 now used as output)
 
 	LDY #$00
--	JSR	$FFB7		; call READST
+-	JSR	READST		; call READST
 	BNE .error			; handle error
 	LDA BBUF,Y
-	JSR $FFD2		; call CHROUT (write byte to file)
+	JSR CHROUT		; call CHROUT (write byte to file)
 	INY
 .b1	CPY #$00
 	BNE -
-	JSR $FFCC		; CLRCHN
+	JSR CLRCHN		; CLRCHN
 	LDY #$81		; OK
 	RTS
 
@@ -3471,7 +3507,7 @@ UBlock:
 	+StringOut bst7
 	LDA bcount
 	LDX bcount+1
-	JSR $BDCD		; Print number
+	JSR PRNINT		; Print number
 	INC bcount+1
 	BNE +
 	INC bcount
@@ -3486,7 +3522,7 @@ URetry:
 	+StringOut bst8
 	LDA rcount
 	LDX rcount+1
-	JSR $BDCD		; Print number
+	JSR PRNINT		; Print number
 	INC rcount+1
 	BNE +
 	INC rcount
@@ -3570,7 +3606,7 @@ ddrive:
 	ADC #$08
 	TAX
 	LDA #$00
-	JSR $BDCD	; Print number
+	JSR PRNINT	; Print number
 	; and wait for key release
 -	LDA $C5
 	CMP #$40
@@ -3782,9 +3818,9 @@ _dosetup2	; reentry point from phonebook
 	+EnKernal y
 	CLI
 }
-	JSR $BDCD			; Print RTS delay
+	JSR PRNINT			; Print RTS delay
 
--	JSR $F142			; Read keyboard buffer
+-	JSR READKB			; Read keyboard buffer
 	BEQ -
 !if _HARDTYPE_ = 56{
 	SEI
@@ -3905,7 +3941,7 @@ dsexit:	; Exit setup
 	PLA
 	STA $D020
 
-	JSR $E544		;Clear screen
+	JSR CLRSCRN		;Clear screen
 	+DisRoms a
 	RTS
 
@@ -3957,7 +3993,7 @@ rebase_acia
 suIRQ:
 	LDA	#$FF			; Clear the interrupt flags
 	STA	$D019
-	JMP $EA31			; Jump to Kernal IRQ routine
+	JMP KRNIRQ			; Jump to Kernal IRQ routine
 
 ; --- Refresh modem init string
 refresh_init:
@@ -3969,7 +4005,7 @@ refresh_init:
 	;Delete whole line
 	LDY #40
 -	LDA #$14
-	JSR $FFD2
+	JSR CHROUT
 	DEY
 	BNE -
 	LDA #<(_sudtmp+5)
@@ -4080,7 +4116,7 @@ phone_book:
 ;	+StringOut _sudtmp+$C7
 
 	CLI
--	JSR $F142			; Read keyboard buffer
+-	JSR READKB			; Read keyboard buffer
 	BEQ -
 
 	CMP #$5f			; <- back key
@@ -4110,7 +4146,7 @@ phone_book:
 	STA .ph0+2
 	STA .ph1+2
 
---	JSR $F142			; Read keyboard buffer
+--	JSR READKB			; Read keyboard buffer
 	BEQ --
 
 	CMP #$5f			; <- back key
@@ -4321,7 +4357,7 @@ FILTERED_INPUT:
 	LDA #<_cursor
 	LDY #>_cursor
 	JSR printstring
-	;JSR $FFD2             ;Print it
+	;JSR CHROUT             ;Print it
 
 	INC _ficount           ;Next character
 
@@ -4358,7 +4394,7 @@ FILTERED_INPUT:
 	LDA #$14
 	STA _cursor
 	+StringOut _cursor
-	; JSR $FFD2
+	; JSR CHROUT
 
 	;Wait for next char
 	JMP .figet
@@ -4405,19 +4441,19 @@ fdrive: 	!byte $08
 ; fdrive: drive
 ; File number same as channel, only one file open at a time anyways
 fopen:
-	JSR	$FFBD	; SETNAM
+	JSR	SETNAM	; SETNAM
 	LDX fdrive
 	LDY channel
 	TYA			; file number
-	JSR $FFBA	; SETLFS
-	JMP $FFC0	; Open (Carry clear if ok)
+	JSR SETLFS	; SETLFS
+	JMP OPEN	; Open (Carry clear if ok)
 	;RTS
 
 ; --- File close
 fclose:
 	LDA channel	; file number
-	JSR $FFC3	; CLOSE
-	JMP $FFCC	; CLRCHN
+	JSR CLOSE	; CLOSE
+	JMP CLRCHN	; CLRCHN
 
 ; --- Read error channel
 ; - CLOSE OTHER FILES BEFORE CALLING -
@@ -4435,11 +4471,11 @@ _rc1:
 	JSR fopen
 	BCS +		; error ->
 	LDX channel
-	JSR $FFC6	; CHKIN
+	JSR CHKIN	; CHKIN
 	LDA #$00
--	JSR $FFB7	; READST
+-	JSR READST	; READST
 	BNE +		; EOF or read error ->
-	JSR $FFCF	; CHRIN
+	JSR CHRIN	; CHRIN
 	STA ($AE),Y
 	INC $AE
 	BNE -
@@ -4477,16 +4513,16 @@ psave:
 	JSR fopen
 	BCS .ser				; if carry set, an open error has happened
 	LDX channel
-	JSR $FFC9				; CHKOUT
+	JSR CHKOUT				; CHKOUT
 	LDA #<_sudtmp
 	STA $AE
 	LDA #>_sudtmp
 	STA $AF
 	LDY #$00
--	JSR $FFB7				; READST
+-	JSR READST				; READST
 	BNE .ser				; error ->
 	LDA ($AE),Y
-	JSR $FFD2				; CHROUT
+	JSR CHROUT				; CHROUT
 	INY
 	CPY #_sudend-setupdata	;45
 	BNE -
@@ -5412,7 +5448,7 @@ _adata6
 }
 	JMP ci1end2			;c84start
 
-	;JMP $EA31
+	;JMP KRNIRQ
 
 ;-----------------------------------------
 ;Register translation table
@@ -6935,7 +6971,7 @@ loadsetup:
 	JSR fopen
  	BCS .oerr		; if carry set, an open error has happened
 	LDX channel		; filenumber 2
-	JSR $FFC6		; call CHKIN (file 2 now used as input)
+	JSR CHKIN		; call CHKIN (file 2 now used as input)
 
 	LDA #<_sudtmp
 	STA $AE
@@ -6944,9 +6980,9 @@ loadsetup:
 
 	LDY #$00
 
--	JSR $FFB7		; call READST (read status byte)
+-	JSR READST		; call READST (read status byte)
 	BNE .eof		; either EOF or read error
-	JSR $FFCF		; call CHRIN (get a byte from file)
+	JSR CHRIN		; call CHRIN (get a byte from file)
 	STA ($AE),Y		; write byte to memory
 	INC $AE
 	BNE -
@@ -7168,7 +7204,7 @@ _ir4
 	TYA
 	PHA
 	LDY #$00
-	JMP $fe43 + $13
+	JMP NMITRAN + $13
 
 loc01:
 	!byte $c3
