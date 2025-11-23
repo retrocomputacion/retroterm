@@ -290,10 +290,11 @@ For compatibility reasons we ask you not to modify the behavior of existing Turb
 In any case the *[Turbo56k](docs/turbo56k.md)* version bytes that follow the ID string should remain the correct ones for the official version your modified code support.
 
 
-## 4 Known bugs
+## 4 Known bugs/Issues
 
-- Losing connection while streaming data or audio will hang the program
-- Exiting `Retroterm`, restarting it with `SYS49152`, exiting again and causing a BASIC error will crash the computer.
+- All versions: Losing connection while streaming data or audio will hang the program
+- Commodore 64 versions: Exiting `Retroterm`, restarting it with `SYS49152`, exiting again and causing a BASIC error will crash the computer.
+- Commodore Plus/4 version: `Retroterm` will crash if loaded from the file browser included in _Joco's C264 SD drive cartridge_. Loading from BASIC using the @ commands works fine.
 
 ## 5 To-do
 - Extend the command parameter space to support more than 8 parameters per command.

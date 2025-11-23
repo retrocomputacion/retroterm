@@ -1,3 +1,5 @@
+default: all
+
 BUILDFOLDER:=build
 SRCFOLDER:=source
 
@@ -11,6 +13,8 @@ DEFINES_FOR_cbm-232=-D_HARDTYPE_=232
 DEFINES_FOR_msx-232=-E IFACE=0
 DEFINES_FOR_msx-56k=-E IFACE=56
 DEFINES_FOR_msx-38k=-E IFACE=38
+
+
 
 # Create build directories
 $(BUILDFOLDER) $(BUILDFOLDER)/packed:
@@ -33,8 +37,9 @@ $(BUILDFOLDER)/rt-$(1).com: $(SRCFOLDER)/retrotermm1.asm $(SRCFOLDER)/retrologo.
 endef
 
 # Main targets
-all: $(SRCFOLDER)/version.asm $(foreach variant,$(CBMVARIANTS),$(BUILDFOLDER)/rt-$(variant).prg) plus4 \
-     $(foreach variant,$(MSXVARIANTS),$(BUILDFOLDER)/rt-$(variant).com)
+# all: $(SRCFOLDER)/version.asm $(foreach variant,$(CBMVARIANTS),$(BUILDFOLDER)/rt-$(variant).prg) plus4 \
+#      $(foreach variant,$(MSXVARIANTS),$(BUILDFOLDER)/rt-$(variant).com)
+all: version cbm msx
 
 cbm: $(SRCFOLDER)/version.asm $(foreach variant,$(CBMVARIANTS),$(BUILDFOLDER)/rt-$(variant).prg) plus4
 
@@ -56,7 +61,6 @@ msx56k: $(BUILDFOLDER)/rt-msx-56k.com
 
 msx38k: $(BUILDFOLDER)/rt-msx-38k.com
 
-.PHONY: $(SRCFOLDER)/version.asm
 version: $(SRCFOLDER)/version.asm
 
 # Special case for p4 (uses different source file)
