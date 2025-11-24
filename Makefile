@@ -61,16 +61,18 @@ msx56k: $(BUILDFOLDER)/rt-msx-56k.com
 
 msx38k: $(BUILDFOLDER)/rt-msx-38k.com
 
-version: $(SRCFOLDER)/version.asm
+version: $(SRCFOLDER)/version.asm $(SRCFOLDER)/version-msx.asm
 
 # Special case for p4 (uses different source file)
 $(BUILDFOLDER)/rt-cbm-p4.prg: $(SRCFOLDER)/retrotermp4.asm | $(BUILDFOLDER) $(BUILDFOLDER)/packed
 	acme -f cbm -D_MAKE_=1 -I $(SRCFOLDER) -l $(BUILDFOLDER)/rt-cbm-p4.lst -o $(BUILDFOLDER)/rt-cbm-p4.prg $(SRCFOLDER)/retrotermp4.asm
 	exomizer sfx basic -t4 -o $(BUILDFOLDER)/packed/rt-cbm-p4.prg $(BUILDFOLDER)/rt-cbm-p4.prg
 
-# Generate version include
+# Generate version includes
 $(SRCFOLDER)/version.asm: $(SRCFOLDER)/version.txt | $(SRCFOLDER)
 	echo !text '"'$(VERSION)'"' > $(SRCFOLDER)/version.asm
+$(SRCFOLDER)/version-msx.asm: $(SRCFOLDER)/version.txt | $(SRCFOLDER)
+	echo DB '"'$(VERSION)'"' > $(SRCFOLDER)/version-msx.asm
 
 # Generate rules dynamically
 $(eval $(foreach variant,$(CBMVARIANTS),$(call make_target_acme,$(variant))))

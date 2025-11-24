@@ -4856,10 +4856,12 @@ ENDIF
 
 IDString:
 IF IFACE != 38
-	DB "RTRETROTERM-M1 0.10   "	; ID String 22 characters long
+	DB "RTRETROTERM-M1 "	; ID String 22 characters long
 ELSE
-	DB "RTRETROTERM-M138 0.10 "
+	DB "RTRETROTERM-M138 "
 ENDIF
+	INCLUDE "version-msx.asm"
+	DS 22-($-IDString),&h20
 	DB &h00,&h08	;Turbo56K version, subversion
 
 
