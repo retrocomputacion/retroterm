@@ -263,6 +263,10 @@ MACRO SetCursor,col,row
 ENDM
 
 
+MACRO _Version_
+	INCLUDE "version-msx.asm"
+ENDM
+
 Start:
 	CALL	VDPDR			; Obtiene el puerto de lectura del VDP y lo copia a VPORTR
 	LD		(VPORTR),A
@@ -4841,14 +4845,17 @@ rcount	DW &h0000
 ; Strings
 RetroIntro:
 	DB	&h01,&h02
+	DB	"Retroterm MSX "
+	_Version_
+	DS 24-($-RetroIntro),&h20
 IF IFACE = 0
-	DB	"Retroterm MSX -ALPHA-  19200,8n1"
+	DB	" 19200,8n1"
 ENDIF
 IF IFACE = 56
-	DB	"Retroterm MSX -ALPHA-  57600,8n1"
+	DB	"57600,8n1"
 ENDIF
 IF IFACE = 38
-	DB	"Retroterm MSX -ALPHA-  38400,8n1"
+	DB	"38400,8n1"
 ENDIF
 	DB	&h01,&h0A
 	DB	"(c)2025 RETROCOMPUTACION.COM"
@@ -4860,7 +4867,7 @@ IF IFACE != 38
 ELSE
 	DB "RTRETROTERM-M138 "
 ENDIF
-	INCLUDE "version-msx.asm"
+	_Version_
 	DS 22-($-IDString),&h20
 	DB &h00,&h08	;Turbo56K version, subversion
 

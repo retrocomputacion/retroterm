@@ -31,7 +31,7 @@ $(BUILDFOLDER)/rt-$(1).prg: $(SRCFOLDER)/retroterm_univ.asm $(SRCFOLDER)/version
 endef
 
 define make_target_pasmo
-$(BUILDFOLDER)/rt-$(1).com: $(SRCFOLDER)/retrotermm1.asm $(SRCFOLDER)/retrologo.mseq
+$(BUILDFOLDER)/rt-$(1).com: $(SRCFOLDER)/retrotermm1.asm $(SRCFOLDER)/retrologo.mseq $(SRCFOLDER)/version-msx.asm
 	pasmo $$(DEFINES_FOR_$(1)) -I $(SRCFOLDER) $(SRCFOLDER)/retrotermm1.asm $(BUILDFOLDER)/rt-$(1).com $(BUILDFOLDER)/rtm-$(1).symbol
 
 endef
@@ -43,7 +43,7 @@ all: version cbm msx
 
 cbm: $(SRCFOLDER)/version.asm $(foreach variant,$(CBMVARIANTS),$(BUILDFOLDER)/rt-$(variant).prg) plus4
 
-msx: $(SRCFOLDER)/version.asm $(foreach variant,$(MSXVARIANTS),$(BUILDFOLDER)/rt-$(variant).com)
+msx: $(SRCFOLDER)/version-msx.asm $(foreach variant,$(MSXVARIANTS),$(BUILDFOLDER)/rt-$(variant).com)
 
 swiftlink: $(BUILDFOLDER)/rt-cbm-sl.prg
 
