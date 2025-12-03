@@ -4,13 +4,14 @@ BUILDFOLDER:=build
 SRCFOLDER:=source
 
 CBMVARIANTS=cbm-u cbm-sl cbm-ulti cbm-232
-MSXVARIANTS=msx-232 msx-56k msx-38k
+MSXVARIANTS=msx-232 msx-56k msx-38k msx-badcat
 
 DEFINES_FOR_cbm-u=-D_HARDTYPE_=56
 DEFINES_FOR_cbm-sl=-D_HARDTYPE_=38
 DEFINES_FOR_cbm-ulti=-D_HARDTYPE_=1541
 DEFINES_FOR_cbm-232=-D_HARDTYPE_=232
 DEFINES_FOR_msx-232=-E IFACE=0
+DEFINES_FOR_msx-badcat=-E IFACE=1
 DEFINES_FOR_msx-56k=-E IFACE=56
 DEFINES_FOR_msx-38k=-E IFACE=38
 
@@ -56,6 +57,8 @@ userport: $(BUILDFOLDER)/rt-cbm-u.prg
 plus4: $(BUILDFOLDER)/rt-cbm-p4.prg
 
 msx232: $(BUILDFOLDER)/rt-msx-232.com
+
+msxbadcat: $(BUILDFOLDER)/rt-msx-badcat.com
 
 msx56k: $(BUILDFOLDER)/rt-msx-56k.com
 

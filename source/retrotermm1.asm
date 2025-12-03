@@ -1,6 +1,6 @@
 ;////////////////////////////////////////////////////////////////////////////////////////////
 ; Retroterm, RS232 with tcpser/BBSServer or wifi with zimodem firmware
-; Supports TURBO56K v0.7 protocol at 19200 bps, using TX, RX and RTS
+; Supports TURBO56K v0.8 protocol at 19200 bps, using TX, RX and RTS
 ;////////////////////////////////////////////////////////////////////////////////////////////
 
 	ORG	&h100
@@ -163,6 +163,81 @@ CNTCTRL		EQU &h87		; bit 0 (BCD):
 							;	10 - Counter 2
 							;	11 - Illegal
 
+;	i16550 UART
+UARTData	EQU &h80		; Write: Tx - Read: Rx
+UARTIRQEn	EQU &h81		; Interrupt enable
+							; bit 0: Data Ready
+							; bit 1: Tx empty
+							; bit 2: Receiver line status
+							; bit 3: Modem status
+							; bit 4-5: 0
+							; bit 6: DMA Rx end
+							; bit 7: DMA Tx end
+
+UARTIRQSt	EQU &h82		; Interrupt status (read only)
+							; bit 0: Interrupt status
+							; bit 1-3: Interrupt identification code
+							; bit 4: 0 (DMA Rx end)
+							; bit 5: 0 (DMA Tx end)
+							; bit 6: FIFOs enabled
+							; bit 6: FIFOs enabled
+
+UARTFIFO	EQU &h82		; FIFO control register (write only)
+							; bit 0: FIFO enable
+							; bit 1: Rx FIFO reset
+							; bit 2: Tx FIFO reset
+							; bit 3: DMA Mode
+							; bit 4: 0 (Enable DMA end)
+							; bit 5: 0
+							; bit 6-7: Rx FIFO trigger level
+
+UARTLCR		EQU &h83		; Line control register
+							; bit 0-1: Word Length
+							; bit 2: Stop bits
+							; bit 3: Parity enable
+							; bit 4: Even Parity
+							; bit 5: Force parity
+							; bit 6: Set break
+							; bit 7: DLAB
+
+UARTMCR		EQU &h84		; Modem control register
+							; bit 0: DTR
+							; bit 1: RTS
+							; bit 2: Out1
+							; bit 3: Out2/IRQ enable
+							; bit 4: Loop back
+							; bit 5-7: 0
+
+UARTLSR		EQU &h85		; Line status register (read only)
+							; bit 0: Data ready
+							; bit 1: Overrun error
+							; bit 2: Parity error
+							; bit 3: Framing error
+							; bit 4: Break interrupt
+							; bit 5: Tx (UARTData) Empty
+							; bit 6: Transmitter empty
+							; bit 7: FIFO data error
+
+UARTMSR		EQU &h86		; Modem status register (read only)
+							; bit 0: delta CTS
+							; bit 1: delta DSR
+							; bit 2: trailing edge RI
+							; bit 3: delta CD
+							; bit 4: CTS
+							; bit 5: DSR
+							; bit 6: RI
+							; bit 7: CD
+
+UARTSPR		EQU &h87		; Scratch pad
+
+; Registers for DLAB = 1 (UARTLCR bit7 = 1)
+UARTDLL		EQU &h80		; Divisor latch low
+UARTDLM		EQU &h81		; Divisor latch high
+; UARTPSD		EQU &h85		; Prescaler division
+; 							; bit 0-3: Prescaler's division factor
+; 							; bit 4-7: 0
+
+
 ; PSG
 AYINDEX		EQU	&hA0
 AYWRITE		EQU &hA1
@@ -262,12 +337,36 @@ MACRO SetCursor,col,row
 	CALL	.cup
 ENDM
 
+IF IFACE < 2
+MACRO EnableRTS
+IF IFACE = 0
+	LD		A,%00100111	; RTS Enabled, Rx/Tx enabled, DTR Active
+	OUT		(USARTCmd),A
+ELSE
+	LD		A,%00000011	; RTS Enabled, DTR Active
+	OUT		(UARTMCR),A
+ENDIF
+ENDM
+
+MACRO DisableRTS
+IF IFACE = 0
+	LD		A,%00000111	; RTS Disabled, Rx/Tx enabled, DTR Active
+	OUT		(USARTCmd),A
+ELSE
+	LD		A,%00000001	; RTS Disabled, DTR Active
+	OUT		(UARTMCR),A
+ENDIF
+ENDM
+ENDIF
 
 MACRO _Version_
 	INCLUDE "version-msx.asm"
 ENDM
 
 Start:
+	LD		A,0
+	LD		(CLIKSW),A		; Disable Keyclick
+
 	CALL	VDPDR			; Obtiene el puerto de lectura del VDP y lo copia a VPORTR
 	LD		(VPORTR),A
 	CALL	VDPDW			; Obtiene el puerto de escritura del VDP y lo copia a VPORTW
@@ -278,9 +377,6 @@ Start:
 	CALL	PSGIni
 	CALL	SetISR
 	CALL	Setfkeys
-IF IFACE = 0
-	CALL	InitComm
-ENDIF
     ; Switch to Screen 2
 	LD      IX,INIGRP
     LD      IY,(EXPTBL-1)	; get expanded slot status to IYH
@@ -289,6 +385,11 @@ ENDIF
 	; Init screen
 
 	CALL	ClrScr
+
+	; CALL	SETUP
+IF IFACE < 2
+	CALL	InitComm
+ENDIF
 
 	LD		HL,SPLASH
 	CALL	StrOut
@@ -446,7 +547,7 @@ ChkTimer2
 	JR		Z,.inbyte		; If we were waiting for parameters but all were received, do not receive more characters
 							; until the command is completed
 .rb1
-IF IFACE = 0
+IF IFACE < 2
 	LD		A,3
 	CP		B				; First loop?
 	JR		NZ,.rb1_0		; No, use ReadByte2 instead
@@ -454,7 +555,7 @@ ENDIF
 	PUSH	BC
 	CALL	ReadByte
 	POP		BC
-IF IFACE = 0
+IF IFACE < 2
 	JR		.rb1_1
 .rb1_0
 	PUSH	BC
@@ -463,6 +564,7 @@ IF IFACE = 0
 .rb1_1
 ENDIF
 	JR		NC,.rece		; if no character received, loop
+.rb_1_2
 	CALL	AddToPrBuffer	; otherwise add byte to print buffer
 
 ; Commented out for I8251 USART
@@ -502,7 +604,7 @@ ENDIF
 
 .rece:
 	DJNZ	.rb0			; if != 0, return to .rb0
-IF IFACE = 0
+IF IFACE < 2
 	LD		HL,EDSTAT
 	BIT		7,(HL)			; check if we're done for the frame
 	JR		NZ,.inbyte		; Yes, Continue on .inbyte
@@ -645,10 +747,12 @@ Bcount:
 ; 	SET		7,(HL)
 ; 	JR		.mi0
 
-IF IFACE = 0
+IF IFACE < 2
 ;/////////////
-; Init 8251 - Partly based on SVI ROM disassembly
+; Init 8251 or UART
 InitComm:
+IF IFACE = 0
+	; Init 8251 - Partly based on SVI ROM disassembly
 	LD		DE,(BaudTable+2)	; Set 19200 bps
 	; LD		DE,(BaudTable+4)	; Set 38400 bps
 	LD		C,0
@@ -683,8 +787,28 @@ ELSE
 	LD		A,&h01
 ENDIF
 	OUT		(USARTIrq),A	; Disable IRQ
-	RET
+ELSE
+	; Init 16550 UART
+	XOR		A
+	OUT		(UARTIRQEn),A	; Disable interrupts
+	DisableRTS				; RTS = 0, DTR active
+	; set baud rate
+	LD		A,&h80			; Set DLAB flag
+	OUT		(UARTLCR),A
+	LD		A,&h02
+	OUT		(UARTDLL),A
+	XOR		A
+	OUT		(UARTDLM),A		; Divisor set to 2 -> 56700 bauds
+	; Set protocol
+	LD		A,&h03
+	OUT		(UARTLCR),A		; Reset DLAB flag, set 8N1 data format
 
+	LD		A,&h06
+	OUT		(UARTFIFO),A	; reset FIFOs
+
+ENDIF
+	RET
+IF IFACE = 0
 ;/////////////
 CharIn:
 	IN		A,(USARTData)
@@ -734,6 +858,7 @@ BaudTable:
 	; DW	&h0003				; 38400 x16 X	Doesn't work max x16 baudrate is around 25.5K
 	; DW	&h0030				; 38400	x1 ?	UNRELIABLE
 	; DW	&H0020				; 57600 x1 ?	not worth testing
+ENDIF
 ENDIF
 
 ;/////////////
@@ -1060,7 +1185,7 @@ Cmd82
 
 _Cmd82	;Alternative entry point
 	DI					; Disable IRQs
-IF	IFACE = 0
+IF	IFACE < 2
 	LD		HL,EDSTAT
 	RES		7,(HL)		; Clear reception bit
 ENDIF
@@ -1107,7 +1232,7 @@ C82Loop
 	JR		.c821
 .c820a
 ;ENDIF
-IF IFACE = 0
+IF IFACE < 2
 	CALL	ReadByte		; Receive a character from RS232
 ELSE
 	CALL	ReadByte2
@@ -1151,7 +1276,7 @@ C82End
 ; IF	IFACE = 0
 	LD		A,LONGRX
 	LD		(.rts0+1),A		; Set longer Rx timing
-IF	IFACE = 0
+IF	IFACE < 2
 	LD		HL,EDSTAT
 .c822		; Save any remaining received bytes into the buffer
 	SET		7,(HL)		; Set receive flag
@@ -1188,9 +1313,11 @@ Cmd83
 	LD		E,7
 	CALL	WriteVReg			; Restore border color
 	RET
+ENDIF
 ;///////////////////////////////////////////////////////////////////////////////////
 ; 132: PSG streaming until receiving a 0 byte data block or interrupted by the user
 
+IF IFACE < 2
 Cmd84
 	DI
 	; Replace ISR <<<<<
@@ -1369,13 +1496,25 @@ ENDIF
 	CP		64					; Buffer only half full?
 	JR		NC,.c842		; No, continue
 	; Yes, enable RTS
+IF IFACE = 0
 	LD		A,&HFE
 	OUT		(USARTIrq),A		; Enable USART IRQs
 								; We do this in the main loop
 								; Because we need to disable rts for the
 								; VDP interrupt
-	LD		A,%00100111		; RTS Enabled, Rx/Tx enabled, DTR Active
-	OUT		(USARTCmd),A
+	EnableRTS
+	; LD		A,%00100111		; RTS Enabled, Rx/Tx enabled, DTR Active
+	; OUT		(USARTCmd),A
+ELSE
+IF IFACE = 1
+	LD		A,&H01
+	OUT		(UARTIRQEn),A		; Enable UART IRQs
+								; We do this in the main loop
+								; Because we need to disable rts for the
+								; VDP interrupt
+	EnableRTS
+ENDIF
+ENDIF
 .c842
 	LD		A,0					;Black Border
 	OUT		(&h99),A
@@ -1386,8 +1525,9 @@ ENDIF
 	JP		.c840
 
 .c84end
-	LD		A,%00000111		; RTS Disabled, Rx/Tx enabled, DTR Active
-	OUT		(USARTCmd),A
+	DisableRTS
+	; LD		A,%00000111		; RTS Disabled, Rx/Tx enabled, DTR Active
+	; OUT		(USARTCmd),A
 	LD		HL,PSGSTREAM_FRAME
 .c84e1
 	LD		A,0
@@ -1409,8 +1549,15 @@ ENDIF
 	; LD		A,LONGRX
 	; LD		(.rts0+1),A		; Set longer Rx timing
 	CALL	PSGIni
+IF IFACE = 0
 	LD		A,&HFF
 	OUT		(USARTIrq),A		; Disable USART IRQs
+ELSE
+IF IFACE = 1
+	XOR 	A
+	OUT		(UARTIRQEn),A
+ENDIF
+ENDIF
 	EI
 	; debug
 	; LD		HL,FLAGS1
@@ -1433,8 +1580,15 @@ c84isr:
 	PUSH	DE
 	PUSH	HL
 
+IF IFACE = 0
 	IN		A,(USARTCmd)
 	AND		&h02			; Byte received?
+ELSE
+IF IFACE = 1
+	IN		A,(UARTLSR)
+	AND		&h01
+ENDIF
+ENDIF
 	CALL	NZ,c84readbyte	; Go read it
 .c84vdp
 	IN		A,(&h99)		; Read VDP Status register
@@ -1448,21 +1602,32 @@ c84isr:
 	EI
 	RETI	
 .c84iend
-	LD		A,%00000111		; RTS Disabled, Rx/Tx enabled, DTR Active
-	OUT		(USARTCmd),A
+	DisableRTS			; RTS = 0, DTR active			
+	; LD		A,%00000111		; RTS Disabled, Rx/Tx enabled, DTR Active
+	; OUT		(USARTCmd),A
 	LD		A,&hFF
 	LD		(PSGSTREAM_FRAME),A		; Flag frame to main loop
+IF IFACE = 0
 	LD		B,A
+ENDIF
 	LD		HL,EDSTAT
 	LD		A,(HL)
 	AND		A				; Check if a character was received this frame
 	RES		7,(HL)			; Clear reception bit
 	JP		M,.c84isrexit	; Exit if so, dont disable USART IRQ yet
+IF IFACE = 0
 	LD		A,B
 	OUT		(USARTIrq),A			; Disable USART IRQ before calling BIOS
-	LD		(PSGSTREAM_FRAME),A		; Flag frame to main loop
-	LD		A,%00000111		; RTS Disabled, Rx/Tx enabled, DTR Active
-	OUT		(USARTCmd),A
+ELSE
+IF IFACE = 1
+	XOR		A
+	OUT		(UARTIRQEn),A			; Disable UART IRQ before calling BIOS
+ENDIF
+ENDIF
+;	LD		(PSGSTREAM_FRAME),A		; Flag frame to main loop <- already done above
+	DisableRTS
+	; LD		A,%00000111		; RTS Disabled, Rx/Tx enabled, DTR Active
+	; OUT		(USARTCmd),A
 
 	IN		A,(PPI.CR)
 	AND		&hF0
@@ -1481,6 +1646,9 @@ c84readbyte
 	; IN		A,(USARTCmd)
 	; AND		&h02			; Byte received?
 	; JR		Z,.c84rbend		; No just exit
+IF IFACE = 1
+	LD		A,(UARTIRQSt)		; Read, acknowledge UART IRQ status (is this needed?)
+ENDIF
 	LD		A,15		;White Border
 	OUT		(&h99),A
 	LD		A,&h80+7
@@ -1493,11 +1661,19 @@ c84readbyte
 	CP		128				; A: PRBUFFERCNT after last call
 	JR		C,.c84rb0		; if buffer half empty just exit
 	;Else->
-	LD		A,%00000111		; RTS Disabled, Rx/Tx enabled, DTR Active
-	OUT		(USARTCmd),A
+	DisableRTS
+	; LD		A,%00000111		; RTS Disabled, Rx/Tx enabled, DTR Active
+	; OUT		(USARTCmd),A
 .c84rb0
+IF IFACE = 0
 	IN		A,(USARTCmd)
 	AND		&h02			; Byte received?
+ELSE
+IF IFACE = 1
+	IN		A,(UARTLSR)
+	AND		&h01
+ENDIF
+ENDIF
 	JR		NZ,c84readbyte	; Go read it
 	LD		A,0				;Black Border
 	OUT		(&h99),A
@@ -1930,7 +2106,7 @@ CmdA2
 	LD		B,24
 .a2_0
 	LD		A,(HL)
-IF IFACE = 0
+IF IFACE < 2
 	CALL	SendID
 ELSE
 	CALL	SendByte
@@ -1960,7 +2136,7 @@ CmdA3
 	LD		HL,CmdParTable
 	ADD		HL,DE
 	LD		A,(HL)			; Get parameter count/Command implemented
-IF IFACE = 0
+IF IFACE < 2
 	CALL	SendID
 ELSE
 	CALL	SendByte
@@ -2164,7 +2340,7 @@ CmdB3
 CmdB4
 	DI
 	LD		A,(CSRX)
-IF IFACE = 0
+IF IFACE < 2
 	CALL	SendID
 ELSE
 	CALL	SendByte
@@ -2173,7 +2349,7 @@ ENDIF
 	LD		B,A
 	LD		A,(CSRY)
 	SUB		B
-IF IFACE = 0
+IF IFACE < 2
 	CALL	SendID
 ELSE
 	CALL	SendByte
@@ -2308,18 +2484,28 @@ CmdFE
 	RET
 
 ;///////////////////////////////////////////////////////////////////////////////////
-IF IFACE = 0
+IF IFACE < 2
 SendID
 	EX		AF,AF'
 .si0
 	NOP
 	NOP
+IF IFACE = 0
 	IN		A,(USARTCmd)
 	AND		&h05			; leave only txready and txempty
 	CP		&h05			; ready to transmit?
 	JR		NZ,.si0			; wait if not
+ELSE
+	IN		A,(UARTLSR)
+	AND		&h20			; check Transmitter empty bit
+	JR		Z,.si0
+ENDIF
 	EX		AF,AF'
+IF IFACE = 0
 	OUT		(USARTData),A
+ELSE
+	OUT		(UARTData),A
+ENDIF
 	RET
 ENDIF
 
@@ -2446,6 +2632,7 @@ ENDIF
 ; ReadByte, receive a byte, store in RXBYTE
 ;---------------------------------------------------------------------------------------
 IF IFACE = 56
+; 56700 printer port version
 ;ReadByte2:
 .rts0
 	LD	L,LONGRX		; Vamos a esperar CANCELTIME (1 milisegundo) antes de cancelar la recepcion
@@ -2504,6 +2691,7 @@ ReadBit:
 ENDIF
 
 IF IFACE = 38
+; 38400 Printer port version
 ReadByte:
 ReadByte2:
 .norts
@@ -2584,9 +2772,12 @@ ReadBit:
 	RET				; 10+1 y retornamos
 ENDIF
 
+
+; USART version
+
 IF IFACE = 0
 
-ReadByte
+ReadByte:
 	IN		A,(USARTCmd)
 	AND		&h02			; Byte received?
 	LD		HL,EDSTAT
@@ -2594,8 +2785,9 @@ ReadByte
 	BIT		7,(HL)
 	JR		NZ,.norts	; If receive flag is set then dont pulse RTS
 
-	LD		A,%00100111		; RTS Enabled, Rx/Tx enabled, DTR Active
-	OUT		(USARTCmd),A
+	EnableRTS
+	; LD		A,%00100111		; RTS Enabled, Rx/Tx enabled, DTR Active
+	; OUT		(USARTCmd),A
 .norts
 	LD		B,LONGRX		;RTS Pulse ~30uS	; Wait ~4*char time
 WaitRX2
@@ -2603,8 +2795,9 @@ WaitRX2
 	AND		&h02			; Byte received?
 	JR		NZ,Received
 	DJNZ	WaitRX2
-	LD		A,%00000111	; RTS Disabled, Rx/Tx enabled, DTR Active
-	OUT		(USARTCmd),A
+	DisableRTS
+	; LD		A,%00000111	; RTS Disabled, Rx/Tx enabled, DTR Active
+	; OUT		(USARTCmd),A
 ; .cwait1
 ; 	LD		B,83			; Wait 982uS (~2 chars time) more for an incoming char
 ; WaitRX4
@@ -2619,8 +2812,9 @@ CancelRX
 	XOR		A		; Write 0 to RXBYTE, clear CARRY
 	RET
 Received
-	LD		A,%00000111	; RTS Disabled, Rx/Tx enabled, DTR Active
-	OUT		(USARTCmd),A
+	DisableRTS
+	; LD		A,%00000111	; RTS Disabled, Rx/Tx enabled, DTR Active
+	; OUT		(USARTCmd),A
 Received2
 	IN		A,(USARTData)	; Read the received byte
 	LD		(RXBYTE),A
@@ -2628,19 +2822,21 @@ Received2
 	RES		7,(HL)			; Reset receive flag
 	RET
 
-ReadByte2
+ReadByte2:
 	LD		HL,EDSTAT
 	BIT		7,(HL)
 	JR		NZ,.rts0	; If receive flag is set then dont pulse RTS
 EnRTS
-	LD		A,%00100111	; RTS Enabled, Rx/Tx enabled, DTR Active
-	OUT		(USARTCmd),A
+	EnableRTS
+	; LD		A,%00100111	; RTS Enabled, Rx/Tx enabled, DTR Active
+	; OUT		(USARTCmd),A
 .rts1
 	LD		B,7
 WaitRX1		; Wait ~30uS
 	DJNZ	WaitRX1
-	LD		A,%00000111	; RTS Disabled, Rx/Tx enabled, DTR Active
-	OUT		(USARTCmd),A
+	DisableRTS
+	; LD		A,%00000111	; RTS Disabled, Rx/Tx enabled, DTR Active
+	; OUT		(USARTCmd),A
 .rts0
 	LD		B,LONGRX			; Wait ~4*char time
 WaitRX3
@@ -2652,13 +2848,80 @@ WaitRX3
 	RET
 ENDIF
 
+IF IFACE = 1
+; UART version
+
+ReadByte:
+	IN		A,(UARTLSR)
+	AND		&h01			; Byte received?
+	LD		HL,EDSTAT
+	JR		NZ,Received2
+	BIT		7,(HL)
+	JR		NZ,.norts		; If receive flag is set then dont pulse RTS
+
+	EnableRTS
+	; LD		A,%00000011		; RTS Enabled, DTR Active
+	; OUT		(UARTMCR),A
+.norts
+	LD		B,LONGRX		;RTS Pulse ~30uS	; Wait ~4*char time
+WaitRX2
+	IN		A,(UARTLSR)		; Read UART status
+	AND		&h01			; Byte received?
+	JR		NZ,Received
+	DJNZ	WaitRX2
+	DisableRTS
+	; LD		A,%00000001		; RTS Disabled, DTR Active
+	; OUT		(UARTMCR),A
+CancelRX
+	XOR		A				; Write 0 to RXBYTE, clear CARRY
+	RET
+Received
+	DisableRTS
+	; LD		A,%00000001		; RTS Disabled, DTR Active
+	; OUT		(UARTMCR),A
+Received2
+	IN		A,(UARTData)	; Read the received byte
+	LD		(RXBYTE),A
+	SCF						; Set CARRY (Byte received)
+	RES		7,(HL)			; Reset receive flag
+	RET
+
+ReadByte2:
+	LD		HL,EDSTAT
+	BIT		7,(HL)
+	JR		NZ,.rts0		; If receive flag is set then dont pulse RTS
+EnRTS
+	EnableRTS
+	; LD		A,%00000011		; RTS Enabled, DTR Active
+	; OUT		(UARTMCR),A
+.rts1
+	LD		B,7
+WaitRX1		; Wait ~30uS
+	DJNZ	WaitRX1
+	DisableRTS
+	; LD		A,%00000001		; RTS Disabled, DTR Active
+	; OUT		(UARTMCR),A
+.rts0
+	LD		B,LONGRX		; Wait ~4*char time
+WaitRX3
+	IN		A,(UARTLSR)		; Read UART status
+	AND		&h01			; Byte received?
+	JR		NZ,Received2
+	DJNZ	WaitRX3
+	XOR		A		; Write 0 to RXBYTE, clear CARRY
+	RET
+ENDIF
+
+
 ;//////////////////////////////////////////////////////////////////////////////////////////
 ; TurboRX, receives a byte stream and plays it as nibbles through the PSG volume registers
 ;------------------------------------------------------------------------------------------
 IF IFACE < 38
 TurboRX
-	LD		A,%00100111	; RTS Enabled, Rx/Tx enabled, DTR Active
-	OUT		(USARTCmd),A
+	EnableRTS
+	; LD		A,%00100111	; RTS Enabled, Rx/Tx enabled, DTR Active
+	; OUT		(USARTCmd),A
+
 	; LD		A,128+7
 	; OUT		(&h99),A
 	; LD		A,17+128
@@ -2698,11 +2961,18 @@ TurboLoop
 	INC		A
 	OUT		(C),H
 	;
-	; Delay HERE 933-301 cycles (632)
+	; Delay HERE 
+	; 19200bps: 933-301 cycles (632)
+	; 57600bps: 311-301 cycles (10)
 	;
+IF IFACE = 0	; 19200
 	LD		B,&h2E
 .tdelay
 	DJNZ 	.tdelay
+ELSE
+	NOP
+	NOP
+ENDIF
 	LD		A,0
 	LD		HL,RXBYTE
 	RRD
@@ -2739,10 +3009,17 @@ TurboLoop
 	;
 	
 TRXWait2
+IF IFACE = 0	; USART
 	IN		A,(USARTCmd)	; Read 8251 status
 	AND		&h02			; Byte received?
 	JR		Z,TRXWait2
 	IN		A,(USARTData)	; Read received bytes
+ELSE			; UART
+	IN		A,(UARTLSR)		; Read UART status
+	AND		&h01			; Byte received?
+	JR		Z,TRXWait2
+	IN		A,(UARTData)	; Read received bytes
+ENDIF
 	OR		A
 	JP		Z,TurboExit		; Exit if 0 received
 
@@ -2762,8 +3039,9 @@ TRXWait2
 ;ENDIF
 	JP		TurboLoop
 TurboExit
-	LD		A,%00000111	; RTS Disabled, Rx/Tx enabled, DTR Active
-	OUT		(USARTCmd),A
+	DisableRTS
+	; LD		A,%00000111	; RTS Disabled, Rx/Tx enabled, DTR Active
+	; OUT		(USARTCmd),A
 	LD		HL,EDSTAT
 .tex1		; Save any remaining received bytes into the buffer
 	SET		7,(HL)		; Set receive flag
@@ -2789,19 +3067,19 @@ TurboRX:
 	LD	B,$07			; 7+1 B=7
 	LD	C,$90			; 7+1 Carga C con el puerto $90
 	LD	L,%10001000		; Comenzamos con 2 muestras de valor medio
-	LD	A,8			; 7+1 Selecciona el registro 8 (VOL1)
-	OUT	(AYINDEX), A		; 11+1
-	XOR	A			; Activamos RTS colocandolo a cero
+	LD	A,8				; 7+1 Selecciona el registro 8 (VOL1)
+	OUT	(AYINDEX), A	; 11+1
+	XOR	A				; Activamos RTS colocandolo a cero
 	OUT	($91),A
 TurboLoop:				; *** Esperamos un byte con RTS activado ***
 	IN	A,($90)			; 11+1 Leemos la entrada RX
 	AND	%00000010		; 7+1 (bit 1)
-	JP	NZ,TurboLoop		; 10+1 Si RX = 1 volvemos a TurboLoop
+	JP	NZ,TurboLoop	; 10+1 Si RX = 1 volvemos a TurboLoop
 StartBit:				; Duracion: 63 ciclos (para caer dentro del bit 0)
-	LD	H,L			; 4+1 Copiamos el byte recibido a H
-	LD	A,H			; 4+1 Coloca el nibble inferior de H en el registro VOL1
+	LD	H,L				; 4+1 Copiamos el byte recibido a H
+	LD	A,H				; 4+1 Coloca el nibble inferior de H en el registro VOL1
 	AND	&h0F			; 7+1
-	OUT	(AYWRITE), A		; 11+1
+	OUT	(AYWRITE), A	; 11+1
 	NOP				; 4+1
 	NOP				; 4+1
 	NOP				; 4+1
@@ -2958,12 +3236,31 @@ StopStream:
 	CALL	Delay51			; 17+1 + 33
 	CALL	Delay51			; 17+1 + 33
 	CALL	Delay51			; 17+1 + 33
-	JP	TurboLoop		; 10+1
+	JP	TurboLoop			; 10+1
 TurboExit:
-	LD	A,1			; 7+1 Desactivamos RTS colocandolo a uno
-	OUT	($91),A			; 11+1
+	LD	A,1					; 7+1 Desactivamos RTS colocandolo a uno
+	OUT	($91),A				; 11+1
 	JP	PSGIni
 ENDIF
+
+;/////////////////////////////////////////////////////
+; Early startup
+; Load preferences or show setup screen if not found
+; STARTUP:
+; 	LD		HL,PREFNAME
+; 	LD		A,0
+; 	CALL	FillFCB
+; 	LD		C,&h0F			; Open file
+; 	LD		DE,FILEFCB
+; 	CALL	BDOS
+; 	CP		0
+; 	JR		NZ,.stend
+
+
+; .stend
+; 	CALL	NZ,SETUP
+; 	; send init string here
+; 	RET
 
 ;//////////////////////////////////////
 ; SETUP screen
@@ -2984,7 +3281,7 @@ SETUP:
 
 	LD		HL,sut1
 	CALL	StrOut
-	SetCursor 3,23
+	SetCursor 0,22
 	LD		HL,sut3
 	CALL	StrOut
 
@@ -4593,7 +4890,7 @@ bsave
 	LD		B,&h42			; ABORT!
 .bb1
 	LD		A,B
-IF IFACE = 0
+IF IFACE < 2
 	CALL	SendID
 ELSE
 	CALL	SendByte
@@ -4851,6 +5148,10 @@ RetroIntro:
 IF IFACE = 0
 	DB	" 19200,8n1"
 ENDIF
+IF IFACE = 1
+	DB	"57600,8n1"
+ENDIF
+
 IF IFACE = 56
 	DB	"57600,8n1"
 ENDIF
@@ -4862,11 +5163,22 @@ ENDIF
 	DB	&h0D,&h01,&h0F,&h00
 
 IDString:
-IF IFACE != 38
-	DB "RTRETROTERM-M1 "	; ID String 22 characters long
+; ID String 22 characters long
+	DB "RTRETROTERM-M1"
+IF IFACE = 38
+	DB "38 "
 ELSE
-	DB "RTRETROTERM-M138 "
+IF IFACE = 1
+	DB "BD "
+ELSE
+	DB " "
 ENDIF
+ENDIF
+; IF IFACE != 38
+; 	DB "RTRETROTERM-M1 "	
+; ELSE
+; 	DB "RTRETROTERM-M138 "
+; ENDIF
 	_Version_
 	DS 22-($-IDString),&h20
 	DB &h00,&h08	;Turbo56K version, subversion
@@ -4911,13 +5223,24 @@ sut1:
 	;Clear, yellow FG, red BG
 	DB &h01,&h0A,&h01,&h16,&h0C," -=",&hF0," RetroTerm Setup screen ",&hF0,"=-"
 	DB &h0D,&h0D,"RTS pulse timing: ",&h19,"+",&h1A,"       ",&h19,"-",&h1A
+	; DB &h0D,&h0D,"Modem ",&h19,"I",&h1A,"nit string:",&h0D,&h0D,&h0D
+	; DB "Initial modem baud ",&h19,"R",&h1A,"ate:"
 	DB &h00
 sut2:
 	DB "     "
 	DS &h05,&h1D
 	DB &h00
 sut3:
-	DB &h19," F1 ",&h1A," to return to RetroTerm",$00
+	DB &h19," F1 ",&h1A," Terminal "
+	; DB &h19," F5 ",&h1A," Save settings"
+	DB &h00
+
+; Baud rates
+; rates:
+; 	DB "skip",&h00
+; 	DB " 300",&h00
+; 	DB "1200",&h00
+; 	DB "2400",&h00
 
 
 ; PSG Stream variables
@@ -4944,6 +5267,25 @@ PSG_REGS	EQU	PSG_BUF+2
 FAddr:	;Pointers to the F-keys definitions - Should be safe to reuse after init
 	DW	&hF87F,&hF88F,&hF89F,&hF8AF,&hF8BF,&hF8CF,&hF8DF,&hF8EF,&hF8FF,&hF90F
 .fae
+
+; PREFNAME:	; Preferences filename
+; 	DB	"rtprefs.dat",&h00
+
+; PREFERENCES:
+; 	DW	&h0000	; &h00-01	RTS timing
+; 	DB	&h00	; &h02		Not used
+; 	DB	&h00	; &h03		Flags (not used)
+; 	DB	&h02	; &h04		Early startup command baudrate
+; 				; 			0: No early startup command
+; 				; 			1:  300 bauds
+; 				;			2: 1200 bauds
+; 				;			3: 2400 bauds
+; .pinits
+; 	DB	"atf0b19200",&h00
+; .pinite
+; 	DS	32-(.pinite-.pinits),&h00
+; 				; &h05-25	Null terminated startup command (32 chars max)
+
 
 ;Mode 2 text tables
 
@@ -4993,11 +5335,23 @@ ScPat:
 
 ; PSG Sample Table
 Sam1:
-	DB	&h00, &h06, &h09, &h0A, &h0B, &h0C, &h0C, &h0D, &h0D, &h0E, &h0E, &h0E, &h0E, &h0E, &h0E, &h0E
+	DB	&h00, &h02, &h04, &h02, &h06, &h05, &h09, &h00, &h0a, &h0a, &h0c, &h0b, &h0e, &h0e, &h0e, &h0f
+	; scale 1.3281
+	; DB	&h00, &h02, &h05, &h03, &h03, &h03, &h03, &h07, &h03, &h05, &h05, &h00, &h03, &h05, &h00, &h09
+	; original
+	; DB	&h00, &h06, &h09, &h0A, &h0B, &h0C, &h0C, &h0D, &h0D, &h0E, &h0E, &h0E, &h0E, &h0E, &h0E, &h0E
 Sam2:
-	DB	&h00, &h04, &h05, &h07, &h07, &h06, &h09, &h06, &h09, &h04, &h08, &h0A, &h0B, &h0C, &h08, &h0D
+	DB	&h00, &h0a, &h05, &h04, &h0a, &h08, &h0a, &h0d, &h0d, &h0e, &h0e, &h0f, &h0e, &h0f, &h0f, &h0f
+	; scale 1.3281
+	; DB	&h00, &h07, &h08, &h07, &h06, &h09, &h07, &h0B, &h04, &h08, &h0A, &h00, &h07, &h09, &h0B, &h0D
+	; original
+	; DB	&h00, &h04, &h05, &h07, &h07, &h06, &h09, &h06, &h09, &h04, &h08, &h0A, &h0B, &h0C, &h08, &h0D
 Sam3:
-	DB	&h00, &h03, &h01, &h01, &h03, &h02, &h03, &h05, &h05, &h02, &h04, &h04, &h05, &h01, &h07, &h04
+	DB	&h0a, &h0a, &h0d, &h0e, &h0e, &h0f, &h0f, &h0f, &h0f, &h0f, &h0f, &h0f, &h0f, &h0f, &h0f, &h0f
+	; scale 1.3281
+	; DB	&h00, &h08, &h09, &h0B, &h0C, &h0C, &h0D, &h0C, &h0E, &h0E, &h0E, &h0F, &h0F, &h0F, &h0F, &h0E
+	; original
+	; DB	&h00, &h03, &h01, &h01, &h03, &h02, &h03, &h05, &h05, &h02, &h04, &h04, &h05, &h01, &h07, &h04
 
 
 ; Row offsets
@@ -5034,7 +5388,13 @@ ENDIF
 ; Command parameter number table.
 ; bit-7 = 1 : Parameter not implemented
 CmdParTable:
-IF IFACE < 38
+IF IFACE = 0
+	DB &h02  ,&h01  ,&h02  ,&h00  ,&h00  ,&h80  ,&h00  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
+	DB &h03  ,&h02  ,&h83  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h00  ,&h02  ,&h05  ,&h09  ,&h0A  ,&h09  ,&h05  ,&h80
+	DB &h00  ,&h00  ,&h00  ,&h01  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
+	DB &h02  ,&h02  ,&h01  ,&h02  ,&h00  ,&h02  ,&h01  ,&h01
+ENDIF
+IF IFACE = 1
 	DB &h02  ,&h01  ,&h02  ,&h00  ,&h00  ,&h80  ,&h00  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
 	DB &h03  ,&h02  ,&h83  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h00  ,&h02  ,&h05  ,&h09  ,&h0A  ,&h09  ,&h05  ,&h80
 	DB &h00  ,&h00  ,&h00  ,&h01  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
