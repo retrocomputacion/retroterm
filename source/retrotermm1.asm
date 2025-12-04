@@ -5144,9 +5144,9 @@ RetroIntro:
 	DB	&h01,&h02
 	DB	"Retroterm MSX "
 	_Version_
-	DS 24-($-RetroIntro),&h20
+	DS 25-($-RetroIntro),&h20
 IF IFACE = 0
-	DB	" 19200,8n1"
+	DB	"19200,8n1"
 ENDIF
 IF IFACE = 1
 	DB	"57600,8n1"
