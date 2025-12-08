@@ -41,8 +41,8 @@
 
 !ifndef _MAKE_{
 	!to "rt_p4_v0.20.prg", cbm
-}
     !sl "labels-p4.txt"
+}
 
 
 ;///////////////////////////////////////////////////////////////////////////////////
@@ -144,7 +144,7 @@ _Start:
 	JSR	PLOT
 	LDA	#<RetroIntro	; Print: www.retrocomputacion.com
 	LDY	#>RetroIntro
-	JSR	STROUT		;PrintTxt
+	JSR	STROUT
 	LDA #$81
 	STA $A5
 -	LDA $A5
@@ -154,6 +154,14 @@ _Start:
 	STA load_drive
 
 	JSR DrvDetect
+
+	LDA $FF07
+	ASL
+	AND #$80
+	+DisROMs
+	ORA _sub0+1
+	STA _sub0+1			; Set refresh rate 
+	+EnROMs
 
 	LDX #$07
 -	LDA FTable,X
@@ -1968,6 +1976,35 @@ CmdA3
 	CLI
 	RTS
 
+;////////////////////////////////////////////////////////////////////////////////////
+; 164: Query client's setup, requires one parameter: subsystem
+
+CmdA4
+	JSR GetFromPrBuffer	; Reads byte from the print buffer / Subsystem
+	SEI
+	+DisROMs
+	CMP #$06			; Check if valid subsystem
+	BCC	.a4_0			; less than...
+	BEQ .a4_0			; equal...
+	LDA #$07
+.a4_0
+	TAY
+	LDA A4offsets,Y		; A: A4array offset
+	TAY
+	LDA A4array,Y		; A: responte length
+	TAX
+	INX
+
+.a4_1
+	JSR SendID
+	INY
+	LDA A4array,Y
+	DEX
+	BNE .a4_1
+	+EnROMs
+	CLI
+	RTS
+
 ;///////////////////////////////////////////////////////////////////////////////////
 ; 176: Sets cursor position, requires two parameter bytes: Column, row
 ; 	   Relative to the current text window
@@ -2287,7 +2324,7 @@ SendID
 CmdTable:
     !word Cmd80,Cmd81,Cmd82,Cmd83,CmdFE,CmdFE,Cmd86,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     !word Cmd90,Cmd91,Cmd92,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,Cmd98,Cmd99,Cmd9A,Cmd9B,Cmd9C,Cmd9D,Cmd9E,CmdFE
-    !word CmdA0,CmdA1,CmdA2,CmdA3,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
+    !word CmdA0,CmdA1,CmdA2,CmdA3,CmdA4,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     !word CmdB0,CmdB1,CmdB2,CmdB3,CmdB4,CmdB5,CmdB6,CmdB7
 
 ; Command parameter number table.
@@ -2295,7 +2332,7 @@ CmdTable:
 CmdParTable:
 	!byte $02  ,$01  ,$02  ,$00  ,$80  ,$80  ,$00  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
 	!byte $03  ,$02  ,$04  ,$80  ,$80  ,$80  ,$80  ,$80  ,$00  ,$02  ,$05  ,$09  ,$0A  ,$09  ,$05  ,$80
-	!byte $00  ,$00  ,$00  ,$01  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
+	!byte $00  ,$00  ,$00  ,$01  ,$01  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
 	!byte $02  ,$02  ,$01  ,$02  ,$00  ,$02  ,$01  ,$01
 
 InitScr
@@ -2345,13 +2382,13 @@ FTable
 
 ENDOFCODE
 !if ENDOFCODE > $7EFF {
-	!error "ERROR - Part 1 data beyond $8EFF"
+	!error "ERROR - Part 1 data beyond $7EFF"
 }
 }
 _ENDOFCODE_
 
 ;///////////////////////////////////////////////////////////////////////////////////
-; Mobile code section $D000->
+; Mobile code section $8000->
 ;///////////////////////////////////////////////////////////////////////////////////
 _SHADOWCODE_
 !pseudopc $8000{
@@ -3403,7 +3440,7 @@ fdrive: 	!byte $08
 
 ; A: Name length
 ; X/Y: Name pointer
-; channel: Secodary address
+; channel: Secondary address
 ; fdrive: drive
 ; File number same as channel, only one file open at a time anyways
 fopen:
@@ -3604,6 +3641,34 @@ _preset5
 _p5f
 !fill 39-(_p5f-_preset5),$00
 _sudend
+
+; CmdA4 subsystems offsets
+
+A4offsets:
+!byte _sub0-A4array,_sub1-A4array,_sub2-A4array,_sub3-A4array
+!byte _sub4-A4array,_sub5-A4array,_sub6-A4array,_subnull-A4array
+
+; CmdA4 subsystems response array
+A4array:
+_sub0
+	!byte $01,$01			; $00: Platform/Refresh rate
+_sub1
+	!byte $02,$28,$19		; $01: Text screen dimensions
+_sub2
+	!byte $02				; $02: Connection speed
+	!byte $08
+_sub3
+	!byte $02				; $03: RAM size
+	!word $0040
+_sub4
+	!byte $02
+	!word $0000				; $04: VRAM size
+_sub5
+	!byte $01,$00			; $05: Graphic modes
+_sub6
+	!byte $02,$00,%00001001	; $06: Audio
+_subnull
+	!byte $00				; Entry not implemented
 
 ENDSHADOW
 }

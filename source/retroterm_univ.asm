@@ -180,34 +180,21 @@
 ; Output file names
 !ifndef _MAKE_{
 !if _HARDTYPE_ = 232 {
-	!to "rt_232_v0.21.prg", cbm
+	!to "rt_232_v0.3.prg", cbm
 	!sl "labels_232.txt"
 }
 !if _HARDTYPE_ = 38 {
-    !to "rt_sl_v0.21.prg", cbm
+    !to "rt_sl_v0.3.prg", cbm
 	!sl "labels_sl.txt"
 }
 !if _HARDTYPE_ = 1541 {
-    !to "rt_ulti_v0.21.prg", cbm
+    !to "rt_ulti_v0.3.prg", cbm
 	!sl "labels_ulti.txt"
 }
 !if _HARDTYPE_ = 56 {
-	!to "rt_u_v0.21.prg", cbm
+	!to "rt_u_v0.3.prg", cbm
 	!sl "labels_u.txt"
 }
-}
-
-!if _HARDTYPE_ = 232 {
-	!sl "labels_232.txt"
-}
-!if _HARDTYPE_ = 38 {
-	!sl "labels_sl.txt"
-}
-!if _HARDTYPE_ = 1541 {
-	!sl "labels_ulti.txt"
-}
-!if _HARDTYPE_ = 56 {
-	!sl "labels_u.txt"
 }
 
 * = $0801
@@ -373,17 +360,24 @@ DlyNext2
 		BPL .c0
 		+EnKernal a
 		CLI
-!if _HARDTYPE_ = 56{
-		JSR udetect
-}
-		JSR DrvDetect
+		JSR udetect		; Detect PAL/NTSC/DREAN
+		SEI
+		+DisKernal a
+		LDA Ras
+		ASL				; move bit 5 to bit 7
+		ASL
+		AND #$80
+		ORA	_sub0+1
+		STA _sub0+1		; Set refresh rate
+		+EnKernal a
+		CLI
+		JSR DrvDetect	; Detect connected drives
 		LDA #$00
 		STA $0801
 		STA $0802
 		JSR earlysetup
 		JMP CODESTART
 
-!if _HARDTYPE_ = 56{
 ; Detect C64 model
 udetect:
 	SEI
@@ -413,6 +407,7 @@ udetect:
 	CLI
 .f1	LDY Flg
 	BEQ .f1		;Wait for test flag
+!if _HARDTYPE_ = 56{
 	LDA Ras
 .s1	CMP #$0B	;PAL-B/G?
 	BNE .n0
@@ -424,16 +419,10 @@ udetect:
 -	LDA _DATA2,Y	;<-
 	BEQ +
 	STA $0058,Y
-+	;DEX				;<-
-	DEY
++	DEY				;<-
 	BPL -
-	;TXA
-	;PHA
 	JSR MEMOPEN		; >>Open space in memory
-	;PLA
-	;TAX
-	;BPL --
-;
+}
 .n0	SEI
 	LDA TIRQ	;Back to normal
 	STA $0314
@@ -472,6 +461,7 @@ TIRQ	!byte 00,00
 Flg	!byte 00
 Ras	!byte 00	;PALG 11 NTSC 50 NTSCold 56 PALN 1
 
+!if _HARDTYPE_ = 56{
 _DATA2		;Memory move parameters
 !word	PALEND, _PALEND_
 !byte	$00, $00, $00
@@ -2740,7 +2730,7 @@ CmdA3
 ++	AND #%01111111		; -128
 	TAY
 	LDA CmdParTable,Y	; Get parameter count/Command implemented
-!if _HARDTYPE_ = 56{
+!if _HARDTYPE_ = 56 {
 	+DisKernal x 
 	JSR SendByte
 	+EnKernal a
@@ -2750,6 +2740,40 @@ CmdA3
 	CLI
 	RTS
 
+;////////////////////////////////////////////////////////////////////////////////////
+; 164: Query client's setup, requires one parameter: subsystem
+
+CmdA4
+	JSR GetFromPrBuffer	; Reads byte from the print buffer / Subsystem
+	SEI
+	+DisKernal x
+	CMP #$06			; Check if valid subsystem
+	BCC	.a4_0			; less than...
+	BEQ .a4_0			; equal...
+	LDA #$07
+.a4_0
+	TAY
+	LDA A4offsets,Y		; A: A4array offset
+	TAY
+	LDA A4array,Y		; A: responte length
+	TAX
+	INX
+
+.a4_1
+!if _HARDTYPE_ = 56 {
+	STX $FD				; save X
+	JSR SendByte
+	LDX $FD				; retrieve X
+} else {
+	JSR SendID
+}
+	INY
+	LDA A4array,Y
+	DEX
+	BNE .a4_1
+	+EnKernal x
+	CLI
+	RTS
 
 ;///////////////////////////////////////////////////////////////////////////////////
 ; 176: Sets cursor position, requires two parameter bytes: Column, row
@@ -3145,7 +3169,7 @@ Sp01
 CmdTable:
     !word Cmd80,Cmd81,Cmd82,Cmd83,Cmd84,Cmd85,Cmd86,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     !word Cmd90,Cmd91,Cmd92,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,Cmd98,Cmd99,Cmd9A,Cmd9B,Cmd9C,Cmd9D,Cmd9E,CmdFE
-    !word CmdA0,CmdA1,CmdA2,CmdA3,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
+    !word CmdA0,CmdA1,CmdA2,CmdA3,CmdA4,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     !word CmdB0,CmdB1,CmdB2,CmdB3,CmdB4,CmdB5,CmdB6,CmdB7
 
 ; Command parameter number table.
@@ -3153,7 +3177,7 @@ CmdTable:
 CmdParTable:
 	!byte $02  ,$01  ,$02  ,$00  ,$00  ,$00  ,$00  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
 	!byte $03  ,$02  ,$03  ,$80  ,$80  ,$80  ,$80  ,$80  ,$00  ,$02  ,$05  ,$09  ,$0A  ,$09  ,$05  ,$80
-	!byte $00  ,$00  ,$00  ,$01  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
+	!byte $00  ,$00  ,$00  ,$01  ,$01  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80  ,$80
 	!byte $02  ,$02  ,$01  ,$02  ,$00  ,$02  ,$01  ,$01
 
 ;///////////////////////////////////////////////////////////////////////////////////
@@ -6777,6 +6801,39 @@ GetCoord:
 	BPL -
 	JMP plusdx	; X += DX
 ;	RTS
+
+; CmdA4 subsystems offsets
+
+A4offsets:
+!byte _sub0-A4array,_sub1-A4array,_sub2-A4array,_sub3-A4array
+!byte _sub4-A4array,_sub5-A4array,_sub6-A4array,_subnull-A4array
+
+; CmdA4 subsystems response array
+A4array:
+_sub0
+	!byte $01,$00			; $00: Platform/Refresh rate
+_sub1
+	!byte $02,$28,$19		; $01: Text screen dimensions
+_sub2
+	!byte $02				; $02: Connection speed
+!if _HARDTYPE_ = 38{
+	!byte $0A
+} else {
+	!byte $0B
+}
+_sub3
+	!byte $02				; $03: RAM size
+	!word $0040
+_sub4
+	!byte $02
+	!word $0000				; $04: VRAM size
+_sub5
+	!byte $01,$00			; $05: Graphic modes
+_sub6
+	!byte $02,$00,%00001001	; $06: Audio
+_subnull
+	!byte $00				; Entry not implemented
+
 
 EXTRAEND
 }

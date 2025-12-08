@@ -391,6 +391,29 @@ IF IFACE < 2
 	CALL	InitComm
 ENDIF
 
+	; Set A4 command response values
+	; Get System interrupt frequency
+	LD		HL,&h002B	;HL = Address to read
+	LD		A,(EXPTBL)	;A = Main-ROM slot
+	CALL	RDSLT
+	AND 	&h80		; Isolate refresh rate
+	XOR		&h80		; Invert it
+	OR		&h02		; MSX platform
+	LD		HL,_sub0+1
+	LD		(HL),A
+	; Get VRAM size
+	LD		A,(&hFAFC)
+	AND		&h06
+	SRL		A
+	LD		HL,A4VRAMsizes	;VRAM size table
+	LD		C,A
+	LD		B,&h00
+	ADD		HL,BC
+	LD		A,(HL)
+	LD		HL,_sub4+1
+	LD		(HL),A
+
+	; Display Splach screen
 	LD		HL,SPLASH
 	CALL	StrOut
 
@@ -2144,6 +2167,39 @@ ENDIF
 	EI
 	RET
 
+;////////////////////////////////////////////////////////////////////////////////////
+; 164: Query client's setup, requires one parameter: subsystem
+
+CmdA4:
+	CALL	GetFromPrBuffer	; Reads byte from the print buffer / Subsystem
+	DI
+	CP		&h06			; Check if valid subsystem
+	JP		C,.a4_0			; less than...
+	JP		Z,.a4_0			; equal...
+	LD		A,&h07			; Invalid sybsystem
+.a4_0
+	LD		C,A
+	LD		B,&h00
+	LD		HL,A4offsets
+	ADD		HL,BC			; A4offsets+subsystem
+	LD		C,(HL)
+	LD		HL,A4array
+	ADD		HL,BC			; A4array+subsytem offset
+	LD		A,(HL)			; A: response length
+	LD		B,A
+	INC		B
+.a4_1						; Send response
+IF IFACE < 2
+	CALL	SendID
+ELSE
+	CALL	SendByte
+ENDIF
+	INC		HL
+	LD		A,(HL)			; Get next byte
+	DJNZ	.a4_1			; Unless we already completed the response
+	EI
+	RET
+
 ;///////////////////////////////////////////////////////////////////////////////////
 ; 176: Sets cursor position, requires two parameter bytes: Column, row
 ; 	   Relative to the current text window
@@ -2485,7 +2541,7 @@ CmdFE
 
 ;///////////////////////////////////////////////////////////////////////////////////
 IF IFACE < 2
-SendID
+SendID:
 	EX		AF,AF'
 .si0
 	NOP
@@ -5369,19 +5425,19 @@ CmdTable:
 IF IFACE < 38
     DW Cmd80,Cmd81,Cmd82,Cmd83,Cmd84,CmdFE,Cmd86,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     DW Cmd90,Cmd91,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,Cmd98,Cmd99,Cmd9A,Cmd9B,Cmd9C,Cmd9D,Cmd9E,CmdFE
-    DW CmdA0,CmdA1,CmdA2,CmdA3,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
+    DW CmdA0,CmdA1,CmdA2,CmdA3,CmdA4,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     DW CmdB0,CmdB1,CmdB2,CmdB3,CmdB4,CmdB5,CmdB6,CmdB7
 ENDIF
 IF IFACE = 38
     DW Cmd80,Cmd81,Cmd82,Cmd83,CmdFE,CmdFE,Cmd86,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     DW Cmd90,Cmd91,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,Cmd98,Cmd99,Cmd9A,Cmd9B,Cmd9C,Cmd9D,Cmd9E,CmdFE
-    DW CmdA0,CmdA1,CmdA2,CmdA3,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
+    DW CmdA0,CmdA1,CmdA2,CmdA3,CmdA4,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     DW CmdB0,CmdB1,CmdB2,CmdB3,CmdB4,CmdB5,CmdB6,CmdB7
 ENDIF
 IF IFACE = 56
     DW Cmd80,Cmd81,Cmd82,CmdFE,CmdFE,CmdFE,Cmd86,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     DW Cmd90,Cmd91,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,Cmd98,Cmd99,Cmd9A,Cmd9B,Cmd9C,Cmd9D,Cmd9E,CmdFE
-    DW CmdA0,CmdA1,CmdA2,CmdA3,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
+    DW CmdA0,CmdA1,CmdA2,CmdA3,CmdA4,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     DW CmdB0,CmdB1,CmdB2,CmdB3,CmdB4,CmdB5,CmdB6,CmdB7
 ENDIF
 
@@ -5391,27 +5447,69 @@ CmdParTable:
 IF IFACE = 0
 	DB &h02  ,&h01  ,&h02  ,&h00  ,&h00  ,&h80  ,&h00  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
 	DB &h03  ,&h02  ,&h83  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h00  ,&h02  ,&h05  ,&h09  ,&h0A  ,&h09  ,&h05  ,&h80
-	DB &h00  ,&h00  ,&h00  ,&h01  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
+	DB &h00  ,&h00  ,&h00  ,&h01  ,&h01  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
 	DB &h02  ,&h02  ,&h01  ,&h02  ,&h00  ,&h02  ,&h01  ,&h01
 ENDIF
 IF IFACE = 1
 	DB &h02  ,&h01  ,&h02  ,&h00  ,&h00  ,&h80  ,&h00  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
 	DB &h03  ,&h02  ,&h83  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h00  ,&h02  ,&h05  ,&h09  ,&h0A  ,&h09  ,&h05  ,&h80
-	DB &h00  ,&h00  ,&h00  ,&h01  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
+	DB &h00  ,&h00  ,&h00  ,&h01  ,&h01  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
 	DB &h02  ,&h02  ,&h01  ,&h02  ,&h00  ,&h02  ,&h01  ,&h01
 ENDIF
 IF IFACE = 38
 	DB &h02  ,&h01  ,&h02  ,&h00  ,&h80  ,&h80  ,&h00  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
 	DB &h03  ,&h02  ,&h83  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h00  ,&h02  ,&h05  ,&h09  ,&h0A  ,&h09  ,&h05  ,&h80
-	DB &h00  ,&h00  ,&h00  ,&h01  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
+	DB &h00  ,&h00  ,&h00  ,&h01  ,&h01  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
 	DB &h02  ,&h02  ,&h01  ,&h02  ,&h00  ,&h02  ,&h01  ,&h01
 ENDIF
 IF IFACE = 56
 	DB &h02  ,&h01  ,&h02  ,&h80  ,&h80  ,&h80  ,&h00  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
 	DB &h03  ,&h02  ,&h83  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h00  ,&h02  ,&h05  ,&h09  ,&h0A  ,&h09  ,&h05  ,&h80
-	DB &h00  ,&h00  ,&h00  ,&h01  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
+	DB &h00  ,&h00  ,&h00  ,&h01  ,&h01  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
 	DB &h02  ,&h02  ,&h01  ,&h02  ,&h00  ,&h02  ,&h01  ,&h01
 ENDIF
+
+; CmdA4 subsystems offsets
+
+A4offsets:
+	DB _sub0-A4array,_sub1-A4array,_sub2-A4array,_sub3-A4array
+	DB _sub4-A4array,_sub5-A4array,_sub6-A4array,_subnull-A4array
+
+; CmdA4 subsystems response array
+A4array:
+_sub0	; Getoverhere!
+	DB &h01,&h02			; &h00: Platform/Refresh rate
+_sub1
+	DB &h02,&h20,&h18		; &h01: Text screen dimensions
+_sub2
+	DB &h02					; &h02: Connection speed
+IF IFACE = 0
+	DB &h08
+ENDIF
+IF IFACE = 1
+	DB &h11
+ENDIF
+IF IFACE = 56
+	DB &h11
+ENDIF
+IF IFACE = 38
+	DB &h10
+ENDIF
+_sub3
+	DB &h02					; &h03: RAM size
+	DW &h0040
+_sub4
+	DB &h02
+	DW &h0010				; &h04: VRAM size
+_sub5
+	DB &h01,&h00			; &h05: Graphic modes
+_sub6
+	DB &h02,&h00,%00001001	; &h06: Audio
+_subnull
+	DB &h00					; Entry not implemented
+
+A4VRAMsizes:				; VRAM size LSB
+	DB &h10,&h40,&h80,&hC0
 ; Charset
 CHRSET:
 	incbin "chrset.bin"	;256 caracteres
