@@ -2198,6 +2198,11 @@ CmdB3
 	JSR _luchcopy		; Copy luma/colors to $1800
 	; LDA #$03
 	; STA ReadBLoop-1		; Limit reception to 3 characters per frame
+	LDA #%01100000		; Split screen hires
+	LDX VMODE
+	BEQ +
+	ORA #%10000000		; Split screen multi	
++	STA $83				; Graphic mode
 	RTS
 b3cancel				; Cancel split screen
 	JSR GetFromPrBuffer
@@ -3625,7 +3630,7 @@ _preset1
 _p1f
 !fill 39-(_p1f-_preset1),$00
 _preset2
-!text "ATDSOTANOMSXBBS.ORG:6400",00
+!text "ATD",$22,"SOTANOMSXBBS.ORG:6400",$22,00
 _p2f
 !fill 39-(_p2f-_preset2),$00
 _preset3

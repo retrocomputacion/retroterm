@@ -4673,7 +4673,7 @@ _preset1
 _p1f
 !fill 39-(_p1f-_preset1),$00
 _preset2
-!text "ATDSOTANOMSXBBS.ORG:6400",00
+!text "ATD",$22,"SOTANOMSXBBS.ORG:6400",$22,00
 _p2f
 !fill 39-(_p2f-_preset2),$00
 _preset3
