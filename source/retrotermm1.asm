@@ -279,7 +279,7 @@ BCRC		EQU &h4242	; Block CRC
 BBUF		EQU &h4300	; Block buffer
 
 ; Variables
-FLAGS1:		DB	&h08	; Status flags
+FLAGS1:		DB	&h0A	; Status flags
 						; Bit 7 : 1 = Command mode; 0 = Normal mode
 						; Bit 6 : 1 = Last byte should be redirected to the voice synth; 0 = Last byte is meant for the terminal
 						; Bit 5	: 1 = Setup Mode
@@ -386,7 +386,7 @@ Start:
 
 	CALL	ClrScr
 
-	; CALL	SETUP
+	CALL	STARTUP
 IF IFACE < 2
 	CALL	InitComm
 ENDIF
@@ -434,6 +434,10 @@ ENDIF
 	LD		IX,PAINT_H
 	LD		HL,PAINT
 	CALL	BASIC_HOOK
+
+	LD		A,(FLAGS1)
+	RES		1,A
+	LD		(FLAGS1),A
 
 	; Main loop
 loop1:
@@ -776,26 +780,28 @@ IF IFACE < 2
 InitComm:
 IF IFACE = 0
 	; Init 8251 - Partly based on SVI ROM disassembly
-	LD		DE,(BaudTable+2)	; Set 19200 bps
+	LD		DE,(BaudTable)	; Set 19200 bps
 	; LD		DE,(BaudTable+4)	; Set 38400 bps
+	; alternate entry point for early startup
 	LD		C,0
 	CALL	CSet				; Rx Clock
 	INC		C
 	CALL	CSet				; Tx Clock
-	XOR		A				; Get 8251 in command mode
-	OUT		(USARTCmd),A
-	PUSH	AF
-	POP		AF
-	OUT		(USARTCmd),A
-	PUSH	AF
-	POP		AF
-	OUT		(USARTCmd),A
-	PUSH	AF
-	POP		AF
-	LD		A,&h40			; Reset 8251
-	OUT		(USARTCmd),A
-	PUSH	AF
-	POP		AF
+	CALL	Reset8251
+	; XOR		A				; Get 8251 in command mode
+	; OUT		(USARTCmd),A
+	; PUSH	AF
+	; POP		AF
+	; OUT		(USARTCmd),A
+	; PUSH	AF
+	; POP		AF
+	; OUT		(USARTCmd),A
+	; PUSH	AF
+	; POP		AF
+	; LD		A,&h40			; Reset 8251
+	; OUT		(USARTCmd),A
+	; PUSH	AF
+	; POP		AF
 	LD		A,%01001110		; x16 8N1
 	; LD		A,%01001101		; x1  8N1
 	OUT		(USARTCmd),A	; Set 8251 async mode
@@ -811,23 +817,25 @@ ELSE
 ENDIF
 	OUT		(USARTIrq),A	; Disable IRQ
 ELSE
-	; Init 16550 UART
-	XOR		A
-	OUT		(UARTIRQEn),A	; Disable interrupts
-	DisableRTS				; RTS = 0, DTR active
-	; set baud rate
-	LD		A,&h80			; Set DLAB flag
-	OUT		(UARTLCR),A
-	LD		A,&h02
-	OUT		(UARTDLL),A
-	XOR		A
-	OUT		(UARTDLM),A		; Divisor set to 2 -> 56700 bauds
-	; Set protocol
-	LD		A,&h03
-	OUT		(UARTLCR),A		; Reset DLAB flag, set 8N1 data format
+	LD		HL,BaudTable
+	CALL	InitUART
+	; ; Init 16550 UART
+	; XOR		A
+	; OUT		(UARTIRQEn),A	; Disable interrupts
+	; DisableRTS				; RTS = 0, DTR active
+	; ; set baud rate
+	; LD		A,&h80			; Set DLAB flag
+	; OUT		(UARTLCR),A
+	; LD		A,&h02
+	; OUT		(UARTDLL),A
+	; XOR		A
+	; OUT		(UARTDLM),A		; Divisor set to 2 -> 56700 bauds
+	; ; Set protocol
+	; LD		A,&h03
+	; OUT		(UARTLCR),A		; Reset DLAB flag, set 8N1 data format
 
-	LD		A,&h06
-	OUT		(UARTFIFO),A	; reset FIFOs
+	; LD		A,&h06
+	; OUT		(UARTFIFO),A	; reset FIFOs
 
 ENDIF
 	RET
@@ -838,6 +846,23 @@ CharIn:
 	RET
 
 UCmd:
+	OUT		(USARTCmd),A
+	PUSH	AF
+	POP		AF
+	RET
+
+Reset8251:
+	XOR		A				; Get 8251 in command mode
+	OUT		(USARTCmd),A
+	PUSH	AF
+	POP		AF
+	OUT		(USARTCmd),A
+	PUSH	AF
+	POP		AF
+	OUT		(USARTCmd),A
+	PUSH	AF
+	POP		AF
+	LD		A,&h40			; Reset 8251
 	OUT		(USARTCmd),A
 	PUSH	AF
 	POP		AF
@@ -874,14 +899,47 @@ CSet:
 ;/////////////
 ; BaudTable
 
-BaudTable:
-	DW	&h000C				; 9600	x16
+BaudTable:		;USART Baud table
+	; DW	&h000C				; 9600	x16
 	DW	&h0006				; 19200	x16
 	; DW	&h0040				; 28800 x1 UNRELIABLE
 	; DW	&h0003				; 38400 x16 X	Doesn't work max x16 baudrate is around 25.5K
 	; DW	&h0030				; 38400	x1 ?	UNRELIABLE
 	; DW	&H0020				; 57600 x1 ?	not worth testing
+	DW	&h17FC				; 300 x1
+	DW 	&h05FF				; 1200 x1
+	DW	&h0300				; 2400 x1
+ELSE
+
+BaudTable:		; UART Baud table
+	DW	&h0002		; 57600
+	DW	&h0180		; 300
+	DW	&h0060		; 1200
+	DW	&h0030		; 2400
+
+InitUART:	; Init 16550
+	; HL: Points to baud table
+	XOR		A
+	OUT		(UARTIRQEn),A	; Disable interrupts
+	DisableRTS				; RTS = 0, DTR active
+	; set baud rate
+	LD		A,&h80			; Set DLAB flag
+	OUT		(UARTLCR),A
+	LD		A,(HL)
+	OUT		(UARTDLL),A
+	INC		HL
+	LD		A,(HL)
+	OUT		(UARTDLM),A		; Divisor set to 2 -> 56700 bauds
+	; Set protocol
+	LD		A,&h03
+	OUT		(UARTLCR),A		; Reset DLAB flag, set 8N1 data format
+
+	LD		A,&h06
+	OUT		(UARTFIFO),A	; reset FIFOs
+	RET
+
 ENDIF
+
 ENDIF
 
 ;/////////////
@@ -3302,21 +3360,149 @@ ENDIF
 ;/////////////////////////////////////////////////////
 ; Early startup
 ; Load preferences or show setup screen if not found
-; STARTUP:
-; 	LD		HL,PREFNAME
-; 	LD		A,0
-; 	CALL	FillFCB
-; 	LD		C,&h0F			; Open file
-; 	LD		DE,FILEFCB
-; 	CALL	BDOS
-; 	CP		0
-; 	JR		NZ,.stend
+STARTUP:
+	LD		A,(.norts+1)
+	LD		(PREFERENCES),A	; Set RTS timing preference
+	CALL	openprefs
+	; LD		HL,PREFNAME
+	; LD		A,0
+	; CALL	FillFCB
+    ; LD      A,1
+    ; LD      (FILEFCB+&h0e),A	; Lets try read individual bytes
+	; LD		C,&h0F				; Open file
+	; LD		DE,FILEFCB
+	; CALL	BDOS
+	CP		0
+	JR		NZ,.stend			; File not found? ->
 
+    LD      HL,1
+    LD      (FILEFCB+&h0e),HL	; Lets try read individual bytes
+	LD		DE,PREFERENCES
+	LD		C,&h1A				; Set Disk Transfer Address
+	CALL	BDOS
+	LD		DE,FILEFCB
+	LD		HL,&h00C5			; Read 197 bytes
+	LD		C,&h27				; Random block read
+	CALL	BDOS
+	CP		0
+	JR		Z,.stend0			; Ok ->
+	CALL	.stclose			; Error
+	JR		.stend
+	; Preferences file loaded
+.stend0
+	LD		A,(PREFERENCES)		; Set RTS timing
+	LD		(.norts+1),A
+	JP		.stclose			; Close and exit to terminal
 
-; .stend
-; 	CALL	NZ,SETUP
-; 	; send init string here
-; 	RET
+.stend
+	CALL	SETUP
+	; send init string here
+IF IFACE = 0	; Early startup command not needed for parallel port modems
+	LD		A,(PREFERENCES+4)	; Get early startup command speed
+	CP		0
+	RET		Z					; Exit if no early startup command
+
+	SLA		A
+	LD		B,&h0
+	LD		C,A
+	LD		HL,BaudTable
+	ADD		HL,BC
+; IF IFACE = 0	; USART
+	LD		E,(HL)
+	INC		HL
+	LD		D,(HL)
+	LD		C,0
+	CALL	CSet
+	INC		C
+	CALL	CSet
+	CALL	Reset8251
+	LD		A,%01001101		; x1  8N1
+	OUT		(USARTCmd),A	; Set 8251 async mode
+	PUSH	AF
+	POP		AF
+	LD		A,&h07			; Activate Rx,Tx and DTR
+	CALL	UCmd
+	CALL	CharIn
+
+	LD		A,&h01
+	OUT		(USARTIrq),A	; Disable IRQ
+; ELSE
+; 	CALL	InitUART
+; ENDIF
+	LD		HL,.pinits
+	JP		SendStr
+ELSE
+	RET
+ENDIF
+
+.stclose
+	LD		DE,FILEFCB
+	LD		C,&h10				; Close file
+	CALL	BDOS
+	RET
+	
+;////////////////////////////////////////////
+; Send null terminated string (max 31 chars)
+;
+SendStr:
+IF IFACE < 2
+IF IFACE = 0
+	LD		B,&h20			; 32 chars max
+.st0
+	LD		A,(HL)
+	CP		0
+	JP		Z,.st1			; End of string
+	CALL	SendID
+	INC		HL
+
+	LD		A,(&hFC9E)			; JIFFY
+	LD		C,A
+.st00
+	LD		A,(&hFC9E)			; JIFFY
+	CP		C
+	JR		NZ,.st00			; wait until next frame, pace the string output
+
+	DJNZ	.st0
+.st1
+	LD		A,&h0D			; Send CR
+	CALL 	SendID
+.st2
+	NOP
+	NOP
+	IN		A,(USARTCmd)
+	AND		&h05			; leave only txready and txempty
+	CP		&h05			; ready to transmit?
+	JR		NZ,.st2			; wait if not	
+ELSE	; UART
+	LD		B,&h20			; 32 chars max
+.st0
+	LD		A,(HL)
+	CP		0
+	JP		Z,.st1			; End of string
+	CALL	SendID
+	INC		HL
+
+	LD		A,(&hFC9E)			; JIFFY
+	LD		C,A
+.st00
+	LD		A,(&hFC9E)			; JIFFY
+	CP		C
+	JR		NZ,.st00			; wait until next frame, pace the string output
+
+	DJNZ	.st0
+.st1
+	LD		A,&h0D			; Send CR
+	CALL 	SendID
+.st2
+	NOP
+	NOP
+	IN		A,(UARTLSR)
+	AND		&h20			; check Transmitter empty bit
+	JR		Z,.st2
+ENDIF
+ENDIF
+	RET
+	
 
 ;//////////////////////////////////////
 ; SETUP screen
@@ -3334,14 +3520,32 @@ SETUP:
 	CALL	setwtop				; Set window top
 	LD		A,23
 	CALL	.b5_1
-
+.set00							; reentry point from phonebook
 	LD		HL,sut1
 	CALL	StrOut
-	SetCursor 0,22
+	SetCursor 0,20
 	LD		HL,sut3
 	CALL	StrOut
 
+IF IFACE = 0
+	SetCursor &h00,&h05
+	LD		HL,.pinits
+	CALL	StrOut
+ENDIF
+
 .set0
+IF IFACE = 0
+	SetCursor &h19,&h07
+	LD		HL,rate_offs
+	LD		A,(PREFERENCES+4)
+	LD		C,A
+	LD		B,&H0
+	ADD		HL,BC
+	LD		C,(HL)
+	LD		HL,rates
+	ADD		HL,BC
+	CALL	StrOut			; print baud rate
+ENDIF
 	SetCursor &h14,&h02
 	LD		HL,sut2
 	CALL	StrOut
@@ -3356,19 +3560,58 @@ SETUP:
 	LD		HL,.norts+1		;.rts1+1
 	CP		&h02			;F1?
 	JR		Z,.sete
-	CP		'+'
+	CP		'+'				; RTS +
 	JR		NZ,.set2
 	INC		(HL)
 	JR		.set0
 .set2
-	CP		'-'
-	JR		NZ,.set1
+	CP		'-'				; RTS -
+	JR		NZ,.set3
 	DEC		(HL)
 	JR		.set0
+.set3						; Baud rates
+IF IFACE = 0
+	CP		'r'
+	JR		NZ,.set4
+	LD		A,(PREFERENCES+4)
+	INC		A
+	AND		&h03
+	LD		(PREFERENCES+4),A
+	JR		.set0
+.set4
+	CP		'i'				; Init string
+	JR		NZ,.set5
+	LD		C,' '
+	LD		B,&h05
+	LD		A,&hA6
+	CALL	.b1_1			; Fill line
+	SetCursor &h00,&h05
+	LD		A,&h1F
+	LD		HL,_filter
+	CALL	FILTERED_INPUT
+	LD		BC,&h0020
+	LD		DE,.pinits
+	LD		HL,_fibuffer
+	LDIR
+	JP		.set0
+ENDIF
+.set5
+	CP		'p'				; Phone book
+	JR		NZ,.set6
+	JP		phone_book
+
+.set6
+	CP		&h0E			; F5
+	JR		NZ,.set1
+	CALL	saveprefs
+	JP		.set0
 
 .sete
+	LD		A,(.norts+1)
+	LD		(PREFERENCES),A	; Set RTS timing preference
+
 	LD		HL,FLAGS1
-	RES		5,(HL)			;Clear SETUP Mode
+	RES		5,(HL)			; Clear SETUP Mode
 	CALL	SetISR
 
 	POP		AF
@@ -3382,6 +3625,236 @@ SETUP:
 	LD		(CSRY),A
 	CALL	ClrScr
 	JP		.cup
+
+; --- Display phone book
+phone_book:
+	LD		HL,pbook0
+	CALL	StrOut
+	SetCursor &h02,&h02
+	LD		HL,.preset1
+	CALL	StrOut
+	SetCursor &h02,&h04
+	LD		HL,.preset2
+	CALL	StrOut
+	SetCursor &h02,&h06
+	LD		HL,.preset3
+	CALL	StrOut
+	SetCursor &h02,&h08
+	LD		HL,.preset4
+	CALL	StrOut
+	SetCursor &h02,&h0A
+	LD		HL,.preset5
+	CALL	StrOut
+.ph0
+	CALL	GetKey
+	CP		'_'				; back key
+	JP		Z,.set00
+	CP		'1'
+	JR		C,.ph0			; less --->
+	CP		'6'
+	JR		NC,.ph0			; more or equal --->
+	PUSH	AF
+	SetCursor &h0D,&h0E
+	POP		AF
+	PUSH	AF
+	CALL	CharOut
+	LD		HL,pbook1
+	CALL	StrOut
+	POP		AF
+	SUB		'1'				; A = preset-1
+	SLA		A	;*2
+	SLA		A	;*4
+	SLA		A	;*8
+	SLA		A	;*16
+	SLA		A	;*32
+	LD		C,A
+	LD		B,0
+	LD		HL,.preset1
+	ADD		HL,BC
+	LD		(.ph00+1),HL	; Store preset pointer in self-modifying code
+	LD		(.ph11+1),HL
+
+.ph2
+	CALL	GetKey
+	CP		'_'				; back key
+	JP		Z,phone_book
+	CP		'e'				; Edit
+	JR		NZ,.ph1
+	LD		HL,_filter
+	LD		A,29
+	CALL	FILTERED_INPUT
+
+	LD		BC,32
+.ph00
+	LD		DE,.preset1
+	LD		HL,_fibuffer
+	LDIR
+	JP		phone_book
+
+.ph1
+	CP		'd'				; Dial
+	JR		NZ,.ph2
+	LD		A,(FLAGS1)
+	BIT		1,A
+	JR		NZ,.ph2
+.ph11
+	LD		HL,.preset1
+	CALL	SendStr
+.phend
+	JP		.sete
+
+
+;//////////////////////////////////////
+; Save preferences file
+saveprefs:
+	CALL	openprefs
+	CP		0
+	JR		Z,.sp0		; File already exists
+	; create file
+	LD		DE,FILEFCB
+	LD		C,&h16
+	CALL	BDOS
+	CP		0
+	RET		NZ			; Exit if file cannot be created
+.sp0
+    LD      HL,1
+    LD      (FILEFCB+&h0e),HL	; Set record size to 1 byte
+	LD		DE,PREFERENCES
+	LD		C,&h1A				; Set Disk Transfer Address
+	CALL	BDOS
+	LD		DE,FILEFCB
+	LD		HL,&h00C5			; Write 197 bytes
+	LD		C,&h26				; Random block write
+	CALL	BDOS
+	LD		DE,FILEFCB
+	LD		C,&h10				; Close file
+	CALL	BDOS
+	RET
+
+
+openprefs:
+	LD		HL,PREFNAME
+	LD		A,0
+	CALL	FillFCB
+    ; LD      A,1
+    ; LD      (FILEFCB+&h0e),A	; Lets try read individual bytes
+	LD		C,&h0F				; Open file
+	LD		DE,FILEFCB
+	CALL	BDOS
+	RET
+	; CP		0
+	; JR		NZ,.stend			; File not found? ->
+
+
+;//////////////////////////////////////
+; Filtered string input
+; Based on C64 version
+; input A: max number of characters
+; HL: filter string
+
+FILTERED_INPUT:
+	LD		(_fimax),A
+	XOR		A
+	LD		(_ficount),A
+	LD		(_fiaddr),HL
+	; LD		IX, _cursor
+	LD		IY, _fimax
+	LD		HL, _cursor+1
+	CALL	StrOut			; Print cursor
+
+	;Wait for a character
+.figet
+	CALL	GetKey
+	LD		(_cursor),A
+	CP		&h08			; Delete
+	JR		Z,.fidel
+
+	CP		&h0D			; Enter
+	JR		Z,.fidone
+
+	;Check the allowed list of characters
+	LD		HL,(_fiaddr)
+.ficheck
+	LD		A,(HL)
+	CP		&h00
+	JR		Z,.figet		; End of list
+	LD		DE,_cursor
+	EX		DE,HL
+	CP		(HL)			; Match?
+	EX		DE,HL
+	JR		Z,.fiok			; Yes
+	INC		HL
+	JR		.ficheck		; Keep checking
+.fiok
+	LD		B,&h00
+	LD		A,(_ficount)
+	LD		C,A
+	LD		HL,_fibuffer
+	ADD		HL,BC
+	LD		A,(_cursor)
+	LD		(HL),A
+	LD		HL,_cursor
+	CALL	StrOut
+	LD		HL,_ficount
+	INC		(HL)			; Next character
+	LD		A,(HL)
+	CP		(IY)			; End reached?
+	JR		Z,.fidone		; Yes
+	JR		.figet			; No, continue
+
+.fidone
+	LD		B,&h00
+	LD		A,(_ficount)
+	LD		C,A
+	LD		HL,_fibuffer
+	ADD		HL,BC
+	XOR		A
+	LD		(HL),A			; Zero-terminate
+	LD		A,' '
+	CALL	CharOut			; Erase cursor
+	RET
+
+; Delete last character
+.fidel
+	;First, check if we're at the beginning. If so, exit
+	LD		HL,_ficount
+	LD		A,(HL)
+	CP		&h00
+	JR		NZ,.fidel0
+	JR		.figet
+.fidel0
+	;At least one character
+	;Move pointer back
+	DEC		(HL)
+	;Store a zero on top of last character
+	LD		B,&h00
+	LD		C,(HL)
+	LD		HL,_fibuffer
+	ADD		HL,BC
+	XOR		A
+	LD		(HL),A
+	;Print the delete char
+	LD		A,&h08
+	LD		HL,_cursor
+	LD		(HL),A
+	CALL	StrOut
+	JR		.figet
+
+_cursor
+	DB	$D7,$D7,$1D,$00	; Hash, hash, crsr left, null
+_filter
+	DB " abcdefghijklmnopqrstuvwxyz1234567890.,-+!?%&'()*:",&h22,&h00
+_fimax
+	DB	&h00
+_filast
+	DB	&h00
+_ficount
+	DB &h00
+_fiaddr
+	DW _filter
+_fibuffer
+	DS	&h20,&h20
+
 
 ;//////////////////////////////////////
 ; Setup F-Keys
@@ -5048,8 +5521,8 @@ ENDIF
     CALL    BDOS
     CP      0
     JR      NZ,.abrt	; Could not open the file, abort
-    LD      A,1
-    LD      (FILEFCB+&h0e),A    ; Lets try write individual bytes
+    LD      HL,1
+    LD      (FILEFCB+&h0e),HL    ; Lets try write individual bytes
 	LD		B,&h81
 	RET
 .abrt
@@ -5279,24 +5752,58 @@ sut1:
 	;Clear, yellow FG, red BG
 	DB &h01,&h0A,&h01,&h16,&h0C," -=",&hF0," RetroTerm Setup screen ",&hF0,"=-"
 	DB &h0D,&h0D,"RTS pulse timing: ",&h19,"+",&h1A,"       ",&h19,"-",&h1A
-	; DB &h0D,&h0D,"Modem ",&h19,"I",&h1A,"nit string:",&h0D,&h0D,&h0D
-	; DB "Initial modem baud ",&h19,"R",&h1A,"ate:"
+IF IFACE = 0
+	DB &h0D,&h0D,"Modem ",&h19,"I",&h1A,"nit string:",&h0D,&h0D,&h0D
+	DB "Initial modem baud ",&h19,"R",&h1A,"ate:"
+ENDIF
 	DB &h00
 sut2:
 	DB "     "
 	DS &h05,&h1D
 	DB &h00
 sut3:
+	DB &h19," P ",&h1A," Phone book",&h0D,&h0D
 	DB &h19," F1 ",&h1A," Terminal "
-	; DB &h19," F5 ",&h1A," Save settings"
+	DB &h19," F5 ",&h1A," Save settings"
 	DB &h00
 
-; Baud rates
-; rates:
-; 	DB "skip",&h00
-; 	DB " 300",&h00
-; 	DB "1200",&h00
-; 	DB "2400",&h00
+pbook0:
+	DB &h0C,&h19,"           Phone book           ",&h1A
+	DB &h01,&h57,&h01,&h52
+	DB &h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57
+	DB &h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57
+	DB &h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57
+	DB &h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57
+	DB &h19,"1",&h1A,&h01,&h56,&h0D
+	DB &h1C,&h01,&h56,&h0D
+	DB &h19,"2",&h1A,&h01,&h56,&h0D
+	DB &h1C,&h01,&h56,&h0D
+	DB &h19,"3",&h1A,&h01,&h56,&h0D
+	DB &h1C,&h01,&h56,&h0D
+	DB &h19,"4",&h1A,&h01,&h56,&h0D
+	DB &h1C,&h01,&h56,&h0D
+	DB &h19,"5",&h1A,&h01,&h56,&h0D
+	DB &h1C,&h01,&h56,&h0D
+	DB &h01,&h57,&h01,&h51
+	DB &h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57
+	DB &h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57
+	DB &h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57
+	DB &h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57,&h01,&h57
+	DB &h0D,"Select entry:"
+	DS &h08,&h1F
+	DB &h19," _ ",&H1A," BACK",&h00
+
+pbook1:
+	DB &h0D,&h19,"E",&h1A,"dit/",&h19,"D",&h1A,"ial",&h0D,&h00
+
+;Baud rates
+rates:
+	DB "skip",&h00
+	DB " 300",&h00
+	DB "1200",&h00
+	DB "2400",&h00
+rate_offs:
+	DB 0,5,10,15
 
 
 ; PSG Stream variables
@@ -5324,24 +5831,48 @@ FAddr:	;Pointers to the F-keys definitions - Should be safe to reuse after init
 	DW	&hF87F,&hF88F,&hF89F,&hF8AF,&hF8BF,&hF8CF,&hF8DF,&hF8EF,&hF8FF,&hF90F
 .fae
 
-; PREFNAME:	; Preferences filename
-; 	DB	"rtprefs.dat",&h00
+PREFNAME:	; Preferences filename
+	DB	"rtprefs.dat",&h00
 
-; PREFERENCES:
-; 	DW	&h0000	; &h00-01	RTS timing
-; 	DB	&h00	; &h02		Not used
-; 	DB	&h00	; &h03		Flags (not used)
-; 	DB	&h02	; &h04		Early startup command baudrate
-; 				; 			0: No early startup command
-; 				; 			1:  300 bauds
-; 				;			2: 1200 bauds
-; 				;			3: 2400 bauds
-; .pinits
-; 	DB	"atf0b19200",&h00
-; .pinite
-; 	DS	32-(.pinite-.pinits),&h00
-; 				; &h05-25	Null terminated startup command (32 chars max)
-
+PREFERENCES:
+	DW	&h0000	; &h00-01	RTS timing
+	DB	&h00	; &h02		Not used
+	DB	&h00	; &h03		Flags (not used)
+	DB	&h02	; &h04		Early startup command baudrate
+				; 			0: No early startup command
+				; 			1:  300 bauds
+				;			2: 1200 bauds
+				;			3: 2400 bauds
+.pinits
+IF IFACE = 0
+	DB	"atf0b19200",&h00
+ENDIF
+IF IFACE = 1
+	DB	"atf0b57600",&h00
+ENDIF
+.pinite
+	DS	32-(.pinite-.pinits),&h00
+				; &h05-25	Null terminated startup command (32 chars max)
+.preset1
+	DB	"atd lu4fbu.ddns.net:6400",&h00
+.p1f
+	DS	32-(.p1f-.preset1),&h00
+.preset2
+	DB	'atd"sotanomsxbbs.org:6400"',&h00
+.p2f
+	DS	32-(.p2f-.preset2),&h00
+.preset3
+	DB	&h00
+.p3f
+	DS	32-(.p3f-.preset3),&h00
+.preset4
+	DB	&h00
+.p4f
+	DS	32-(.p4f-.preset4),&h00
+.preset5
+	DB	&h00
+.p5f
+	DS	32-(.p5f-.preset5),&h00
 
 ;Mode 2 text tables
 
