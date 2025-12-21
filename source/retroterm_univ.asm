@@ -2594,7 +2594,7 @@ _bmmode:
 	AND #$10			; Split screen enabled?
 	BEQ +
 -	LDA $D012
-	CMP #$50			; Wait for a raster somewhere above half screen
+	CMP #$50			; Wait for a raster somewhere near the top border
 	BCC -
 +	LDA $D011
 	AND #$20
