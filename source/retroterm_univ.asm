@@ -2585,16 +2585,25 @@ Cmd9A:
 	+DisKernal a
 	JSR	BMPLOT			; Plot point
 	+EnKernal a
+	JSR _bmack
 	CLI
 +	RTS
 
 _bmmode:
-	LDA $D011
-	AND #$20
-	BNE +				; Bitmap mode? yes -> exit
 	LDA FLAGS1
 	AND #$10			; Split screen enabled?
-+	RTS
+	BEQ +
+-	LDA $D012
+	CMP #$50			; Wait for a raster somewhere above half screen
+	BCC -
++	LDA $D011
+	AND #$20
+	RTS
+
+_bmack:					; Ack any pending IRQ during drawing routines
+	LDA #$FF
+	STA $D019
+	RTS
 
 ;///////////////////////////////////////////////////////////////////////////////////
 ; 155: Line
@@ -2608,6 +2617,7 @@ Cmd9B:
 	+DisKernal a
 	JSR	BMLINE			; Draw line
 	+EnKernal a
+	JSR _bmack
 	CLI
 +	RTS
 
@@ -2627,6 +2637,7 @@ Cmd9C:
 	+DisKernal a
 	JSR BMRECT
 	+EnKernal a
+	JSR _bmack
 	CLI
 +	RTS
 
@@ -2642,6 +2653,7 @@ Cmd9D:
 	+DisKernal a
 	JSR BMELLIPSE
 	+EnKernal a
+	JSR _bmack
 	CLI
 +	RTS
 
@@ -2657,6 +2669,7 @@ Cmd9E:
 	+DisKernal a
 	JSR BMPAINT			; PAINT
 	+EnKernal a
+	JSR _bmack
 	CLI
 +	RTS
 
