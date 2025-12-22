@@ -1817,8 +1817,14 @@ Cmd9A:
 	BEQ +				; Bitmap mode?
 	SEI
 	JSR	$C1A5			; Plot point
+	JSR	_bmack
 	CLI
 +	RTS
+
+_bmack:					; Ack any pending IRQ during drawing routines
+	LDA #$82
+	STA $FF09			; Ack raster interrupts
+	RTS
 
 ;///////////////////////////////////////////////////////////////////////////////////
 ; 155: Line
@@ -1889,6 +1895,9 @@ Cmd9D:
 	STX	$E9				; Segment angle
 
 	; This section adapted from Plus4 ROM
+        LDY   #$00	; temp
+		TYA
+        JSR   $BC59	; Function evaluating with interpolation for gfx.
 		LDX   #$2D
         LDY   #$2B
         JSR   $C305	; Subtract to coordinates
