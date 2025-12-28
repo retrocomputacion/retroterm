@@ -1398,7 +1398,7 @@ ENDIF
 ;///////////////////////////////////////////////////////////////////////////////////
 ; 132: PSG streaming until receiving a 0 byte data block or interrupted by the user
 
-IF IFACE < 2
+IF IFACE < 2	; USART/UART
 Cmd84
 	DI
 	; Replace ISR <<<<<
@@ -1438,7 +1438,7 @@ Cmd84
 	EI
 
 	LD		HL,EDSTAT
-	RES		7,(HL)		; Clear reception bit
+	RES		7,(HL)				; Clear reception bit
 
 .c840
 	;debug
@@ -1492,7 +1492,7 @@ Cmd84
 	LD		A,(PSGSTREAM_FRAME)
 	AND		A
 	JR		Z,.c840					; Dont do anything if frame flag not set
-	LD		A,6					;Red Border
+	LD		A,6						;Red Border
 	OUT		(&h99),A
 	LD		A,&h80+7
 	OUT		(&h99),A
@@ -1650,10 +1650,73 @@ ENDIF
 ; dchip	DB	&h00
 ; tchip1	DB	&h0B,"frame:   ",&h1d,&h1d,&h00
 ; tchip2	DB	&h0D,"buffer:   ",&h1d,&h1d,&h00
+ELSE
+IF IFACE = 38		; 38K printer port
+Cmd84
+	DI
+	; Replace ISR <<<<<
+	LD		HL,c84isr
+	LD		(0x0039),HL		; Set new ISR
+	; LD		A,SHORTRX
+	; LD		(.rts0+1),A		; Set shorter Rx timing
+
+.c840_0							; Reset stream variables
+	LD		A,50
+	LD		(PSGSTREAM_SYNC),A
+	LD		A,&h01
+	LD		(PSGSTREAMFLAG),A
+	XOR		A
+	LD		(PSGSTREAM_SIZE),A	; reset packet size 
+	LD		(PSGSTREAM_FRAME),A	; and frame counter
+	EI
+
+.c840_1
+	LD		A,(PSGSTREAMFLAG)
+	CP		&h00
+	JP		Z,.c84end			; Remote stream abort
+	LD		A,(PSGSTREAM_FRAME)
+	CP		&hFF				; 255 frames without incoming data, abort
+	JP		Z,.c84end
+	LD		A,(PRBUFFERCNT)
+	CP		&h40				; Try to keep 64 bytes in the buffer at all times
+	JR		NC,.c840_1			; Loop if enough bytes in buffer
+
+; Read byte(s)
+	DI
+	LD		A,15			; White Border
+	OUT		(&h99),A
+	LD		A,&h80+7
+	OUT		(&h99),A
+	CALL	ReadByte
+	JR		NC,.c840_2		; No character received
+	CALL	AddToPrBuffer
+.c840_2
+	LD		A,0				; Black Border
+	OUT		(&h99),A
+	LD		A,&h80+7
+	OUT		(&h99),A
+	EI
+	JR		.c840_1			; Loop
+
+.c84end
+	DI
+	; Restore ISR <<<<<
+	LD		HL,newISR
+	LD		(0x0039),HL		; Set new ISR
+	; LD		A,LONGRX
+	; LD		(.rts0+1),A		; Set longer Rx timing
+	CALL	PSGIni
+	EI
+	JP		CmdFE
+ENDIF
+
+ENDIF
 ;--
+
 ;///////////////////////////////////////////////////////////////////////////////////
 ; PSG streaming ISR
 ;
+IF IFACE < 2	; USART/UART
 c84isr:
 	DI
 	PUSH	AF
@@ -1684,8 +1747,6 @@ ENDIF
 	RETI	
 .c84iend
 	DisableRTS			; RTS = 0, DTR active			
-	; LD		A,%00000111		; RTS Disabled, Rx/Tx enabled, DTR Active
-	; OUT		(USARTCmd),A
 	LD		A,&hFF
 	LD		(PSGSTREAM_FRAME),A		; Flag frame to main loop
 IF IFACE = 0
@@ -1707,8 +1768,6 @@ ENDIF
 ENDIF
 ;	LD		(PSGSTREAM_FRAME),A		; Flag frame to main loop <- already done above
 	DisableRTS
-	; LD		A,%00000111		; RTS Disabled, Rx/Tx enabled, DTR Active
-	; OUT		(USARTCmd),A
 
 	IN		A,(PPI.CR)
 	AND		&hF0
@@ -1762,6 +1821,128 @@ ENDIF
 	OUT		(&h99),A
 .c84rbend
 	RET
+
+ELSE
+IF IFACE = 38		; 38K printer port
+c84isr:
+	DI
+	PUSH	AF
+	PUSH	BC
+	PUSH	DE
+	PUSH	HL
+	; Play routine
+	LD		A,6						; Red Border
+	OUT		(&h99),A
+	LD		A,&h80+7
+	OUT		(&h99),A
+	LD		A,&h00
+	LD		HL,PSGSTREAM_SIZE
+	CP		(HL)					; Has the packet size already been read?
+	JR		NZ,.c84isr1				; Yes, try to read the rest of the packet
+
+	LD		A,(PRBUFFERCNT)
+	LD		HL,PSGSTREAM_FRAME
+	CP		&h00
+	JP		NZ,.c84isr0				; There's character(s) in the buffer
+.c84isr00
+	INC		(HL)					; Buffer empty, increment frame counter
+	JP		.c84isrexit
+
+.c84isr0
+	XOR		B
+	LD		(HL),B					; Reset frame counter
+	LD		B,A
+	CALL	GetFromPrBuffer2		; Get packet size
+	LD		(PSGSTREAM_SIZE),A
+	CP		&h00					; Stream ends?
+	JR		NZ,.c84isr1
+	LD		(PSGSTREAMFLAG),A		; Yes, flag it
+	JR		.c84isrexit
+.c84isr1
+	INC		A						; Packet size + sync byte
+	LD		HL,PSGSTREAM_FRAME
+	CP		B						; Are there enough bytes in the buffer?
+	JR		NC,.c84isr00			; No, increment frame count and exit
+	LD		B,A
+	LD		HL,PSG_BUF
+.c84isr4	; Copy bitmap and register to temp buffer
+	PUSH	HL
+	CALL	GetFromPrBuffer2
+	POP		HL
+	LD		(HL),A
+	INC		HL
+	DJNZ	.c84isr4
+	; PSG stuff here
+	LD		A,(PSGSTREAM_SIZE)
+	CP		2
+	JR		Z,.c84isr7			; No registers to write
+	SUB		2
+	LD		D,A					; D: # of registers in frame
+	LD		B,14				; B: total number of PSG registers
+	LD		IX,PSG_BUF			; IX: Register bitmap
+	LD		HL,PSG_REGS			; HL: Register buffer
+	LD		C,0					; C: Register to write
+.c84isr5
+	CCF
+	RR		(IX+0)
+	RR		(IX+1)				; Rotate bitmap, Carry = register "C" present?
+	JR		NC,.c84isr6			; Register not present, next
+	LD		A,C
+	OUT		(AYINDEX),A
+	LD		A,(HL)
+	LD		E,A					; Save Register value
+	LD		A,7
+	CP		C					; Reg 7?
+	JR		NZ,.c84isr50		; no
+	LD		A,&h3F				; Yes, set correct IO port directions
+	AND		E
+	OR		8
+	LD		E,A
+.c84isr50
+	LD		A,E					; Restore Register value
+	OUT		(AYWRITE),A			; values for bits 6 and 7. No check is performed here
+	DEC		D
+	JR		Z,.c84isr7			; All frame registers written
+	INC		HL
+.c84isr6
+	INC		C
+	DJNZ	.c84isr5
+	; ----
+.c84isr7
+	LD		A,&h00
+	LD		(PSGSTREAM_SIZE),A	; Reset packet size
+	LD		HL,PSGSTREAM_SYNC
+	DEC		(HL)
+	JR		NZ,.c84isr8
+	LD		A,100
+	LD		(HL),A
+	LD		A,(PSGSTREAMFLAG)
+	CALL	SendByte			; Send sync byte
+.c84isr8
+	IN		A,(PPI.CR)
+	AND		&hF0
+	ADD		A,&h07				; 7th row
+	OUT		(PPI.CW),A
+	IN		A,(PPI.BR)
+	AND		&h10				; Check for STOP
+	JR		NZ,.c84isrexit		; No
+	LD		A,&hFF
+	LD		(PSGSTREAMFLAG),A	; Abort stream
+
+.c84isrexit
+	LD		A,0					;Black Border
+	OUT		(&h99),A
+	LD		A,&h80+7
+	OUT		(&h99),A
+	; Service VDP irq
+	IN		A,(&h99)			; Read VDP Status register
+	POP		HL
+	POP		DE
+	POP		BC
+	POP		AF
+	EI
+	RETI	
+ENDIF
 
 ENDIF
 
@@ -2631,39 +2812,39 @@ IF IFACE = 56
 SendByte:
 	PUSH	HL		; Save registers
 	PUSH	BC
-	LD	B,A			; Guarda el contenido de A en B
-	LD	C,8			; Vamos a enviar 8 bits
-	XOR	A			; Coloca un 0 en A
+	LD	B,A			; Save A into B
+	LD	C,8			; Lets send 8 bits
+	XOR	A			; Clear A
 SendStart:
-	OUT	($90),A			; Escribe el valor a TX (start)
-					; *** Comienzo del bit de start ***
-	XOR 0				; 7+1 Pierde 18 ciclos para completar los 62 del bit de start
+	OUT	($90),A		; Write the start bit in TX
+					; *** Start bit ***
+	XOR 0			; 7+1 Wait 18 cycles of the 62 total start bit cycles
 	NOP				; 4+1
 	NOP				; 4+1
 SBLoop:
-	INC	HL			; 6+1 Pierde 12 ciclos para completar los 62 del bit (start o dato)
+	INC	HL			; 6+1 wait another 12 cycles of the 62 total start/data bit
 	NOP				; 4+1
 
-	RR	B			; 8+2 Obtiene en CARRY el bit 0 del byte a enviar
-	RL	A			; 8+2 Copia CARRY al bit 0 de A
-	OUT	($90),A			; 11+1 Escribe el valor a TX (bit 0)
-					; *** Comienzo del bit ***
-	DEC	C			; 4+1 Decrementa C
-	JR	NZ,SBLoop		; 12+1 Si C no llego a 0, vuelve a SBLoop
-					; 7+1 Si C llego a 0, JR consume 8 ciclos en lugar de 13
+	RR	B			; 8+2 Set CARRY to bit 0
+	RL	A			; 8+2 Copy CARRY to A bit 0
+	OUT	($90),A		; 11+1 Write bit 0 in TX
+					; *** data bit ***
+	DEC	C			; 4+1 Decrement C
+	JR	NZ,SBLoop	; 12+1 Loop if C > 0
+					; 7+1 If C = 0, JR uses 8 cycles instead of 13
 
-	INC	IY			; 10+2 Pierde 29 ciclos para completar los 62 del bit
+	INC	IY			; 10+2 Wait 29 cycles of the 62 total bit cycles
 	DEC	IY			; 10+2
 	NOP				; 4+1
 
 
-	LD	A,%00000001		; 7+1 Coloca TX en 1
+	LD	A,%00000001	; 7+1 Set TX to 1
 SendStop:
-	OUT	($90),A			; 11+1 Escribe el valor a TX (bit 0)
-					; *** Comienzo del bit de stop ***
+	OUT	($90),A		; 11+1 Write the stop bit in TX
+					; *** Stop bit ***
 	POP		BC		; Retreive registers
 	POP		HL
-	SCF				; 4+1 Pierde 26 ciclos
+	SCF				; 4+1 wait 26 cycles
 	RET	NC			; 5+1
 	; NOP				; 4+1
 	; NOP				; 4+1
@@ -2673,73 +2854,73 @@ SendStop:
 	NOP				; 4+1
 	NOP				; 4+1
 	NOP				; 4+1
-	RET				; 10+1 Retornamos
+	RET				; 10+1 Return
 ENDIF
 
 IF IFACE = 38
 SendByte:
 	PUSH	HL		; Save registers
 	PUSH	BC
-	LD	B,A			; Guarda el contenido de A en B
-	LD	C,8			; Vamos a enviar 8 bits
-	XOR	A			; Coloca un 0 en A
+	LD	B,A			; Save A into B
+	LD	C,8			; Lets send 8 bits
+	XOR	A			; Clear A
 SendStart:
-	OUT	($90),A			; Escribe el valor a TX (start)
-					; *** Comienzo del bit de start ***
-	XOR 0				; 7+1 Pierde 18 ciclos para completar los 62 del bit de start
+	OUT	($90),A		; Write start bit to TX
+					; *** start bit ***
+	XOR 0			; 7+1 Wait 18 of the start bit cycles
 	NOP				; 4+1
 	NOP				; 4+1
 SBLoop:
-	LD	A,0			; 7+1 Perdemos 31 ciclos para bajar la velocidad a 38400 bps
+	LD	A,0			; 7+1 Wait another 31 cycles to reduce the speed to 38400 bps
 	LD	A,0			; 7+1
 	NOP				; 4+1
 	NOP				; 4+1
 	NOP				; 4+1
  
-	INC	HL			; 6+1 Pierde 12 ciclos para completar los 62 del bit (start o dato)
+	INC	HL			; 6+1 Wait another 12 cycles to complete the bit (start or data)
 	NOP				; 4+1
 
-	RR	B			; 8+2 Obtiene en CARRY el bit 0 del byte a enviar
-	RL	A			; 8+2 Copia CARRY al bit 0 de A
-	OUT	($90),A			; 11+1 Escribe el valor a TX (bit 0)
-					; *** Comienzo del bit ***
-	DEC	C			; 4+1 Decrementa C
-	JR	NZ,SBLoop		; 12+1 Si C no llego a 0, vuelve a SBLoop
-					; 7+1 Si C llego a 0, JR consume 8 ciclos en lugar de 13
+	RR	B			; 8+2 Shift the bit 0 into the CARRY flag
+	RL	A			; 8+2 Move the CARRY flag into A bit 0
+	OUT	($90),A		; 11+1 Write the value to TX
+					; ***  data bit ***
+	DEC	C			; 4+1 Decrement C
+	JR	NZ,SBLoop	; 12+1 Loop if C >0
+					; 7+1 If C = 0, JR uses 8 cycles instead of 13
 
-	INC	IY			; 10+2 Pierde 29 ciclos para completar los 62 del bit
+	INC	IY			; 10+2 Wait 29 if the data bit cycles
 	DEC	IY			; 10+2
 	NOP				; 4+1
-	LD	A,0			; 7+1 Perdemos 31 ciclos para bajar la velocidad a 38400 bps
+	LD	A,0			; 7+1 Wait another 31 cycles to reduce the speed to 38400 bps
 	LD	A,0			; 7+1
 	NOP				; 4+1
 	NOP				; 4+1
 	NOP				; 4+1
 
-	LD	A,%00000001		; 7+1 Coloca TX en 1
+	LD	A,%00000001	; 7+1 Set TX to 1 (Stop bit)
 SendStop:
-	OUT	($90),A			; 11+1 Escribe el valor a TX (bit 0)
-					; *** Comienzo del bit de stop ***
+	OUT	($90),A		; 11+1 Write the value to TX
+					; *** stop bit ***
 	POP		BC		; Retreive registers
 	POP		HL
 
-	LD	A,0			; 7+1 Perdemos 31 ciclos para bajar la velocidad a 38400 bps
+	LD	A,0			; 7+1 Wait 31 cycles to reduce the speed to 38400 bps
 	LD	A,0			; 7+1
 	NOP				; 4+1
 	NOP				; 4+1
 	NOP				; 4+1
 
-	SCF				; 4+1 Pierde 26 ciclos
+	SCF				; 4+1 Wait 26 cycles
 	RET	NC			; 5+1
 	; NOP				; 4+1
 	; NOP				; 4+1
 	; NOP				; 4+1
-	; NOP				; 4+1 Pierde 25 ciclos
+	; NOP				; 4+1 Wait 25 cycles
 ;	NOP				; 4+1
 	NOP				; 4+1
 	NOP				; 4+1
 	NOP				; 4+1
-	RET				; 10+1 Retornamos
+	RET				; 10+1 Return
 ENDIF
 
 ;///////////////////////////////////////////////////////////////////////////////////
@@ -3445,8 +3626,8 @@ ENDIF
 ; Send null terminated string (max 31 chars)
 ;
 SendStr:
-IF IFACE < 2
-IF IFACE = 0
+IF IFACE < 2				; USART/UART
+IF IFACE = 0	; USART
 	LD		B,&h20			; 32 chars max
 .st0
 	LD		A,(HL)
@@ -3455,12 +3636,12 @@ IF IFACE = 0
 	CALL	SendID
 	INC		HL
 
-	LD		A,(&hFC9E)			; JIFFY
+	LD		A,(&hFC9E)		; JIFFY
 	LD		C,A
 .st00
-	LD		A,(&hFC9E)			; JIFFY
+	LD		A,(&hFC9E)		; JIFFY
 	CP		C
-	JR		NZ,.st00			; wait until next frame, pace the string output
+	JR		NZ,.st00		; wait until next frame, pace the string output
 
 	DJNZ	.st0
 .st1
@@ -3473,7 +3654,7 @@ IF IFACE = 0
 	AND		&h05			; leave only txready and txempty
 	CP		&h05			; ready to transmit?
 	JR		NZ,.st2			; wait if not	
-ELSE	; UART
+ELSE			; UART
 	LD		B,&h20			; 32 chars max
 .st0
 	LD		A,(HL)
@@ -3482,12 +3663,12 @@ ELSE	; UART
 	CALL	SendID
 	INC		HL
 
-	LD		A,(&hFC9E)			; JIFFY
+	LD		A,(&hFC9E)		; JIFFY
 	LD		C,A
 .st00
-	LD		A,(&hFC9E)			; JIFFY
+	LD		A,(&hFC9E)		; JIFFY
 	CP		C
-	JR		NZ,.st00			; wait until next frame, pace the string output
+	JR		NZ,.st00		; wait until next frame, pace the string output
 
 	DJNZ	.st0
 .st1
@@ -3500,6 +3681,33 @@ ELSE	; UART
 	AND		&h20			; check Transmitter empty bit
 	JR		Z,.st2
 ENDIF
+ELSE		; Printer port
+	LD		B,&h20			; 32 chars max
+.st0
+	LD		A,(HL)
+	CP		0
+	JP		Z,.st1			; End of string
+	CALL	SendByte
+	INC		HL
+
+	LD		A,(&hFC9E)		; JIFFY
+	LD		C,A
+.st00
+	LD		A,(&hFC9E)		; JIFFY
+	CP		C
+	JR		NZ,.st00		; wait until next frame, pace the string output
+
+	DJNZ	.st0
+.st1
+	LD		A,&h0D			; Send CR
+	CALL 	SendByte
+
+	LD		A,(&hFC9E)		; JIFFY
+	LD		C,A
+.st2
+	LD		A,(&hFC9E)		; JIFFY
+	CP		C
+	JR		NZ,.st2			; wait until next frame, pace the string output
 ENDIF
 	RET
 	
@@ -5960,7 +6168,7 @@ IF IFACE < 38
     DW CmdB0,CmdB1,CmdB2,CmdB3,CmdB4,CmdB5,CmdB6,CmdB7
 ENDIF
 IF IFACE = 38
-    DW Cmd80,Cmd81,Cmd82,Cmd83,CmdFE,CmdFE,Cmd86,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
+    DW Cmd80,Cmd81,Cmd82,Cmd83,Cmd84,CmdFE,Cmd86,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     DW Cmd90,Cmd91,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,Cmd98,Cmd99,Cmd9A,Cmd9B,Cmd9C,Cmd9D,Cmd9E,CmdFE
     DW CmdA0,CmdA1,CmdA2,CmdA3,CmdA4,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE,CmdFE
     DW CmdB0,CmdB1,CmdB2,CmdB3,CmdB4,CmdB5,CmdB6,CmdB7
@@ -5988,7 +6196,7 @@ IF IFACE = 1
 	DB &h02  ,&h02  ,&h01  ,&h02  ,&h00  ,&h02  ,&h01  ,&h01
 ENDIF
 IF IFACE = 38
-	DB &h02  ,&h01  ,&h02  ,&h00  ,&h80  ,&h80  ,&h00  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
+	DB &h02  ,&h01  ,&h02  ,&h00  ,&h00  ,&h80  ,&h00  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
 	DB &h03  ,&h02  ,&h83  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h00  ,&h02  ,&h05  ,&h09  ,&h0A  ,&h09  ,&h05  ,&h80
 	DB &h00  ,&h00  ,&h00  ,&h01  ,&h01  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80  ,&h80
 	DB &h02  ,&h02  ,&h01  ,&h02  ,&h00  ,&h02  ,&h01  ,&h01
