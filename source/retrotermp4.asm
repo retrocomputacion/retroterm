@@ -2968,6 +2968,8 @@ _dosetup				; alternative entry point
 	+StringOut sut2
 	LDX rb1l+1
 	LDA rb1h+1
+	STX	_sudtmp
+	STA _sudtmp+1
 
 	JSR $A45F			; Print RTS delay
 

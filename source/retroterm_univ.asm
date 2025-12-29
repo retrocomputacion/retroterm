@@ -3850,6 +3850,8 @@ _dosetup2	; reentry point from phonebook
 }
 	LDX rb1l+1
 	LDA rb1h+1
+	STX	_sudtmp
+	STA _sudtmp+1
 
 !if _HARDTYPE_ = 56{
 	+EnKernal y
