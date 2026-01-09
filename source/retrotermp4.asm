@@ -1771,7 +1771,12 @@ Cmd92
 ;///////////////////////////////////////////////////////////////////////////////////
 ; 152: Clears the graphic screen
 Cmd98
-	JMP $C567	;SCNCLR
+	LDA FLAGS1
+	AND #%00010000	; Is screen split enabled?
+	BEQ +
+--	LDA $83			; Current screen mode
+	BEQ --			; Wait until graphic mode is enabled
++	JMP $C567	;SCNCLR
 	; RTS
 
 ;///////////////////////////////////////////////////////////////////////////////////

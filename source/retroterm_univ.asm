@@ -2520,6 +2520,7 @@ Cmd98
 	+DisKernal a
 	JSR	BMCLR
 	+EnKernal a
+	JSR _bmack
 	CLI
 	RTS
 
