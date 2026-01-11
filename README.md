@@ -32,9 +32,7 @@ Jorge Castillo & Pablo Roldán
 
 ## 1 Introduction
 
-*Retroterm* is a small, minimal *PETSCII* terminal for the *Commodore 64 / 128 (in 64 mode)*, *Commodore Plus/4* and *MSX1 (in development)*.
-
-**ATTENTION THE MSX PORT IS CURRENTLY IN ALPHA STATE**
+*Retroterm* is a small terminal with multimedia functions for the *Commodore 64 / 128 (in 64 mode)*, *Commodore Plus/4* and *MSX1*.
 
 It implements the *[Turbo56k](docs/turbo56k.md)* protocol for high speed data transfer & streaming when connecting to a BBS supporting the protocol, such as [_RetroBBS_](https://github.com/retrocomputacion/retrobbs).
 
@@ -44,9 +42,13 @@ Data rate is fixed at the following speeds:
 - 57600bps for Retroterm MSX for parallel port (very alpha state - candidate for deprecation)
 - 38400bps for Retroterm 64 for Swiftlink**
 - 38400bps for Retroterm MSX for parallel port (alpha state - mostly stable)
-- 19200bps for Retroterm Plus/4** and Retroterm MSX for RS232**
+- 19200bps for Retroterm Plus/4**
+- 19200bps for Retroterm MSX for RS232
+- 57600bps for Retroterm BadCat (Zimodem firmware)
 
-*(**)The full data throughput while using the turbo transfer / streaming can only be achieved with the screen disabled.*
+> *(**)The full data throughput while using the turbo transfer / streaming can only be achieved with the screen disabled.*
+
+> [!ATTENTION] If experiencing PCM audio stutter with U1541-II, Ultimate 64, or Commodore 64U internal Swiftlink emulation, you need to the value of `Modem Settings->Tweaks->Loop Delay` to `10ms`
 
 The effective throughput for text is *1500 / 1800bps* depending on *PAL/NTSC* timings respectively.
 
@@ -55,18 +57,19 @@ The effective throughput for text is *1500 / 1800bps* depending on *PAL/NTSC* ti
 *It also runs on the latest **VICE**/**Z64K** and **openMSX** emulators.*
 
 Separate *Commodore 64* versions of the executable are provided for cartridges featuring an ACIA 6551 such as *SwiftLink* (limited to **38400bps**) and *Turbo232*.</br>
-The *Commodore Plus/4* version is limited to the maximum speed for the built in ACIA: **19200bps**
-<br>
-The *MSX 1 RS-232* version (rt-msx-232.com) is also at this moment limited to **19200bps**, and only supports RS-232 interfaces that adhere to the MSX standard (ie: SVI-738 and HX-22 built-in ports, SVI-737 and Sony HB-232, or any other interface implemented with the i8251 + i8253 USART and Timer combo)<br>
+The *Commodore Plus/4* version is limited to the maximum speed for the built in ACIA: **19200bps**<br>
+The *MSX 1 RS-232* version (rt-232.com) is also limited to **19200bps**, and only supports RS-232 interfaces that adhere to the MSX standard (ie: SVI-738 and HX-22 built-in ports, SVI-737 and Sony HB-232, or any other interface implemented with the i8251 + i8253 USART and Timer combo)<br>
+The *MSX 1 BadCat* version (rt-bd.com) works with the BadCat cartridge or any other RS-232 interface that uses the i16550 UART.<br>
+The *MSX 1 printer port* versions use a simple printer port Wifi modem interface. The 56K version has reduced capabilities.
 
 ## 1.1 Release history
 
-### v0.30 (??/??/2025):
-- Turbo56K v0.8 partial implementation
+### v0.30 (??/??/2026):
+- Turbo56K v0.8
 - Drawing primitives: clear screen, plot, line, box, ellipse, fill
-- Commodore ports: Ability to save a configuration file to disk.
+- Ability to save a configuration file to disk.
 Optional modem init string with selectable 300,1200 or 2400 baud speed.
-- Commodore ports: Phone book with up to 5 preset dial strings, also saved to the configuration file.
+- Phone book with up to 5 preset dial strings, also saved to the configuration file.
 - Bugfix, all ports: No more missing filename characters when downloading to disk
 - Bugfix, C64 ports: Fixed glitched sprites after downloading to disk
 
@@ -74,7 +77,7 @@ Optional modem init string with selectable 300,1200 or 2400 baud speed.
 - New shortcut key for the Plus/4 port: `CBM+,` disables/enables the FLASH-ON control code. Improves compatibility with BBSs running Centipede 128 software.
 - Bugfix for the Commodore 64 ports: No more extraneous beep after streaming PCM audio.
 
-### v0.20 (02/01/2024):
+### v0.20 (02/January/2024):
 - Turbo56K v0.7
 - New _Commodore Plus/4_ port. _Turbo56K v0.7_ commands implemented, except for the ones regarding SID tune streaming.
 - Fixed bug in command $A3 which caused the parameter to be misread, or the terminal to hang
@@ -86,7 +89,7 @@ Optional modem init string with selectable 300,1200 or 2400 baud speed.
 - ACIA based versions now allow selection of the interface base address ($DE00 or $DF00).
 - Connected disk drives are scanned on first run, and can be selected when downloading a file with command `$86`.
 
-### v0.14 (13/04/2022):
+### v0.14 (13/April/2022):
 - Source code liberated
 - Turbo56K v0.6
 - Fixed small visual glitch when using the split screen mode
@@ -96,7 +99,7 @@ Optional modem init string with selectable 300,1200 or 2400 baud speed.
 - Full digi-boost for 8580 SID
 - Intro screen exits automatically after ~2 seconds by default
 - Other small bugfixes.
-### v0.13 (16/08/2021):
+### v0.13 (16/August/2021):
 - Initial release
 - Turbo56K v0.5
 
@@ -107,7 +110,7 @@ Over time, the protocol has been extended to include 4-bit PCM audio streaming, 
 
 ## 1.3 Features
 
-*Implements all commands of the __[Turbo56k](docs/turbo56k.md)__ v0.7 protocol.*
+*Implements all commands of the __[Turbo56k](docs/turbo56k.md)__ v0.8 protocol.*
 
 - Full duplex PETSCII (Commodore versions)/ASCII (MSX versions) color terminal
 - Turbo data transfers to custom/preset memory locations
@@ -126,7 +129,7 @@ Over time, the protocol has been extended to include 4-bit PCM audio streaming, 
 
 ## 1.4 Requirements
 
-- A Commodore 64, 128 or Plus/4 computer, or an emulator such as VICE or Z64K
+- A Commodore 64 (or Commodore 64U), 128 or Plus/4 computer, or an emulator such as VICE or Z64K
 - Either an userport Wi-Fi modem with the Zimodem firmware or...
 - A *SwiftLink* or *Turbo232* compatible cartridge connected to a Wi-Fi modem with the Zimodem firmware.
 - A MSX1 or superior computer with 64K of RAM. With either a built-in RS-232 port or an MSX standard RS-232 interface cartridge. Or openMSX 20.0RC1
@@ -135,23 +138,26 @@ Over time, the protocol has been extended to include 4-bit PCM audio streaming, 
 ## 2 Usage
 *Retroterm* is very simple to use, most of its functionality being controlled externally from a *[Turbo56k](docs/turbo56k.md)* enabled BBS.
 
-*Retroterm* comes in five variants:
+*Retroterm* comes in nine variants:
 
 - **rt-cbm-u.prg** Userport version 57600bps
 - **rt-cbm-sl.prg** SwiftLink version 38400bps
+- **rt-cbm-ulti.prg** SwifLink Ultimate version 38400bps
 - **rt-cbm-232.prg** Turbo232 version 57600bps
 - **rt-cbm-p4.prg** Plus/4 version 19200bps
-- **rt-msx-232.com** MSX RS-232 version 19200bps
-- **rt-msx-38k.com** MSX parallel port version 38400bps
-- **rt-msx-56k.com** MSX parallel port version 57600bps
+- **rt-232.com** MSX RS-232 version 19200bps
+- **rt-38k.com** MSX parallel port version 38400bps
+- **rt-56k.com** MSX parallel port version 57600bps
+- **rt-bd.com** MSX BadCat version 57600bps
+
 
 *Retroterm* lacks classic file transfer functions, when used to communicate with a normal PETSCII/ASCII BBS, file transfers are not available.
 
-After LOADing and RUNning *Retroterm*, you can dial to your favorite BBS using your Modem commands as usual.
+After running *Retroterm*, it will search for a configuration file on the last used drive, if found, and a modem initialization string is set, it will be sent at this moment. If no configuration file is found then the setup screen will be shown
 
-**On C64 and Plus/4 ports, _Retroterm_ will search for a configuration file on the last used drive, if found, and a modem initialization string is set, it will be sent at this moment. If no configuration file is found then the setup screen will be shown**
+The modem should be setup to the correct baud rate before leaving the initial setup screen. If the modem is not set at the correct speed, use the initialization string do so. You can then press F5 to save the settings to disk, and F1 to go to the terminal.
 
-**The modem should be setup to the correct baud rate before running _Retroterm_.**
+> [!NOTE] The initialization string is only sent before Retroterm goes to terminal mode for the first time. 
 
 To exit *Retroterm*, just press `RUN/STOP` (Commodore) or `CTRL-C` (MSX), it will remain in memory, and you can recall it with `SYS49152` (Commodore 64), or `SYS28672` (Commodore Plus/4).
 
@@ -179,13 +185,14 @@ This string is only transmitted when running _Retroterm_ with `RUN`, automatical
 Use `F5` to save the current settings to disk.
 
 Finally pressing `P` switches to the phone book screen, here you can select one of 5 preset dial strings and either `E`dit or `D`ial it.
-(Dialing only works once _Retroterm_ has been initialized properly, meaning only when accessing the setup screen from within the terminal mode)
+
+>[!NOTE] Dialing only works once _Retroterm_ has been initialized properly, meaning only when accessing the setup screen from within the terminal mode
 
 
-**Important**: Upon exiting the setup screen, _Retroterm_ will default to full screen text mode. Only previous background and border colors will be restored.
+> [!Important] Upon exiting the setup screen, _Retroterm_ will default to full screen text mode. Only previous background and border colors will be restored.
 
 ## 3 Building Retroterm
-The Commodore versions of *Retroterm* is written for the *ACME* cross-assembler, while *PASMO* is used for the MSX port.
+The Commodore versions of *Retroterm* are written for the *ACME* cross-assembler, while *PASMO* is used for the MSX port.
 
 Exomizer is used to pack all the Commodore ports. Find these packed versions inside the `/build/packed/` subdirectory
 
@@ -206,7 +213,7 @@ For all MSX versions use
 make msx
 ```
 
-Or you can specify which version you want to compile, either `userport`, `swiflink`, `turbo232`, `plus4`, `msx232`, `msx56k` or `msx38k`.
+Or you can specify which version you want to compile, either `userport`, `swiflink`, `turbo232`, `plus4`, `msx232`, `msxbadcar`, `msx56k` or `msx38k`.
 
 ie:
 ```
@@ -238,7 +245,7 @@ A number of compile time symbols are defined to customize the resulting executab
 
 `232`: Compile for *Turbo232* cartridges at **57600bps**
 
-`1541`: Compile for the *Ultimate 1541-II* or *Ultimate 64* Swiftlink emulation, same code as for `38` but different timing.
+`1541`: Compile for the *Ultimate 1541-II* or *Ultimate 64/ Commodore 64U* Swiftlink emulation, same code as for `38` but different timing.
 
 ### `_INTRO_`:
 `0`: No intro screen
@@ -252,7 +259,9 @@ If defined wait for the user to press the space bar at the intro screen. Otherwi
 
 ### `IFACE`:
 `0`: Compile for standard MSX RS232 ports
-`56`: Compile for the MSX parallel port
+`1`: Compile for the BadCat cartridge
+`38`: Compile for the MSX parallel port (38400bps)
+`56`: Compile for the MSX parallel port (57600bps)
 
 ### Example:
 

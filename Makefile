@@ -4,36 +4,36 @@ BUILDFOLDER:=build
 SRCFOLDER:=source
 
 CBMVARIANTS=cbm-u cbm-sl cbm-ulti cbm-232
-MSXVARIANTS=msx-232 msx-56k msx-38k msx-badcat
+MSXVARIANTS=232 56k 38k bd
 
 DEFINES_FOR_cbm-u=-D_HARDTYPE_=56
 DEFINES_FOR_cbm-sl=-D_HARDTYPE_=38
 DEFINES_FOR_cbm-ulti=-D_HARDTYPE_=1541
 DEFINES_FOR_cbm-232=-D_HARDTYPE_=232
-DEFINES_FOR_msx-232=-E IFACE=0
-DEFINES_FOR_msx-badcat=-E IFACE=1
-DEFINES_FOR_msx-56k=-E IFACE=56
-DEFINES_FOR_msx-38k=-E IFACE=38
+DEFINES_FOR_232=-E IFACE=0
+DEFINES_FOR_bd=-E IFACE=1
+DEFINES_FOR_56k=-E IFACE=56
+DEFINES_FOR_38k=-E IFACE=38
 
 
 
 # Create build directories
-$(BUILDFOLDER) $(BUILDFOLDER)/packed:
+$(BUILDFOLDER) $(BUILDFOLDER)/cbm $(BUILDFOLDER)/cbm/packed $(BUILDFOLDER)/msx:
 	mkdir -p $@
 
 # Read build version from source/version.txt
 VERSION := $(shell cat $(SRCFOLDER)/version.txt)
 
 define make_target_acme
-$(BUILDFOLDER)/rt-$(1).prg: $(SRCFOLDER)/retroterm_univ.asm $(SRCFOLDER)/version.asm | $(BUILDFOLDER) $(BUILDFOLDER)/packed
-	acme $$(DEFINES_FOR_$(1)) -D_MAKE_=1 -I $(SRCFOLDER) -f cbm -l $(BUILDFOLDER)/rt-$(1).lst -o $$@ $$<
-	exomizer sfx basic -o $(BUILDFOLDER)/packed/$$(@F) $$@
+$(BUILDFOLDER)/cbm/rt-$(1).prg: $(SRCFOLDER)/retroterm_univ.asm $(SRCFOLDER)/version.asm | $(BUILDFOLDER)/cbm $(BUILDFOLDER)/cbm/packed
+	acme $$(DEFINES_FOR_$(1)) -D_MAKE_=1 -I $(SRCFOLDER) -f cbm -l $(BUILDFOLDER)/cbm/rt-$(1).lst -o $$@ $$<
+	exomizer sfx basic -o $(BUILDFOLDER)/cbm/packed/$$(@F) $$@
 
 endef
 
 define make_target_pasmo
-$(BUILDFOLDER)/rt-$(1).com: $(SRCFOLDER)/retrotermm1.asm $(SRCFOLDER)/retrologo.mseq $(SRCFOLDER)/version-msx.asm
-	pasmo $$(DEFINES_FOR_$(1)) -I $(SRCFOLDER) $(SRCFOLDER)/retrotermm1.asm $(BUILDFOLDER)/rt-$(1).com $(BUILDFOLDER)/rtm-$(1).symbol
+$(BUILDFOLDER)/msx/rt-$(1).com: $(SRCFOLDER)/retrotermm1.asm $(SRCFOLDER)/retrologo.mseq $(SRCFOLDER)/version-msx.asm | $(BUILDFOLDER)/msx
+	pasmo $$(DEFINES_FOR_$(1)) -I $(SRCFOLDER) $(SRCFOLDER)/retrotermm1.asm $(BUILDFOLDER)/msx/rt-$(1).com $(BUILDFOLDER)/msx/rtm-$(1).symbol
 
 endef
 
@@ -42,34 +42,34 @@ endef
 #      $(foreach variant,$(MSXVARIANTS),$(BUILDFOLDER)/rt-$(variant).com)
 all: version cbm msx
 
-cbm: $(SRCFOLDER)/version.asm $(foreach variant,$(CBMVARIANTS),$(BUILDFOLDER)/rt-$(variant).prg) plus4
+cbm: $(SRCFOLDER)/version.asm $(foreach variant,$(CBMVARIANTS),$(BUILDFOLDER)/cbm/rt-$(variant).prg) plus4
 
-msx: $(SRCFOLDER)/version-msx.asm $(foreach variant,$(MSXVARIANTS),$(BUILDFOLDER)/rt-$(variant).com)
+msx: $(SRCFOLDER)/version-msx.asm $(foreach variant,$(MSXVARIANTS),$(BUILDFOLDER)/msx/rt-$(variant).com)
 
-swiftlink: $(BUILDFOLDER)/rt-cbm-sl.prg
+swiftlink: $(BUILDFOLDER)/cbm/rt-cbm-sl.prg
 
-ultimate: $(BUILDFOLDER)/rt-cbm-ulti.prg
+ultimate: $(BUILDFOLDER)/cbm/rt-cbm-ulti.prg
 
-turbo232: $(BUILDFOLDER)/rt-cbm-232.prg
+turbo232: $(BUILDFOLDER)/cbm/rt-cbm-232.prg
 
-userport: $(BUILDFOLDER)/rt-cbm-u.prg
+userport: $(BUILDFOLDER)/cbm/rt-cbm-u.prg
 
-plus4: $(BUILDFOLDER)/rt-cbm-p4.prg
+plus4: $(BUILDFOLDER)/cbm/rt-cbm-p4.prg
 
-msx232: $(BUILDFOLDER)/rt-msx-232.com
+msx232: $(BUILDFOLDER)/msx/rt-msx-232.com
 
-msxbadcat: $(BUILDFOLDER)/rt-msx-badcat.com
+msxbadcat: $(BUILDFOLDER)/msx/rt-msx-bd.com
 
-msx56k: $(BUILDFOLDER)/rt-msx-56k.com
+msx56k: $(BUILDFOLDER)/msx/rt-msx-56k.com
 
-msx38k: $(BUILDFOLDER)/rt-msx-38k.com
+msx38k: $(BUILDFOLDER)/msx/rt-msx-38k.com
 
 version: $(SRCFOLDER)/version.asm $(SRCFOLDER)/version-msx.asm
 
 # Special case for p4 (uses different source file)
-$(BUILDFOLDER)/rt-cbm-p4.prg: $(SRCFOLDER)/retrotermp4.asm | $(BUILDFOLDER) $(BUILDFOLDER)/packed
-	acme -f cbm -D_MAKE_=1 -I $(SRCFOLDER) -l $(BUILDFOLDER)/rt-cbm-p4.lst -o $(BUILDFOLDER)/rt-cbm-p4.prg $(SRCFOLDER)/retrotermp4.asm
-	exomizer sfx basic -t4 -o $(BUILDFOLDER)/packed/rt-cbm-p4.prg $(BUILDFOLDER)/rt-cbm-p4.prg
+$(BUILDFOLDER)/cbm/rt-cbm-p4.prg: $(SRCFOLDER)/retrotermp4.asm | $(BUILDFOLDER)/cbm $(BUILDFOLDER)/cbm/packed
+	acme -f cbm -D_MAKE_=1 -I $(SRCFOLDER) -l $(BUILDFOLDER)/rt-cbm-p4.lst -o $(BUILDFOLDER)/cbm/rt-cbm-p4.prg $(SRCFOLDER)/retrotermp4.asm
+	exomizer sfx basic -t4 -o $(BUILDFOLDER)/cbm/packed/rt-cbm-p4.prg $(BUILDFOLDER)/cbm/rt-cbm-p4.prg
 
 # Generate version includes
 $(SRCFOLDER)/version.asm: $(SRCFOLDER)/version.txt | $(SRCFOLDER)
