@@ -1,7 +1,7 @@
 <div align = center>
 
 # Retroterm
-### VERSION 0.30 Beta
+### VERSION 0.30
 
 Jorge Castillo & Pablo Roldán
 

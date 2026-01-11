@@ -67,7 +67,7 @@ msx38k: $(BUILDFOLDER)/msx/rt-msx-38k.com
 version: $(SRCFOLDER)/version.asm $(SRCFOLDER)/version-msx.asm
 
 # Special case for p4 (uses different source file)
-$(BUILDFOLDER)/cbm/rt-cbm-p4.prg: $(SRCFOLDER)/retrotermp4.asm | $(BUILDFOLDER)/cbm $(BUILDFOLDER)/cbm/packed
+$(BUILDFOLDER)/cbm/rt-cbm-p4.prg: $(SRCFOLDER)/retrotermp4.asm $(SRCFOLDER)/version.asm | $(BUILDFOLDER)/cbm $(BUILDFOLDER)/cbm/packed
 	acme -f cbm -D_MAKE_=1 -I $(SRCFOLDER) -l $(BUILDFOLDER)/rt-cbm-p4.lst -o $(BUILDFOLDER)/cbm/rt-cbm-p4.prg $(SRCFOLDER)/retrotermp4.asm
 	exomizer sfx basic -t4 -o $(BUILDFOLDER)/cbm/packed/rt-cbm-p4.prg $(BUILDFOLDER)/cbm/rt-cbm-p4.prg
 
