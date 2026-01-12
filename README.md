@@ -25,7 +25,9 @@ Jorge Castillo & Pablo Roldán
    3. [Customizing](#33-customizing)
 4. [Known bugs](#4-known-bugs)
 5. [To-do](#5-to-do)
-6. [Acknowledgments](#6-acknowledgments)
+6. [MSX printer port modem](#6-msx-printer-port-modem)
+7. [Wi-fi Modem setup](#7-wi-fi-modem-setup)
+8. [Acknowledgments](#8-acknowledgments)
 
 ---
 <div>
@@ -60,7 +62,7 @@ Separate *Commodore 64* versions of the executable are provided for cartridges f
 The *Commodore Plus/4* version is limited to the maximum speed for the built in ACIA: **19200bps**<br>
 The *MSX 1 RS-232* version (rt-232.com) is also limited to **19200bps**, and only supports RS-232 interfaces that adhere to the MSX standard (ie: SVI-738 and HX-22 built-in ports, SVI-737 and Sony HB-232, or any other interface implemented with the i8251 + i8253 USART and Timer combo)<br>
 The *MSX 1 BadCat* version (rt-bd.com) works with the BadCat cartridge or any other RS-232 interface that uses the i16550 UART.<br>
-The *MSX 1 printer port* versions use a simple printer port Wifi modem interface. The 56K version has reduced capabilities.
+The *MSX 1 printer port* versions use a simple printer port Wi-fi modem interface. The 56K version has reduced capabilities.
 
 ## 1.1 Release history
 
@@ -74,7 +76,7 @@ Optional modem init string with selectable 300,1200 or 2400 baud speed.
 - Bugfix, C64 ports: Fixed glitched sprites after downloading to disk
 
 ### v0.21 (Intermediate Github version, no oficial release):
-- New shortcut key for the Plus/4 port: `CBM+,` disables/enables the FLASH-ON control code. Improves compatibility with BBSs running Centipede 128 software.
+- New shortcut key for the Plus/4 port: `CBM`+`,` disables/enables the FLASH-ON control code. Improves compatibility with BBSs running Centipede 128 software.
 - Bugfix for the Commodore 64 ports: No more extraneous beep after streaming PCM audio.
 
 ### v0.20 (02/January/2024):
@@ -85,7 +87,7 @@ Optional modem init string with selectable 300,1200 or 2400 baud speed.
 - New command `$B6` to scroll the text window up or down X number of rows.
 - SID streaming now better supports tunes using _hardrestart_, a special version of _SIDdump_ and updated version of _RetroBBS_ is required.
 - New compile target `ultimate` compiles with timings compatible with the Swiftlink emulation in the Ultimate1541-II/II+ and Ultimate64.
-- Basic configuration screen by pressing `C= + F7`, terminal screen is not preserved.
+- Basic configuration screen by pressing `CBM`+`F7`, terminal screen is not preserved.
 - ACIA based versions now allow selection of the interface base address ($DE00 or $DF00).
 - Connected disk drives are scanned on first run, and can be selected when downloading a file with command `$86`.
 
@@ -133,9 +135,9 @@ Over time, the protocol has been extended to include 4-bit PCM audio streaming, 
 - A Commodore 64 (or Commodore 64U), 128 or Plus/4 computer, or an emulator such as VICE or Z64K.
 - Either an userport Wi-Fi modem with the Zimodem firmware or...
 - A *SwiftLink* or *Turbo232* compatible cartridge connected to a Wi-Fi modem with the Zimodem firmware.
-- A MSX1 or superior computer with 64K of RAM. With either a built-in RS-232 port or an MSX standard RS-232 interface cartridge. Or openMSX 20.0RC1
-- A MSX1 or superior computer with a printer port Wifi modem.
-- A MSX1 or superior computer with the BadCat cartridge with the Zimodem firmware.
+- An MSX1 or superior computer with 64K of RAM. With either a built-in RS-232 port or an MSX standard RS-232 interface cartridge. Or openMSX 20.0RC1
+- An MSX1 or superior computer with a printer port Wi-fi modem.
+- An MSX1 or superior computer with the BadCat cartridge with the Zimodem firmware.
 - ACME and PASMO crossassemblers for building the programs.
 
 ## 2 Usage
@@ -162,17 +164,17 @@ The modem should be setup to the correct baud rate before leaving the initial se
 
 > [!NOTE] The initialization string is only sent before Retroterm goes to terminal mode for the first time. 
 
-To exit *Retroterm*, just press `RUN/STOP` (Commodore) or `CTRL-C` (MSX), it will remain in memory, and you can recall it with `SYS49152` (Commodore 64), or `SYS28672` (Commodore Plus/4).
+To exit *Retroterm*, just press `RUN/STOP` (Commodore) or `CTRL`+`C` (MSX), it will remain in memory, and you can recall it with `SYS49152` (Commodore 64), or `SYS28672` (Commodore Plus/4).
 
 If you downloaded a program into memory from a BBS you can also `RUN` it (Commodore versions only).
 
-On MSX pressing `CTRL-U` will reset the computer, if a ROM file was downloaded to RAM the system will try to execute it. ROMs that expect mirroring are not supported.
+On MSX pressing `CTRL`+`U` will reset the computer, if a ROM file was downloaded to RAM the system will try to execute it. ROMs that expect mirroring are not supported.
 
-*Retroterm* beeps for every received character by default, you can toggle the sound by pressing `CBM + M` (Commodore) or `CTRL-W` (MSX).
+*Retroterm* beeps for every received character by default, you can toggle the sound by pressing `CBM`+`M` (Commodore) or `CTRL-W` (MSX).
 
 ## 2.1 Setup screen
 
-A simple setup screen can be accessed by pressing `CBM + F7` (Commodore) or `CTRL-F5` (MSX), pressing `F1` will exit back to the terminal.
+A simple setup screen can be accessed by pressing `CBM`+`F7` (Commodore) or `CTRL`+`F5` (MSX), pressing `F1` will exit back to the terminal.
 
 The first setting, common to all _Retroterm_ variants sets the **RTS** pulse width. Current values are known to work under VICE, or on real hardware with an userport modem using Zimodem firmware, and with the Ultimate Swiftlink emulation.
 Use the `+` and `-` keys to adjust.
@@ -187,7 +189,7 @@ For C64 and Plus/4 ports, an optional modem initialization string can be edited 
 This string is only transmitted when running _Retroterm_ with `RUN`, automatically if a configuration file is found, or, if no file is found by selecting the appropriate options in the setup screen before exiting to the terminal.
 Use `F5` to save the current settings to disk.
 
-Finally pressing `P` switches to the phone book screen, here you can select one of 5 preset dial strings and either `E`dit or `D`ial it.
+Finally, pressing `P` switches to the phone book screen, here you can select one of 5 preset dial strings and either `E`dit or `D`ial it.
 
 >[!NOTE] Dialing only works once _Retroterm_ has been initialized properly, meaning only when accessing the setup screen from within the terminal mode
 
@@ -216,7 +218,7 @@ For all MSX versions use
 make msx
 ```
 
-Or you can specify which version you want to compile, either `userport`, `swiflink`, `turbo232`, `plus4`, `msx232`, `msxbadcar`, `msx56k` or `msx38k`.
+Or you can specify which version you want to compile, either `userport`, `swiflink`, `turbo232`, `plus4`, `msx232`, `msxbadcat`, `msx56k` or `msx38k`.
 
 ie:
 ```
@@ -274,7 +276,7 @@ acme -D_HARDTYPE_=232 -D_INTRO_=0 retroterm_univ.asm
 Compiles _Retroterm_ for the _Turbo232_ cartridge with no intro screen.
 
 ## 3.2 The intro screen
-The intro screen is a `screencode + colorRAM` dump found in `source/intro_sc.asm`
+The intro screen is a _screencode plus colorRAM_ dump found in `source/intro_sc.asm`
 
 This file is generated by exporting `source/intro_sc.petmate` to ACME format from [Petmate](https://nurpax.github.io/petmate/).
 
@@ -294,7 +296,7 @@ IDstring:
 !text "RTRETROTERM-SL 0.20   "
 ```
 
-**Note: The actual version number string is sourced from the file `source/version.txt` when using the *makefile*, or from `source/version.asm` when running the compiler directly**
+**Note: The actual version number string is sourced from the file `source/version.txt` when using the *makefile*, or from `source/version.asm` and `source/version-msx.asm` when running the compilers directly**
 
 
 For compatibility reasons we ask you not to modify the behavior of existing Turbo56K commands, but you're welcomed to add new commands, or remove unwanted ones, as long as command `$A3` correctly reports the existence or not of all queried commands.
@@ -305,14 +307,70 @@ In any case the *[Turbo56k](docs/turbo56k.md)* version bytes that follow the ID 
 ## 4 Known bugs/Issues
 
 - All versions: Losing connection while streaming data or audio will hang the program
-- Commodore 64 versions: Exiting `Retroterm`, restarting it with `SYS49152`, exiting again and causing a BASIC error will crash the computer.
+- Commodore Plus/4 version: Exiting `Retroterm`, restarting it with `SYS28672`, exiting again and causing a BASIC error will crash the computer.
 - Commodore Plus/4 version: `Retroterm` will crash if loaded from the file browser included in _Joco's C264 SD drive cartridge_. Loading from BASIC using the @ commands works fine.
 
 ## 5 To-do
-- Extend the command parameter space to support more than 8 parameters per command.
 - Faster throughput when using any of the ACIA cartridges.
+- Adapting the MSX chiptune streaming buffering routine to the Commodore 64 versions.
 
-## 6 Acknowledgments
+## 6 MSX printer port modem
+
+This printer port modem is cheapest option to use Retroterm with an MSX computer that lacks a built-in RS-232 port.
+
+For the simplest (and recommended) 38400bps version the part list is very short:
+
+- 14-pin female centronics connector
+- ESP8266 module, such as a Lolin or NodeMCU v3
+
+<div align = center>
+
+![schematic1](docs/wmsxpar1.png)
+
+</div>
+
+For the 57600bps version (does not support audio streaming) these extra parts are needed:
+
+- 1N4148 diode
+- 4700 ohms resistor
+- 10nF capacitor
+
+<div align = center>
+
+![schematic2](docs/wmsxpar2.png)
+
+</div>
+
+Adding a 3 pin jumper or a SPDT switch you get a modem that can work in both modes
+
+<div align = center>
+
+![schematic3](docs/wmsxpar3.png)
+
+</div>
+
+The ESP module should be flashed with the [Zimodem](https://github.com/bozimmerman/Zimodem/tree/v371) firmware, any version works, but 3.7.1 is recommended.
+
+A precompiled version of Zimodem 3.5.4 is available [here](https://www.pastbytes.com/wifimodem/zimodem.ino.generic_4m_turbo56k_r1.bin)
+
+If you want to compile the firmware yourself please follow the instructions at Zimodem's repository. Remember to select the correct ESP8266 board in the Arduino IDE menu's.
+
+Once you have the firmware flashed, you need to setup the modem via USB, follow the instructions on the next section below.
+
+## 7 Wi-fi modem setup
+
+To work with Retroterm the Wi-Fi modem needs to be setup at the correct baud rate and to use hardware flow control.
+
+> [!NOTE] The BadCat cartridge comes already configured with the correct settings. No further configuration is needed to use Retroterm
+
+For Zimodem firmware:
+
+- `ATB` is the command to change the baud rate, for example `ATB57600` will change the baud rate to 57600 immediately after sending it.
+- `ATF0` is the command to change the flow control to hardware (RTS/CTS). After sending this command on a terminal which doesn't support flow control (or when configuring the modem via USB), the modem might seem to stop responding, in reality the modem is still listening to commands but will not respond until its CTS line is set to the correct state.
+- Commands can be chained together: `ATF0B57600` will change the flow control and baud rate in a single command string. This is, with different speeds, the default initialization string used in the Commodore and MSX-232 versions.
+- `AT&W` saves the current modem configuration. Only really need to use this command if you're setting up the __MSX printer port__ version of the modem. The best way to use it is: `ATF0B38400&W` Note how the save command is last.
+
+## 8 Acknowledgments
 ### Beta Testers
   
 - **Ezequiel Filgueiras**
@@ -321,6 +379,8 @@ In any case the *[Turbo56k](docs/turbo56k.md)* version bytes that follow the ID 
 - **ChrisKewl**
 - **Roberto Mandracchia**
 - **x1pepe**
+- **Leonardo Vallone**
+- **ZOMGUgoff**
 
 ### Thanks To
   
@@ -329,3 +389,5 @@ In any case the *[Turbo56k](docs/turbo56k.md)* version bytes that follow the ID 
 - [**ElectronicsArchiver**](https://github.com/ElectronicsArchiver) for initial documentation rework
 
 - [**idolpx**](https://github.com/idolpx) for improved Makefile
+
+- **x1pepe** and [**Andres Ortiz**](https://sites.google.com/view/badcatelectronics/home) for providing us with a BadCat cartridge for development.
