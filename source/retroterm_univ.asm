@@ -1,6 +1,6 @@
 ;////////////////////////////////////////////////////////////////////////////////////////////
 ; BBS PETSCII compatible terminal, RS232 with tcpser/BBSServer or wifi with zimodem firmware
-; Supports TURBO56K v0.7 protocol at 57600 bps, using TX, RX and RTS
+; Supports TURBO56K v0.8 protocol at 57600 bps, using TX, RX and RTS
 ;////////////////////////////////////////////////////////////////////////////////////////////
 ; 
 ; Versions / corrections
@@ -268,8 +268,8 @@ y = 2
 	!src "version.asm"
 }
 
-;2025 SYS 2062
-!byte	$0c, $08, $e9, $07, $9e, $20, $32, $30, $36, $32, $00, $00, $00
+;2026 SYS 2062
+!byte	$0c, $08, $ea, $07, $9e, $20, $32, $30, $36, $32, $00, $00, $00
 
 _START
 !if _INTRO_ > 0 {
@@ -3164,11 +3164,11 @@ Msg05
 	!byte $0D, $0D, $00
 Msg06
 	!byte $0D
-	!text "(c)2025 pastbytes/durandal"
+	!text "(c)2026 pastbytes/durandal"
 	!byte $0D		;, $00
 Msg07
 	!byte $9a
-	!text "turbo56k V0.7"
+	!text "turbo56k V0.8"
 	!byte $0D, $05, $00
 
 !ifdef _SYNTH_ {

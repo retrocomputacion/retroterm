@@ -117,22 +117,25 @@ Over time, the protocol has been extended to include 4-bit PCM audio streaming, 
 - Split Screen | Hi-res or Multicolor+Text
 - Up to 11520Hz 4-bit PCM audio streaming
 - Bitmap display | Hi-res + Multicolor (Commodore) | Screen 2 (MSX)
-- Uses 16K of RAM above $C000 (For the Commodore versions), the rest of the RAM is free to use as a buffer, load programs, graphics, etc.
+- Uses 16K of RAM above $C000 (For the Commodore 64 versions), the rest of the RAM is free to use as a buffer, load programs, graphics, etc.
 - 1x speed SID music streaming (C64 versions)
-- PSG music streaming (MSX versions)
+- PSG music streaming (MSX versions, except `rt-56k.com`)
 - Scrolling Text Windows
 - Set Cursor Position
 - Text Line Fill
 - Bidirectional scrolling
 - Download files to disk
 - Graphic primitives, draw onto Hi-res/Multicolor screens
+- Phone book with 5 entries
 
 ## 1.4 Requirements
 
-- A Commodore 64 (or Commodore 64U), 128 or Plus/4 computer, or an emulator such as VICE or Z64K
+- A Commodore 64 (or Commodore 64U), 128 or Plus/4 computer, or an emulator such as VICE or Z64K.
 - Either an userport Wi-Fi modem with the Zimodem firmware or...
 - A *SwiftLink* or *Turbo232* compatible cartridge connected to a Wi-Fi modem with the Zimodem firmware.
 - A MSX1 or superior computer with 64K of RAM. With either a built-in RS-232 port or an MSX standard RS-232 interface cartridge. Or openMSX 20.0RC1
+- A MSX1 or superior computer with a printer port Wifi modem.
+- A MSX1 or superior computer with the BadCat cartridge with the Zimodem firmware.
 - ACME and PASMO crossassemblers for building the programs.
 
 ## 2 Usage

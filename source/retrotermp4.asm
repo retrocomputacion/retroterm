@@ -2369,7 +2369,7 @@ Version
 	!text "19200,8n1"
 	!byte $05, $0D , $00
 Msg06
-	!text "(c)2025 RETROCOMPUTACION.COM"
+	!text "(c)2026 RETROCOMPUTACION.COM"
 	!byte $0D
 	!byte $9A
 	!text "turbo56k V0.8"
