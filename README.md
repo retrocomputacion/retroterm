@@ -25,7 +25,10 @@ Jorge Castillo & Pablo Roldán
    3. [Customizing](#33-customizing)
 4. [Known bugs](#4-known-bugs)
 5. [To-do](#5-to-do)
-6. [MSX printer port modem](#6-msx-printer-port-modem)
+6. [Wi-fi modem schematics]
+   1. [Commodore](#61-commodore)
+   2. [RS-232](#62-rs-232)
+   3. [MSX printer port](#63-msx-printer-port)
 7. [Wi-fi Modem setup](#7-wi-fi-modem-setup)
 8. [Acknowledgments](#8-acknowledgments)
 
@@ -314,9 +317,51 @@ In any case the *[Turbo56k](docs/turbo56k.md)* version bytes that follow the ID 
 - Faster throughput when using any of the ACIA cartridges.
 - Adapting the MSX chiptune streaming buffering routine to the Commodore 64 versions.
 
-## 6 MSX printer port modem
+## 6 Wi-Fi modem schematics
+
+## 6.1 Commodore
+For the Commodore 64 or Plus/4 userport version of Retroterm, you can use any userport Wi-fi modem with the Zimodem firmware and with the RTS and CTS connected.
+
+>[!NOTE] Wi-fi modems that have a UP9600 mode switch will work with Retroterm on the C-64, with the switch in the off position.</br>
+>However, those modems might cause problems with the Plus/4
+
+If you want to build your own, you will need:
+
+- 2x12 pin 3.96mm pitch female edge connector
+- ESP8266 module, such as a Lolin or NodeMCU v3
+
+<div align = center>
+
+![schematic1](docs/wcomm.png)
+
+</div>
+
+## 6.2 RS-232
+
+The following schematic is for use with the Swiftlink, Turbo232 or MSX RS-232 versions of Retroterm.
+The RS-232 connector shown correspond to a standard DE-9 RS-232 port. The actual pinout of your device's RS-232 interface might differ. Please consult your device manuals before building. 
+
+>[!ATTENTION] This schematic does not invert the RTS and CTS control signals, read how to setup the modem correctly for this in the next section below
+
+Parts list:
+
+- Female DE-9 connector
+- ESP8266 module, such as a Lolin or NodeMCU v3
+- 4x 1uF 16v electrolitic capacitors
+- MAX232 IC
+
+<div align = center>
+
+![schematic1](docs/wrs232.png)
+
+</div>
+
+
+## 6.3 MSX printer port
 
 This printer port modem is cheapest option to use Retroterm with an MSX computer that lacks a built-in RS-232 port.
+
+> [!NOTE} This modem needs an external USB power supply. Do not use another computer USB to power the modem at the same time you have it connected to the MSX.
 
 For the simplest (and recommended) 38400bps version the part list is very short:
 
@@ -363,12 +408,18 @@ To work with Retroterm the Wi-Fi modem needs to be setup at the correct baud rat
 
 > [!NOTE] The BadCat cartridge comes already configured with the correct settings. No further configuration is needed to use Retroterm
 
+> [!NOTE] For all Commodore versions and the MSX RS-232 version, the default initialization string will setup correctly any Wi-fi modem using the Zimodem firmware 
+
 For Zimodem firmware:
 
 - `ATB` is the command to change the baud rate, for example `ATB57600` will change the baud rate to 57600 immediately after sending it.
 - `ATF0` is the command to change the flow control to hardware (RTS/CTS). After sending this command on a terminal which doesn't support flow control (or when configuring the modem via USB), the modem might seem to stop responding, in reality the modem is still listening to commands but will not respond until its CTS line is set to the correct state.
 - Commands can be chained together: `ATF0B57600` will change the flow control and baud rate in a single command string. This is, with different speeds, the default initialization string used in the Commodore and MSX-232 versions.
 - `AT&W` saves the current modem configuration. Only really need to use this command if you're setting up the __MSX printer port__ version of the modem. The best way to use it is: `ATF0B38400&W` Note how the save command is last.
+
+Only for RS-232 Wi-fi modems based on the schematic here and Zimodem firmware:
+
+- `ATS48=1` and `ATS50=1` invert the polarity of the CTS and RTS lines respectively. 
 
 ## 8 Acknowledgments
 ### Beta Testers
