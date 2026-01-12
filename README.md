@@ -53,7 +53,8 @@ Data rate is fixed at the following speeds:
 
 > *(**)The full data throughput while using the turbo transfer / streaming can only be achieved with the screen disabled.*
 
-> [!ATTENTION] If experiencing PCM audio stutter with U1541-II, Ultimate 64, or Commodore 64U internal Swiftlink emulation, you need to the value of `Modem Settings->Tweaks->Loop Delay` to `10ms`
+> [!ATTENTION]
+> If experiencing PCM audio stutter with U1541-II, Ultimate 64, or Commodore 64U internal Swiftlink emulation, you need to the value of `Modem Settings->Tweaks->Loop Delay` to `10ms`
 
 The effective throughput for text is *1500 / 1800bps* depending on *PAL/NTSC* timings respectively.
 
@@ -165,7 +166,8 @@ After running *Retroterm*, it will search for a configuration file on the last u
 
 The modem should be setup to the correct baud rate before leaving the initial setup screen. If the modem is not set at the correct speed, use the initialization string do so. You can then press F5 to save the settings to disk, and F1 to go to the terminal.
 
-> [!NOTE] The initialization string is only sent before Retroterm goes to terminal mode for the first time. 
+> [!NOTE]
+> The initialization string is only sent before Retroterm goes to terminal mode for the first time. 
 
 To exit *Retroterm*, just press `RUN/STOP` (Commodore) or `CTRL`+`C` (MSX), it will remain in memory, and you can recall it with `SYS49152` (Commodore 64), or `SYS28672` (Commodore Plus/4).
 
@@ -194,10 +196,12 @@ Use `F5` to save the current settings to disk.
 
 Finally, pressing `P` switches to the phone book screen, here you can select one of 5 preset dial strings and either `E`dit or `D`ial it.
 
->[!NOTE] Dialing only works once _Retroterm_ has been initialized properly, meaning only when accessing the setup screen from within the terminal mode
+>[!NOTE]
+>Dialing only works once _Retroterm_ has been initialized properly, meaning only when accessing the setup screen from within the terminal mode
 
 
-> [!Important] Upon exiting the setup screen, _Retroterm_ will default to full screen text mode. Only previous background and border colors will be restored.
+>[!Important]
+>Upon exiting the setup screen, _Retroterm_ will default to full screen text mode. Only previous background and border colors will be restored.
 
 ## 3 Building Retroterm
 The Commodore versions of *Retroterm* are written for the *ACME* cross-assembler, while *PASMO* is used for the MSX port.
@@ -322,7 +326,8 @@ In any case the *[Turbo56k](docs/turbo56k.md)* version bytes that follow the ID 
 ## 6.1 Commodore
 For the Commodore 64 or Plus/4 userport version of Retroterm, you can use any userport Wi-fi modem with the Zimodem firmware and with the RTS and CTS connected.
 
->[!NOTE] Wi-fi modems that have a UP9600 mode switch will work with Retroterm on the C-64, with the switch in the off position.</br>
+>[!NOTE]
+>Wi-fi modems that have a UP9600 mode switch will work with Retroterm on the C-64, with the switch in the off position.</br>
 >However, those modems might cause problems with the Plus/4
 
 If you want to build your own, you will need:
@@ -341,7 +346,8 @@ If you want to build your own, you will need:
 The following schematic is for use with the Swiftlink, Turbo232 or MSX RS-232 versions of Retroterm.
 The RS-232 connector shown correspond to a standard DE-9 RS-232 port. The actual pinout of your device's RS-232 interface might differ. Please consult your device manuals before building. 
 
->[!ATTENTION] This schematic does not invert the RTS and CTS control signals, read how to setup the modem correctly for this in the next section below
+>[!ATTENTION]
+>This schematic does not invert the RTS and CTS control signals, read how to setup the modem correctly for this in the next section below
 
 Parts list:
 
@@ -361,7 +367,8 @@ Parts list:
 
 This printer port modem is cheapest option to use Retroterm with an MSX computer that lacks a built-in RS-232 port.
 
-> [!NOTE} This modem needs an external USB power supply. Do not use another computer USB to power the modem at the same time you have it connected to the MSX.
+>[!NOTE]
+>This modem needs an external USB power supply. Do not use another computer USB to power the modem at the same time you have it connected to the MSX.
 
 For the simplest (and recommended) 38400bps version the part list is very short:
 
@@ -406,9 +413,11 @@ Once you have the firmware flashed, you need to setup the modem via USB, follow 
 
 To work with Retroterm the Wi-Fi modem needs to be setup at the correct baud rate and to use hardware flow control.
 
-> [!NOTE] The BadCat cartridge comes already configured with the correct settings. No further configuration is needed to use Retroterm
+> [!NOTE]
+> The BadCat cartridge comes already configured with the correct settings. No further configuration is needed to use Retroterm
 
-> [!NOTE] For all Commodore versions and the MSX RS-232 version, the default initialization string will setup correctly any Wi-fi modem using the Zimodem firmware 
+> [!NOTE]
+> For all Commodore versions and the MSX RS-232 version, the default initialization string will setup correctly any Wi-fi modem using the Zimodem firmware 
 
 For Zimodem firmware:
 
