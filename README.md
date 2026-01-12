@@ -9,6 +9,7 @@ Jorge Castillo & Pablo Roldán
 ![Badge commodore](https://img.shields.io/badge/Commodore-64%2f128%20%26%20Plus%2f4-1E2A4E?logo=commodore&logoColor=1E2A4E&labelColor=ccc) ![Badge MSX1](https://img.shields.io/badge/MSX1-darkred) ![GitHub all releases](https://img.shields.io/github/downloads/retrocomputacion/retroterm/total?labelColor=ccc) ![Badge license](https://img.shields.io/github/license/retrocomputacion/retroterm?labelColor=ccc) [![Discord](https://img.shields.io/discord/625776626356977674?logo=discord&logoColor=white&label=Discord&color=blue)](https://discord.gg/F2jmuUCBAG)
 
 ---
+
 </div>
 
 ## Table of contents:
@@ -51,9 +52,9 @@ Data rate is fixed at the following speeds:
 - 19200bps for Retroterm MSX for RS232
 - 57600bps for Retroterm BadCat (Zimodem firmware)
 
-> *(**)The full data throughput while using the turbo transfer / streaming can only be achieved with the screen disabled.*
+*(**)The full data throughput while using the turbo transfer / streaming can only be achieved with the screen disabled.*
 
-> [!ATTENTION]
+> [!IMPORTANT]
 > If experiencing PCM audio stutter with U1541-II, Ultimate 64, or Commodore 64U internal Swiftlink emulation, you need to the value of `Modem Settings->Tweaks->Loop Delay` to `10ms`
 
 The effective throughput for text is *1500 / 1800bps* depending on *PAL/NTSC* timings respectively.
@@ -424,18 +425,17 @@ For Zimodem firmware:
 - `ATB` is the command to change the baud rate, for example `ATB57600` will change the baud rate to 57600 immediately after sending it.
 - `ATF0` is the command to change the flow control to hardware (RTS/CTS). After sending this command on a terminal which doesn't support flow control (or when configuring the modem via USB), the modem might seem to stop responding, in reality the modem is still listening to commands but will not respond until its CTS line is set to the correct state.
 - Commands can be chained together: `ATF0B57600` will change the flow control and baud rate in a single command string. This is, with different speeds, the default initialization string used in the Commodore and MSX-232 versions.
+
+- `ATS48=1` and `ATS50=1` invert the polarity of the CTS and RTS lines respectively. These two commands are needed for the MSX printer port modems and the RS-232 modems if following the included schematic.
+
 - `AT&W` saves the current modem configuration. Only really need to use this command if you're setting up the __MSX printer port__ version of the modem. The best way to use it is: `ATF0B38400&W` Note how the save command is last.
-
-Only for RS-232 Wi-fi modems based on the schematic here and Zimodem firmware:
-
-- `ATS48=1` and `ATS50=1` invert the polarity of the CTS and RTS lines respectively. 
 
 ## 8 Acknowledgments
 ### Beta Testers
   
 - **Ezequiel Filgueiras**
 - **Thierry Kurt**
-- **Diego di Franceschi**
+- **Diego de Franceschi**
 - **ChrisKewl**
 - **Roberto Mandracchia**
 - **x1pepe**
