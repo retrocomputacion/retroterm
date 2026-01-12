@@ -70,7 +70,8 @@ The *MSX 1 printer port* versions use a simple printer port Wi-fi modem interfac
 
 ## 1.1 Release history
 
-### v0.30 (??/??/2026):
+### v0.30 (12/January/2026):
+- New MSX ports
 - Turbo56K v0.8
 - Drawing primitives: clear screen, plot, line, box, ellipse, fill
 - Ability to save a configuration file to disk.
