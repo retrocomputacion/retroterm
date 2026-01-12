@@ -34,7 +34,6 @@ Jorge Castillo & Pablo Roldán
 8. [Acknowledgments](#8-acknowledgments)
 
 ---
-<div>
 
 ## 1 Introduction
 
@@ -201,7 +200,7 @@ Finally, pressing `P` switches to the phone book screen, here you can select one
 >Dialing only works once _Retroterm_ has been initialized properly, meaning only when accessing the setup screen from within the terminal mode
 
 
->[!Important]
+>[!IMPORTANT]
 >Upon exiting the setup screen, _Retroterm_ will default to full screen text mode. Only previous background and border colors will be restored.
 
 ## 3 Building Retroterm
@@ -347,8 +346,12 @@ If you want to build your own, you will need:
 The following schematic is for use with the Swiftlink, Turbo232 or MSX RS-232 versions of Retroterm.
 The RS-232 connector shown correspond to a standard DE-9 RS-232 port. The actual pinout of your device's RS-232 interface might differ. Please consult your device manuals before building. 
 
->[!ATTENTION]
+>[!MPORTANT]
 >This schematic does not invert the RTS and CTS control signals, read how to setup the modem correctly for this in the next section below
+
+>[!NOTE]
+>This modem needs an external USB power supply. Do not use another computer USB to power the modem at the same time you have it connected to the MSX or Commodore.
+
 
 Parts list:
 
