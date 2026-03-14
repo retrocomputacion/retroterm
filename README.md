@@ -317,6 +317,7 @@ In any case the *[Turbo56k](docs/turbo56k.md)* version bytes that follow the ID 
 - All versions: Losing connection while streaming data or audio will hang the program
 - Commodore Plus/4 version: Exiting `Retroterm`, restarting it with `SYS28672`, exiting again and causing a BASIC error will crash the computer.
 - Commodore Plus/4 version: `Retroterm` will crash if loaded from the file browser included in _Joco's C264 SD drive cartridge_. Loading from BASIC using the @ commands works fine.
+- Commodore 64 versions: Using the _Dolphin DOS 2_ Kernal will prevent the use of the `CBM+F7` combo to access the setup screen and phonebook
 
 ## 5 To-do
 - Faster throughput when using any of the ACIA cartridges.
