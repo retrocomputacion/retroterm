@@ -6997,6 +6997,7 @@ earlysetup:
 	JSR _MemCpy		;Do mem copy
 	JSR res_prefs	; Reset preferences
 	JSR bck_data	; And init _sudtmp
+	+DisRoms a
 	LDA $BA			; Check last used device
 	CMP #$08
 	BCS ++

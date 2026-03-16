@@ -1,7 +1,7 @@
 <div align = center>
 
 # Retroterm
-### VERSION 0.30
+### VERSION 0.31
 
 Jorge Castillo & Pablo Roldán
 
@@ -69,6 +69,10 @@ The *MSX 1 BadCat* version (rt-bd.com) works with the BadCat cartridge or any ot
 The *MSX 1 printer port* versions use a simple printer port Wi-fi modem interface. The 56K version has reduced capabilities.
 
 ## 1.1 Release history
+
+### v0.31:
+
+- Fixed startup when running Retroterm with no disk drive attached on Commodore 64.
 
 ### v0.30 (12/January/2026):
 - New MSX ports
